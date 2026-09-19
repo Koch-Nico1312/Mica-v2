@@ -1,0 +1,22 @@
+{
+	auto_https disable_redirects
+}
+
+https://host.docker.internal:9443 {
+	tls C:/ProgramData/Mica/tls/host.crt C:/ProgramData/Mica/tls/host.key {
+		client_auth {
+			mode require_and_verify
+			trust_pool file C:/ProgramData/Mica/tls/broker-ca.crt
+		}
+	}
+	# Docker Desktop's host bridge reaches this Windows listener through the
+	# loopback proxy on the supported Phase-0 host. Never create a LAN listener.
+	bind 127.0.0.1
+	reverse_proxy 127.0.0.1:8766 {
+		# This route exists only after require_and_verify succeeded. The fixed
+		# values replace any inbound spoofed headers and match the agent's
+		# fail-closed internal protocol.
+		header_up X-Client-Cert-Verified SUCCESS
+		header_up X-Client-Cert-Subject {http.request.tls.client.subject}
+	}
+}

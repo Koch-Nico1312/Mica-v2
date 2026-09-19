@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d1117">
+  <title>MICA Mobile Emergency Hub</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --danger: #da3633;
+      --danger-hover: #b62324;
+      --warning: #d29922;
+      --success: #238636;
+      --cyan: #00e5ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 16px; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    h1 { font-size: 1.2rem; color: var(--text-bright); display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: bold; }
+    .badge-ok { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
+    .badge-stopped { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; }
+    
+    .btn-notaus {
+      display: block; width: 100%; padding: 20px; font-size: 1.3rem; font-weight: 900;
+      letter-spacing: 1px; color: white; background: var(--danger); border: none;
+      border-radius: 12px; cursor: pointer; text-align: center; text-transform: uppercase;
+      box-shadow: 0 4px 14px rgba(218, 54, 51, 0.4); margin-bottom: 20px; transition: background 0.15s;
+    }
+    .btn-notaus:active { background: var(--danger-hover); transform: scale(0.98); }
+    .btn-resume {
+      display: block; width: 100%; padding: 14px; font-size: 1.0rem; font-weight: bold;
+      color: white; background: var(--success); border: none; border-radius: 8px;
+      cursor: pointer; text-align: center; margin-bottom: 20px;
+    }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .card-title { font-size: 0.95rem; font-weight: bold; color: var(--text-bright); margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .metric-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px; }
+    .metric-val { font-size: 1.3rem; font-weight: bold; color: var(--cyan); }
+    .metric-lbl { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; margin-top: 2px; }
+
+    .alert-item { border-left: 4px solid var(--warning); padding: 8px 12px; margin-bottom: 8px; background: rgba(210, 153, 34, 0.05); border-radius: 0 6px 6px 0; }
+    .alert-item.critical { border-left-color: var(--danger); background: rgba(218, 54, 51, 0.05); }
+    .alert-title { font-weight: bold; font-size: 0.9rem; color: var(--text-bright); }
+    .alert-msg { font-size: 0.8rem; color: var(--text); margin-top: 4px; }
+
+    .ticket-item { border: 1px solid var(--border); padding: 12px; border-radius: 6px; margin-bottom: 10px; }
+    .ticket-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .btn-approve { flex: 1; padding: 8px; background: var(--success); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .btn-reject { flex: 1; padding: 8px; background: #30363d; color: var(--text-bright); border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+    #login-modal {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100;
+    }
+    .modal-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
+    .input-field { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: white; font-size: 1rem; }
+    .btn-login { width: 100%; padding: 12px; background: var(--cyan); color: black; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="login-modal" style="display: none;">
+    <div class="modal-box">
+      <h2 style="color: var(--text-bright); font-size: 1.1rem; margin-bottom: 8px;">Notfall-Authentifizierung</h2>
+      <p style="font-size: 0.85rem; color: #8b949e;">Gib den MICA Notfall-Token oder das Approval-Secret ein:</p>
+      <input type="password" id="secret-input" class="input-field" placeholder="Secret Key...">
+      <button id="login-btn" class="btn-login">Verbinden</button>
+      <div id="login-err" style="color: var(--danger); font-size: 0.8rem; margin-top: 8px; display: none;"></div>
+    </div>
+  </div>
+
+  <header>
+    <h1>🚨 MICA Mobile Emergency</h1>
+    <span id="system-status-badge" class="badge badge-ok">ONLINE</span>
+  </header>
+
+  <button id="notaus-btn" class="btn-notaus">🛑 NOT-AUS AUSLÖSEN</button>
+  <button id="resume-btn" class="btn-resume" style="display: none;">▶️ NOT-AUS AUFHEBEN</button>
+
+  <div class="card">
+    <div class="card-title">
+      <span>ZimaOS Homelab</span>
+      <span id="target-name" style="color: #8b949e; font-size: 0.8rem;">zimaos-local</span>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-val" id="val-cpu">-- %</div>
+        <div class="metric-lbl">CPU-Auslastung</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="val-ram">-- %</div>
+        <div class="metric-lbl">RAM-Belegung</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="val-disk">-- %</div>
+        <div class="metric-lbl">Disk-Nutzung</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val" id="val-containers" style="color: #3fb950;">0</div>
+        <div class="metric-lbl">Unhealthy Container</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Kritische Ambient-Alerts</span>
+      <span id="alerts-count" class="badge badge-ok">0</span>
+    </div>
+    <div id="alerts-list">
+      <div style="font-size: 0.85rem; color: #8b949e;">Keine aktiven Warnungen.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Autonome Freigabe-Tickets</span>
+      <span id="tickets-count" class="badge badge-ok">0</span>
+    </div>
+    <div id="tickets-list">
+      <div style="font-size: 0.85rem; color: #8b949e;">Keine anstehenden Aktionen.</div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let token = sessionStorage.getItem("mica_emergency_token") || "";
+
+    function checkAuth() {
+      if (!token) {
+        document.getElementById("login-modal").style.display = "flex";
+      } else {
+        document.getElementById("login-modal").style.display = "none";
+        refresh();
+      }
+    }
+
+    document.getElementById("login-btn").addEventListener("click", async () => {
+      const secret = document.getElementById("secret-input").value.trim();
+      const err = document.getElementById("login-err");
+      err.style.display = "none";
+      try {
+        const res = await fetch(`${API_BASE}/v1/emergency/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secret })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          token = data.token;
+          sessionStorage.setItem("mica_emergency_token", token);
+          checkAuth();
+        } else {
+          err.textContent = "Ungültiger Secret-Key.";
+          err.style.display = "block";
+        }
+      } catch (e) {
+        err.textContent = "Verbindungsfehler: " + e.message;
+        err.style.display = "block";
+      }
+    });
+
+    async function refresh() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API_BASE}/v1/emergency/overview`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.status === 401 || res.status === 403) {
+          token = "";
+          sessionStorage.removeItem("mica_emergency_token");
+          checkAuth();
+          return;
+        }
+        const data = await res.json();
+        renderOverview(data);
+      } catch (err) {
+        console.error("Refresh error:", err);
+      }
+    }
+
+    function renderOverview(data) {
+      const isStopped = data.emergency_stop_active;
+      const statusBadge = document.getElementById("system-status-badge");
+      const notausBtn = document.getElementById("notaus-btn");
+      const resumeBtn = document.getElementById("resume-btn");
+
+      if (isStopped) {
+        statusBadge.textContent = "NOT-AUS AKTIV";
+        statusBadge.className = "badge badge-stopped";
+        notausBtn.style.display = "none";
+        resumeBtn.style.display = "block";
+      } else {
+        statusBadge.textContent = "SYSTEM BEREIT";
+        statusBadge.className = "badge badge-ok";
+        notausBtn.style.display = "block";
+        resumeBtn.style.display = "none";
+      }
+
+      const s = data.server || {};
+      document.getElementById("val-cpu").textContent = (s.cpu_percent || 0).toFixed(1) + " %";
+      document.getElementById("val-ram").textContent = (s.memory_percent || 0).toFixed(1) + " %";
+      document.getElementById("val-disk").textContent = (s.disk_percent || 0).toFixed(1) + " %";
+      
+      const unh = s.unhealthy_containers || 0;
+      const cntEl = document.getElementById("val-containers");
+      cntEl.textContent = unh;
+      cntEl.style.color = unh > 0 ? "var(--danger)" : "#3fb950";
+
+      // Render alerts
+      const aList = document.getElementById("alerts-list");
+      const alerts = data.critical_alerts || [];
+      document.getElementById("alerts-count").textContent = alerts.length;
+      if (!alerts.length) {
+        aList.innerHTML = '<div style="font-size: 0.85rem; color: #8b949e;">Keine aktiven Warnungen.</div>';
+      } else {
+        aList.innerHTML = alerts.map(a => `
+          <div class="alert-item ${a.severity === 'critical' ? 'critical' : ''}">
+            <div class="alert-title">${a.title}</div>
+            <div class="alert-msg">${a.message}</div>
+          </div>
+        `).join("");
+      }
+
+      // Render tickets
+      const tList = document.getElementById("tickets-list");
+      const tickets = data.pending_tickets || [];
+      document.getElementById("tickets-count").textContent = tickets.length;
+      if (!tickets.length) {
+        tList.innerHTML = '<div style="font-size: 0.85rem; color: #8b949e;">Keine anstehenden Aktionen.</div>';
+      } else {
+        tList.innerHTML = tickets.map(t => `
+          <div class="ticket-item">
+            <div style="font-weight: bold; color: var(--text-bright);">${t.action} (${t.risk})</div>
+            <div style="font-size: 0.8rem; color: #8b949e; margin-top: 4px;">Ursprung: ${t.origin.trigger_type || 'unbekannt'}</div>
+            <div class="ticket-actions">
+              <button class="btn-approve" onclick="resolveTicket('${t.id}', true)">Freigeben</button>
+              <button class="btn-reject" onclick="resolveTicket('${t.id}', false)">Ablehnen</button>
+            </div>
+          </div>
+        `).join("");
+      }
+    }
+
+    document.getElementById("notaus-btn").addEventListener("click", async () => {
+      if (!confirm("NOT-AUS WIRKLICH AUSLÖSEN?\nAlle laufenden Pläne und autonomen Aktionen werden sofort abgebrochen!")) return;
+      try {
+        await fetch(`${API_BASE}/v1/emergency/stop`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        refresh();
+      } catch (e) {
+        alert("Not-Aus fehlgeschlagen: " + e.message);
+      }
+    });
+
+    document.getElementById("resume-btn").addEventListener("click", async () => {
+      if (!confirm("Not-Aus aufheben und Systembetrieb wieder fortsetzen?")) return;
+      try {
+        await fetch(`${API_BASE}/v1/emergency/resume`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        refresh();
+      } catch (e) {
+        alert("Aufheben fehlgeschlagen: " + e.message);
+      }
+    });
+
+    window.resolveTicket = async function(id, approve) {
+      try {
+        const res = await fetch(`${API_BASE}/v1/emergency/tickets/${id}/resolve`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ approve })
+        });
+        if (res.ok) {
+          refresh();
+        } else {
+          alert("Fehler bei Ticket-Bearbeitung.");
+        }
+      } catch (e) {
+        alert("Netzwerkfehler: " + e.message);
+      }
+    };
+
+    checkAuth();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

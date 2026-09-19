@@ -1,0 +1,288 @@
+name: mica
+
+x-mica-env: &mica-env
+  MICA_DATA_DIR: /data
+  BRAIN_DIR: /data/brain
+  INDEX_PATH: /data/index/brain.sqlite3
+  AUDIT_PATH: /data/audit/events.jsonl
+  APPROVAL_DB: /data/approvals.sqlite3
+  SCHEDULE_DB: /data/scheduler.sqlite3
+  IMPROVEMENT_DB: /data/improvements.sqlite3
+  IMPROVEMENT_WORKSPACE: /data/improvement-workspace
+  CONNECTOR_DB: /data/connectors.sqlite3
+  IDEMPOTENCY_DB: /data/idempotency.sqlite3
+  MICA_HEALTH_DIR: /data/health
+  LEARNING_DOMAINS_PATH: /data/learning/domains.json
+  MICA_LEARNING_NETWORK: ${MICA_LEARNING_NETWORK:-0}
+  MICA_LEARNING_MONITORING_ENABLED: ${MICA_LEARNING_MONITORING_ENABLED:-0}
+  MICA_PHASE3_ENABLED: ${MICA_PHASE3_ENABLED:-0}
+  MICA_AUTOMATIONS_ENABLED: ${MICA_AUTOMATIONS_ENABLED:-0}
+  MICA_PHASE4_ENABLED: ${MICA_PHASE4_ENABLED:-0}
+  MICA_SELF_PLANNING_ENABLED: ${MICA_SELF_PLANNING_ENABLED:-0}
+  MICA_SERVER_AGENT_ENABLED: ${MICA_SERVER_AGENT_ENABLED:-0}
+  MICA_DIGITAL_TWIN_ENABLED: ${MICA_DIGITAL_TWIN_ENABLED:-0}
+  MICA_SELF_IMPROVEMENT_ENABLED: ${MICA_SELF_IMPROVEMENT_ENABLED:-0}
+  MICA_SERVER_AGENT_TARGETS: ${MICA_SERVER_AGENT_TARGETS:-zimaos-local}
+
+services:
+  mica-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: uvicorn services.api.app:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *mica-env
+      LLAMA_URL: http://llama-server:8080
+      MICA_LLM_FALLBACK_URL: ${MICA_LLM_FALLBACK_URL:-http://llama-fallback:8080}
+      # Cloud LLMs remain opt-in. Keys come from the launcher process
+      # environment (Windows Credential Manager), never from the .env file.
+      MICA_LLM_PROVIDER: ${MICA_LLM_PROVIDER:-ollama}
+      MICA_OPENAI_MODEL: ${MICA_OPENAI_MODEL:-gpt-4.1-mini}
+      MICA_GEMINI_MODEL: ${MICA_GEMINI_MODEL:-gemini-2.5-flash}
+      MICA_CLOUD_ALLOW_PRIVATE_CONTEXT: ${MICA_CLOUD_ALLOW_PRIVATE_CONTEXT:-0}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      STT_URL: http://stt:8091
+      TTS_URL: http://tts:8092
+      TOOL_BROKER_URL: http://tool-broker:8093
+      MICA_ALLOWED_VOICE_ORIGINS: ${MICA_ALLOWED_VOICE_ORIGINS:-http://127.0.0.1:8088,http://localhost:8088}
+      MICA_APPROVAL_SECRET: ${MICA_APPROVAL_SECRET:?Set MICA_APPROVAL_SECRET in .env}
+      MICA_TELEGRAM_WEBHOOK_SECRET: ${MICA_TELEGRAM_WEBHOOK_SECRET:-}
+      MICA_TELEGRAM_INBOUND_CHAT_IDS: ${MICA_TELEGRAM_INBOUND_CHAT_IDS:-}
+      MICA_WHATSAPP_VERIFY_TOKEN: ${MICA_WHATSAPP_VERIFY_TOKEN:-}
+      MICA_WHATSAPP_APP_SECRET: ${MICA_WHATSAPP_APP_SECRET:-}
+      MICA_CONNECTOR_WEBHOOK_MAX_BYTES: ${MICA_CONNECTOR_WEBHOOK_MAX_BYTES:-262144}
+      MICA_PUSH_WEBHOOK_SECRET: ${MICA_PUSH_WEBHOOK_SECRET:-}
+      MICA_SIP_WEBHOOK_SECRET: ${MICA_SIP_WEBHOOK_SECRET:-}
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}:/data
+    ports:
+      - "127.0.0.1:${MICA_API_PORT:-8000}:8000"
+    # Do not accept requests while any mandatory local dependency is merely
+    # started but has not proved its own health endpoint yet.
+    depends_on:
+      llama-server:
+        condition: service_healthy
+      stt:
+        condition: service_healthy
+      tts:
+        condition: service_healthy
+      brain-index:
+        condition: service_healthy
+      tool-broker:
+        condition: service_healthy
+      scheduler:
+        condition: service_healthy
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    command: >-
+      -m /models/${LLAMA_MODEL:?Set LLAMA_MODEL in .env}
+      --host 0.0.0.0 --port 8080 --n-gpu-layers ${LLAMA_GPU_LAYERS:-12}
+      --ctx-size 8192
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/models:/models:ro
+    networks: [mica-internal]
+    # Verified against ghcr.io/ggml-org/llama.cpp:server-cuda: it ships curl
+    # and advertises this exact /health probe in its image configuration.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  llama-fallback:
+    profiles: [fallback]
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    command: >-
+      -m /models/${LLAMA_FALLBACK_MODEL:-Qwen3-1.7B-Q4_K_M.gguf}
+      --host 0.0.0.0 --port 8080 --n-gpu-layers ${LLAMA_FALLBACK_GPU_LAYERS:-0}
+      --ctx-size 4096
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/models:/models:ro
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 180s
+
+  stt:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.stt
+    environment:
+      WHISPER_MODEL: /models/${WHISPER_MODEL:?Set WHISPER_MODEL in .env}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-de}
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/models:/models:ro
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=3))['status']=='ok'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  tts:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tts
+    environment:
+      # `auto` couples cloud text with the same provider's voice. Local LLMs use
+      # the fixed local Kokoro voice. An explicit engine remains an override.
+      MICA_TTS_ENGINE: ${MICA_TTS_ENGINE:-auto}
+      MICA_LLM_PROVIDER: ${MICA_LLM_PROVIDER:-ollama}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      MICA_OPENAI_TTS_MODEL: ${MICA_OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      MICA_OPENAI_TTS_VOICE: ${MICA_OPENAI_TTS_VOICE:-coral}
+      MICA_GEMINI_TTS_MODEL: ${MICA_GEMINI_TTS_MODEL:-gemini-2.5-flash-preview-tts}
+      MICA_GEMINI_TTS_VOICE: ${MICA_GEMINI_TTS_VOICE:-Sulafat}
+      KOKORO_MODEL: /models/${KOKORO_MODEL:-kokoro/kokoro-v1_0.pth}
+      KOKORO_CONFIG: /models/${KOKORO_CONFIG:-kokoro/config.json}
+      KOKORO_VOICE: /models/${KOKORO_VOICE:-kokoro/voices/df_kerstin.pt}
+      PIPER_MODEL: /models/${PIPER_MODEL:-dii_de-DE.onnx}
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/models:/models:ro
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8092/health', timeout=3))['status']=='ok'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  brain-index:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m services.brain_index
+    environment: *mica-env
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}:/data
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from services.common.health import fresh; raise SystemExit(not fresh('brain-index', 45))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  tool-broker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: uvicorn services.tool_broker:app --host 0.0.0.0 --port 8093
+    environment:
+      <<: *mica-env
+      MICA_HOST_AGENT_URL: ${MICA_HOST_AGENT_URL:-}
+      MICA_HOST_AGENT_CA_FILE: /run/mica/host-agent/ca.crt
+      MICA_HOST_AGENT_CERT_FILE: /run/mica/host-agent/client.crt
+      MICA_HOST_AGENT_KEY_FILE: /run/mica/host-agent/client.key
+      MICA_TELEGRAM_BOT_TOKEN: ${MICA_TELEGRAM_BOT_TOKEN:-}
+      MICA_TELEGRAM_CHAT_ID: ${MICA_TELEGRAM_CHAT_ID:-}
+      MICA_WHATSAPP_ACCESS_TOKEN: ${MICA_WHATSAPP_ACCESS_TOKEN:-}
+      MICA_WHATSAPP_PHONE_NUMBER_ID: ${MICA_WHATSAPP_PHONE_NUMBER_ID:-}
+      MICA_PUSH_URL: ${MICA_PUSH_URL:-}
+      MICA_PUSH_TOPIC: ${MICA_PUSH_TOPIC:-mica}
+      MICA_PUSH_TOKEN: ${MICA_PUSH_TOKEN:-}
+      MICA_SIP_ARI_URL: ${MICA_SIP_ARI_URL:-}
+      MICA_SIP_ARI_USER: ${MICA_SIP_ARI_USER:-}
+      MICA_SIP_ARI_PASSWORD: ${MICA_SIP_ARI_PASSWORD:-}
+      MICA_SIP_ALLOWED_DESTINATIONS: ${MICA_SIP_ALLOWED_DESTINATIONS:-}
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}:/data
+      # Only the broker receives the outbound mTLS client material.
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/host-agent-client:/run/mica/host-agent:ro
+    # A separate network is used only when the optional, separately deployed
+    # mTLS host agent is configured. It never exposes a host mount or socket.
+    networks: [mica-internal, mica-host-agent]
+    # Intentionally no Docker socket, host filesystem mount, or privileged mode.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8093/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m services.scheduler
+    environment: *mica-env
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}:/data
+    networks: [mica-internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from services.common.health import fresh; raise SystemExit(not fresh('scheduler', 75))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m services.static_server
+    environment:
+      WEB_ROOT: /app/web_ui
+      PORT: 8088
+    ports:
+      - "127.0.0.1:${MICA_WEB_PORT:-8088}:8088"
+    networks: [mica-edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2.8-alpine
+    depends_on:
+      mica-api:
+        condition: service_healthy
+      web-ui:
+        condition: service_healthy
+    environment:
+      MICA_PUBLIC_HOST: ${MICA_PUBLIC_HOST:?Set MICA_PUBLIC_HOST in .env}
+    ports:
+      - "${MICA_HTTP_PORT:-80}:80"
+      - "${MICA_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}/caddy:/data
+      - caddy-config:/config
+    networks: [mica-internal, mica-edge]
+    # caddy:2.8-alpine was verified to ship BusyBox wget, but not a client
+    # that can trust Caddy's private CA. Probe the dedicated localhost route
+    # in Caddyfile.example: it still crosses Caddy and its private API proxy.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --header=\"Host: localhost\" http://127.0.0.1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  mica-internal:
+    internal: true
+  mica-edge: {}
+  mica-host-agent: {}
+
+volumes:
+  caddy-config: {}

@@ -1,0 +1,15 @@
+:9443 {
+    tls /certs/host-agent.crt /certs/host-agent.key {
+        client_auth {
+            mode require_and_verify
+            trust_pool file /certs/broker-ca.crt
+        }
+    }
+
+    # The proxy is the only process permitted to assert these headers. Do not
+    # publish the FastAPI port itself on the network.
+    reverse_proxy 127.0.0.1:8094 {
+        header_up X-Client-Cert-Verified "SUCCESS"
+        header_up X-Client-Cert-Subject "{http.request.tls.client.subject}"
+    }
+}

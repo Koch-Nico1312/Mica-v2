@@ -35,6 +35,7 @@ except ImportError:
 
 from google import genai
 from google.genai import types as gtypes
+from memory.config_manager import get_voice
 
 def _base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -265,7 +266,7 @@ class _VisionSession:
             speech_config=gtypes.SpeechConfig(
                 voice_config=gtypes.VoiceConfig(
                     prebuilt_voice_config=gtypes.PrebuiltVoiceConfig(
-                        voice_name="Charon"
+                        voice_name=get_voice()
                     )
                 )
             ),

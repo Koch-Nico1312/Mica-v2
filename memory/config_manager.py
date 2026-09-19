@@ -76,17 +76,29 @@ def save_assistant_config(assistant_name: str, user_name: str) -> None:
 
 
 # ── Assistant voice ──────────────────────────────────────────────────────────
-# Gemini Live prebuilt voices. Names are proper nouns — identical in every
-# language, so this list is safe to show verbatim in any locale.
-AVAILABLE_VOICES = ["Charon", "Puck", "Kore", "Fenrir", "Aoede"]
-DEFAULT_VOICE    = "Charon"
-
+# MICA has one stable voice identity: every selectable Gemini Live voice is
+# female.  Older configs that contain Charon/Puck/Fenrir are migrated safely
+# by get_voice() to the default instead of reusing a male voice.
+AVAILABLE_VOICES = ["Aoede", "Kore"]
+DEFAULT_VOICE    = "Aoede"
 
 def get_voice() -> str:
-    """Return the configured Live voice, falling back to the default if unset
-    or if the stored value is not a voice we recognise."""
-    v = load_api_keys().get("voice_name", DEFAULT_VOICE) or DEFAULT_VOICE
-    return v if v in AVAILABLE_VOICES else DEFAULT_VOICE
+    """Return a female Live voice and persist migration of legacy values."""
+    data = load_api_keys()
+    stored = data.get("voice_name")
+    selected = stored if stored in AVAILABLE_VOICES else DEFAULT_VOICE
+
+    # Old releases offered male voices such as Charon, Puck and Fenrir.  A
+    # runtime-only fallback would leave the stale value on disk forever and
+    # let another config reader revive it, so migrate an existing bad value.
+    if "voice_name" in data and stored != selected:
+        try:
+            _patch_config(voice_name=selected)
+        except OSError as exc:
+            # A read-only config must not prevent MICA from starting.  The
+            # safe in-memory value is still returned for this session.
+            print(f"[Config] Could not migrate voice_name: {exc}")
+    return selected
 
 
 def save_voice(voice_name: str) -> None:
