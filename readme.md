@@ -65,8 +65,8 @@ MICA V2 is a sophisticated AI assistant that combines advanced multi-agent coord
 
 ```bash
 # Clone the repository
-git clone https://github.com/FatihMakes/Mark-LII.git
-cd Mark-LII
+git clone https://github.com/Koch-Nico1312/Mica-v2.git
+cd Mica-v2
 
 # Install dependencies
 pip install -r requirements.txt
@@ -311,7 +311,6 @@ This project is licensed under the terms specified in the [LICENSE](LICENSE) fil
 
 ## 🙏 Acknowledgments
 
-- Built on the foundation of Mark LII by FatihMakes
 - Uses Google Gemini API for advanced AI capabilities
 - Integrates Ollama for local LLM inference
 - Powered by Python and the open-source community
