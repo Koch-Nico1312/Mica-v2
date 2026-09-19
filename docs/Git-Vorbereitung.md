@@ -47,7 +47,7 @@ git push -u origin main
 
 ### Option 2: Bestehendes Repository nutzen
 
-Wenn Sie das bestehende Repository (Mark-LII) für MICA V2 nutzen möchten:
+Wenn Sie das bestehende Repository für MICA V2 nutzen möchten:
 
 ```bash
 # 1. Alle Änderungen stagen
@@ -93,7 +93,7 @@ Wenn Sie das bestehende Repository forken und umbenennen möchten:
 
 # 2. Remote URL ändern
 cd "C:\Users\kochn_lrehka5\Desktop\Mica V2"
-git remote set-url origin https://github.com/YOUR_USERNAME/Mark-LII.git
+git remote set-url origin https://github.com/YOUR_USERNAME/Mica-v2.git
 
 # 3. Änderungen commiten und pushen
 git add .
