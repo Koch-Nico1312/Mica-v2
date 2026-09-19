@@ -1,0 +1,135 @@
+name: mica-test-sandbox
+
+services:
+  ssh-test-runner:
+    image: mica-test-sandbox:local
+    build:
+      context: .
+      dockerfile: docker/test-sandbox/Dockerfile
+    hostname: mica-test-sandbox
+    init: true
+    restart: "no"
+    read_only: true
+    working_dir: /workspace
+    environment:
+      HOME: /home/codex-test
+      PYTHONPATH: /workspace:/workspace/mica_core
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      TMPDIR: /tmp
+      # Parser bundles are populated while building, then consumed read-only.
+      XDG_CACHE_HOME: /opt/mica-build/.cache
+    expose:
+      - "22"
+    volumes:
+      # The checked source cannot be changed from the SSH session.
+      - type: bind
+        source: ${MICA_TEST_SOURCE_DIR:-.}
+        target: /workspace
+        read_only: true
+      # The only persistent writable workspace inside the sandbox.
+      - type: volume
+        source: sandbox-work
+        target: /work
+      # A stable, sandbox-specific server identity; never a host SSH key.
+      - type: volume
+        source: sandbox-ssh-hostkeys
+        target: /etc/ssh/hostkeys
+    secrets:
+      - source: sandbox-authorized-keys
+        target: sandbox_authorized_keys
+    tmpfs:
+      - /run:rw,nosuid,nodev,noexec,size=16m,mode=0755
+      - /tmp:rw,nosuid,nodev,noexec,size=512m,mode=1777
+      - /home/codex-test:rw,nosuid,nodev,noexec,size=128m,mode=0700,uid=10001,gid=10001
+    networks:
+      - sandbox-only
+    cap_drop:
+      - ALL
+    # sshd starts as root only to bind port 22 and become uid 10001 after auth.
+    # These are the minimal capabilities required for that privilege drop.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+      - SYS_CHROOT
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: ${MICA_TEST_MEMORY_LIMIT:-4g}
+    cpus: ${MICA_TEST_CPUS:-2.0}
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x sshd >/dev/null && /usr/sbin/sshd -t -f /etc/ssh/sshd_config"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "2"
+
+  ssh-gateway:
+    image: mica-test-ssh-gateway:local
+    build:
+      context: .
+      dockerfile: docker/test-sandbox/Dockerfile.gateway
+    init: true
+    restart: "no"
+    read_only: true
+    depends_on:
+      ssh-test-runner:
+        condition: service_healthy
+    command:
+      - TCP-LISTEN:2222,fork,reuseaddr
+      - TCP:ssh-test-runner:22,connect-timeout=5
+    ports:
+      # Keep the default loopback-only. For another LAN device, set this to
+      # the server's exact LAN/VPN address and restrict that port in its firewall.
+      - "${MICA_TEST_BIND_ADDRESS:-127.0.0.1}:${MICA_TEST_SSH_PORT:-2222}:2222"
+    networks:
+      - sandbox-only
+      - sandbox-ingress
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z -w 2 ssh-test-runner 22"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+networks:
+  sandbox-only:
+    # The untrusted runner has no Internet/default gateway at runtime.
+    internal: true
+  # Only the capability-free TCP forwarder joins this ordinary bridge. It has
+  # no repository, authorized key, writable state or interactive shell.
+  sandbox-ingress: {}
+
+volumes:
+  sandbox-work: {}
+  sandbox-ssh-hostkeys: {}
+
+secrets:
+  sandbox-authorized-keys:
+    # This file contains public keys only. The private key stays on the client.
+    file: ${MICA_TEST_AUTHORIZED_KEYS:?Set MICA_TEST_AUTHORIZED_KEYS to an authorized_keys file}

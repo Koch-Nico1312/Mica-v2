@@ -1,0 +1,12 @@
+FROM ghcr.io/ggerganov/whisper.cpp:main
+WORKDIR /app
+COPY services/stt_service.py /app/stt_service.py
+RUN apt-get update && apt-get install -y --no-install-recommends python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /opt/mica-venv \
+    && /opt/mica-venv/bin/pip install --no-cache-dir fastapi "uvicorn[standard]"
+ENV PATH=/opt/mica-venv/bin:$PATH \
+    WHISPER_BIN=/app/build/bin/whisper-cli
+EXPOSE 8091
+ENTRYPOINT []
+CMD ["python", "-m", "uvicorn", "stt_service:app", "--host", "0.0.0.0", "--port", "8091"]

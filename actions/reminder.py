@@ -33,6 +33,58 @@ def _scripts_dir() -> Path:
     return d
 
 
+def _reminder_index_path() -> Path:
+    """A small local index for the assistant UI; scheduler remains canonical."""
+    return _scripts_dir() / "reminders.json"
+
+
+def _load_reminder_index() -> list[dict]:
+    try:
+        data = json.loads(_reminder_index_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save_reminder_index(entries: list[dict]) -> None:
+    _reminder_index_path().write_text(
+        json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def _record_reminder(target_dt: datetime, message: str, job_id: str) -> None:
+    entries = _load_reminder_index()
+    entries.append({
+        "when": target_dt.strftime("%Y-%m-%d %H:%M"),
+        "message": message,
+        "job_id": job_id,
+    })
+    _save_reminder_index(entries[-200:])
+
+
+def list_upcoming_reminders(limit: int = 10) -> list[dict]:
+    """Return readable, future local reminders for context surfaces.
+
+    This does not claim to inspect every OS scheduler.  It reports only the
+    reminders that this action successfully registered and indexed locally.
+    """
+    now = datetime.now()
+    upcoming: list[tuple[datetime, dict]] = []
+    for entry in _load_reminder_index():
+        try:
+            when = datetime.strptime(str(entry.get("when", "")), "%Y-%m-%d %H:%M")
+        except (TypeError, ValueError):
+            continue
+        if when > now:
+            upcoming.append((when, entry))
+    upcoming.sort(key=lambda item: item[0])
+    return [
+        {"when": when.strftime("%a, %d. %b · %H:%M"),
+         "message": str(entry.get("message", "Erinnerung"))}
+        for when, entry in upcoming[:max(0, limit)]
+    ]
+
+
 def _sanitise(text: str, max_len: int = 200) -> str:
     return (
         text.replace("\\", "")
@@ -329,6 +381,13 @@ def reminder(
 
     if not job_id:
         return "I couldn't register the reminder with the system scheduler."
+
+    try:
+        _record_reminder(target_dt, safe_msg, job_id)
+    except Exception as e:
+        # The operating-system reminder still exists; a missing HUD index
+        # must never make a successfully registered reminder look like failure.
+        print(f"[Reminder] ⚠️ Could not update local reminder index: {e}")
 
     if player:
         player.write_log(f"[Reminder] ✅ {date_str} {time_str} — {safe_msg[:40]}")

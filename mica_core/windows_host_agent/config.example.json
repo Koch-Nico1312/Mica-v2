@@ -1,0 +1,26 @@
+{
+  "trusted_broker_subject": "CN=mica-tool-broker",
+  "allow_broker_resume": false,
+  "allowed_actions": [
+    "manage_monitor",
+    "browser_control",
+    "code_helper",
+    "computer_control",
+    "computer_settings",
+    "desktop_control",
+    "dev_agent",
+    "file_controller",
+    "file_processor",
+    "flight_finder",
+    "game_updater",
+    "open_app",
+    "proactive",
+    "reminder",
+    "screen_process",
+    "send_message",
+    "system_status",
+    "weather_report",
+    "web_search",
+    "youtube_video"
+  ]
+}
