@@ -3,7 +3,7 @@
 ## Aktueller Git-Status
 
 Das Projekt hat bereits ein Git-Repository konfiguriert:
-- **Remote:** https://github.com/FatihMakes/Mark-LII.git
+- **Remote:** https://github.com/Koch-Nico1312/Mica-v2.git
 - **Branch:** main
 - **Status:** Multiple changes committed, many untracked files
 
@@ -88,7 +88,7 @@ Wenn Sie das bestehende Repository forken und umbenennen möchten:
 
 ```bash
 # 1. Auf GitHub forken
-# Gehen Sie zu https://github.com/FatihMakes/Mark-LII
+# Gehen Sie zu https://github.com/Koch-Nico1312/Mica-v2
 # Klicken Sie auf "Fork"
 
 # 2. Remote URL ändern
