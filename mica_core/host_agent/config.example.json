@@ -1,0 +1,33 @@
+{
+  "trusted_broker_subject": "mica-tool-broker",
+  "files_root": "/data",
+  "trash_root": "/data/.mica-trash",
+  "improvement_root": "/data/improvement-workspace/worktrees",
+  "improvement_runtime_root": "/data/improvement-workspace/runtime",
+  "network_profiles": {},
+  "admin_actions": {},
+  "allowed_containers": [
+    "mica-api",
+    "llama-server",
+    "stt",
+    "tts",
+    "brain-index",
+    "tool-broker",
+    "scheduler",
+    "web-ui",
+    "caddy"
+  ],
+  "allowed_scopes": [
+    "system.status",
+    "files.list",
+    "files.create",
+    "files.move",
+    "files.delete",
+    "network.change",
+    "docker.status",
+    "docker.lifecycle",
+    "system.admin",
+    "improvement.shadow",
+    "improvement.invoke"
+  ]
+}

@@ -1,0 +1,27 @@
+# Serve MICA through HTTPS on the LAN. Both Compose ports bind only to
+# loopback; do not publish them directly. Replace the hostname and choose a
+# certificate strategy appropriate for the LAN (Caddy's `tls internal` needs
+# its local CA trusted by each client).
+http://localhost {
+	# This host is used solely by Caddy's in-container healthcheck. It proves
+	# that Caddy can reach the API on the private network without requiring the
+	# BusyBox wget in the stock image to trust Caddy's internal CA. Public LAN
+	# traffic uses MICA_PUBLIC_HOST below and is still HTTPS-only.
+	@health path /health
+	reverse_proxy @health mica-api:8000
+	respond "Not found" 404
+}
+
+{$MICA_PUBLIC_HOST} {
+	tls internal
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy "microphone=(self), camera=()"
+		Content-Security-Policy "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+	}
+
+	@api path /v1/* /health
+	reverse_proxy @api mica-api:8000
+	reverse_proxy web-ui:8088
+}

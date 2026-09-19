@@ -67,6 +67,7 @@ from actions.browser_control   import browser_control
 from actions.file_controller   import file_controller
 from actions.code_helper       import code_helper
 from actions.dev_agent         import dev_agent
+from actions.advanced_agent    import advanced_agent
 from actions.web_search        import web_search as web_search_action
 from actions.computer_control  import computer_control
 from actions.game_updater      import game_updater
@@ -83,6 +84,7 @@ from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
 from core                      import confirm as confirm_gate
 from core                      import audio_devices
+from core.genai_response       import response_text
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -423,6 +425,35 @@ TOOL_DECLARATIONS = [
                 "timeout":      {"type": "INTEGER", "description": "Run timeout in seconds (default: 30)"},
             },
             "required": ["description"]
+        }
+    },
+    {
+        "name": "advanced_agent",
+        "description": (
+            "Advanced multi-agent system with project management, intelligent model routing, "
+            "and process-isolated plugins. Use for: inspecting projects, analyzing code tasks, "
+            "executing coordinated multi-agent workflows, routing LLM requests by cost/complexity, "
+            "and managing isolated plugins with crash protection."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {
+                    "type": "STRING",
+                    "description": (
+                        "inspect_project | analyze_task | execute_task | project_status | "
+                        "submit_task | route_llm | plugin_health | model_usage"
+                    ),
+                },
+                "project_path": {"type": "STRING", "description": "Path to project root (for code agent actions)"},
+                "task_description": {"type": "STRING", "description": "Description of the task"},
+                "agent_type": {"type": "STRING", "description": "Agent type: research | code | server | orchestrator"},
+                "task_params": {"type": "OBJECT", "description": "Additional parameters for agent task"},
+                "priority": {"type": "INTEGER", "description": "Task priority 1-10 (default: 5)"},
+                "task_context": {"type": "OBJECT", "description": "Context for model routing/analysis"},
+                "force_model_tier": {"type": "STRING", "description": "Force model tier: local_fast | local_balanced | cloud_economy | cloud_performance"},
+            },
+            "required": ["action"],
         }
     },
     {
@@ -1114,6 +1145,10 @@ class JarvisLive:
                 r = await loop.run_in_executor(None, lambda: dev_agent(parameters=args, player=self.ui, speak=self.speak))
                 result = r or "Done."
 
+            elif name == "advanced_agent":
+                r = await loop.run_in_executor(None, lambda: advanced_agent(parameters=args, player=self.ui, speak=self.speak))
+                result = r or "Done."
+
             elif name == "web_search":
                 r = await loop.run_in_executor(None, lambda: web_search_action(parameters=args, player=self.ui))
                 result = r or "Done."
@@ -1641,7 +1676,7 @@ class JarvisLive:
                 model="gemini-flash-latest",
                 contents=prompt,
             )
-            summary = (resp.text or "").strip()
+            summary = response_text(resp)
             if summary:
                 save_session_summary(summary, lang)
         except Exception as e:

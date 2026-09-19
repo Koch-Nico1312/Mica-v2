@@ -5,6 +5,8 @@ import threading
 import time
 from pathlib import Path
 
+from core.genai_response import response_text
+
 # ── Gemini grounding quota circuit breaker ────────────────────────────────────
 # The google_search grounding tool has its own small quota, separate from plain
 # generation.  Once it is spent every call returns 429 — so retrying it at the
@@ -86,21 +88,16 @@ def _gemini_search(query: str) -> str:
 
     client = genai.Client(api_key=_get_api_key())
     try:
-        response = client.models.generate_content(
+        chat = client.chats.create(
             model="gemini-flash-latest",
-            contents=query,
             config={"tools": [{"google_search": {}}]},
         )
+        response = chat.send_message(query)
     except Exception as e:
         _note_gemini_error(e)
         raise
 
-    text = ""
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, "text") and part.text:
-            text += part.text
-
-    text = text.strip()
+    text = response_text(response)
     if not text:
         raise ValueError("Gemini returned an empty response.")
     return text
@@ -208,16 +205,14 @@ def _gemini_headlines(n: int = 5) -> tuple[list[str], str]:
     from google import genai
 
     client = genai.Client(api_key=_get_api_key())
-    response = client.models.generate_content(
+    chat = client.chats.create(
         model="gemini-flash-latest",
-        contents=f"Current world news: {n} headlines. Numbered list, titles only.",
         config={"tools": [{"google_search": {}}]},
     )
-
-    raw = ""
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, "text") and part.text:
-            raw += part.text
+    response = chat.send_message(
+        f"Current world news: {n} headlines. Numbered list, titles only."
+    )
+    raw = response_text(response)
 
     headlines = []
     for line in raw.strip().split("\n"):

@@ -27,3 +27,6 @@ win10toast; sys_platform == "win32"
 pywinauto; sys_platform == "win32"
 pywin32; sys_platform == "win32"
 qrcode[pil]
+keyring>=25.7,<26; sys_platform == "win32"
+openwakeword>=0.6,<0.7; sys_platform == "win32"
+websocket-client>=1.8,<2.0

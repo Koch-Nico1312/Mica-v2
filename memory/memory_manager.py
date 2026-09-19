@@ -148,7 +148,15 @@ def _recursive_update(target: dict, updates: dict) -> bool:
                 changed = True
         else:
             new_val  = _truncate_value(str(value["value"] if isinstance(value, dict) else value))
-            entry    = {"value": new_val, "updated": datetime.now().strftime("%Y-%m-%d")}
+            now      = datetime.now()
+            # Keep the old day-only field for backwards-compatible displays,
+            # and add a precise local timestamp so context surfaces can select
+            # the truly latest project when several change on one day.
+            entry    = {
+                "value": new_val,
+                "updated": now.strftime("%Y-%m-%d"),
+                "updated_at": now.isoformat(timespec="seconds"),
+            }
             existing = target.get(key, {})
             if not isinstance(existing, dict) or existing.get("value") != new_val:
                 target[key] = entry

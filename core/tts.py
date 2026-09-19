@@ -13,9 +13,6 @@ import queue as _queue
 import threading
 from typing import Callable, Optional
 
-import numpy as np
-import sounddevice as sd
-
 
 
 # USE_TF=0 stops transformers from importing TensorFlow (saves 4-8 s startup).
@@ -39,6 +36,8 @@ def _to_numpy(samples) -> np.ndarray:
     when numpy 2.x is installed.  The .tolist() fallback always works regardless
     of PyTorch / numpy version pairing.
     """
+    import numpy as np
+
     if hasattr(samples, "detach"):                  # PyTorch tensor
         t = samples.detach().cpu().float()
         try:
@@ -59,6 +58,8 @@ def _compress_silence(
     Shorten Kokoro's very long punctuation pauses (1-2 s → ≤500 ms).
     Conservative settings preserve natural prosody; only trims extreme pauses.
     """
+    import numpy as np
+
     max_samp  = int(max_silence_ms * sample_rate / 1000)
     frame_len = 240                   # ~10 ms at 24 kHz
     out: list[np.ndarray] = []
@@ -81,6 +82,8 @@ def _play_np(samples, sample_rate: int) -> None:
     """Play float32 mono (or stereo) audio via sounddevice.
     Accepts numpy arrays or PyTorch tensors.
     """
+    import sounddevice as sd
+
     sd.play(_to_numpy(samples), sample_rate)
     sd.wait()
 
@@ -88,6 +91,9 @@ def _play_np(samples, sample_rate: int) -> None:
 def _play_audio_bytes(audio_bytes: bytes) -> None:
     """Decode MP3/WAV/OGG bytes and play via sounddevice (uses miniaudio)."""
     import miniaudio
+    import numpy as np
+    import sounddevice as sd
+
     decoded = miniaudio.decode(
         audio_bytes,
         output_format=miniaudio.SampleFormat.FLOAT32,
@@ -102,11 +108,28 @@ def _play_audio_bytes(audio_bytes: bytes) -> None:
 # Engines
 # ---------------------------------------------------------------------------
 
+DEFAULT_EDGE_FEMALE_VOICE = "de-DE-KatjaNeural"
+DEFAULT_KOKORO_FEMALE_VOICE = "df_kerstin"
+DEFAULT_ELEVENLABS_FEMALE_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel -> Janet
+KOKORO_FEMALE_VOICES = frozenset({DEFAULT_KOKORO_FEMALE_VOICE, "af_heart"})
+
+
+def select_female_tts_voice(engine_name: str, requested: str = "") -> str:
+    """Return a known female voice for every supported TTS provider."""
+    engine_name = (engine_name or "edgetts").lower()
+    requested = (requested or "").strip()
+    if engine_name == "kokoro":
+        return requested if requested in KOKORO_FEMALE_VOICES else DEFAULT_KOKORO_FEMALE_VOICE
+    if engine_name == "elevenlabs":
+        return DEFAULT_ELEVENLABS_FEMALE_VOICE_ID
+    return DEFAULT_EDGE_FEMALE_VOICE
+
+
 class EdgeTTSEngine:
     """Microsoft EdgeTTS – free, requires internet."""
 
-    def __init__(self, voice: str = "en-US-GuyNeural"):
-        self.voice = voice
+    def __init__(self, voice: str = DEFAULT_EDGE_FEMALE_VOICE):
+        self.voice = select_female_tts_voice("edgetts", voice)
 
     def speak(self, text: str) -> None:
         loop = asyncio.new_event_loop()
@@ -152,6 +175,18 @@ def _import_kokoro_pipeline():
 
     def _try_import():
         from kokoro import KPipeline  # noqa: PLC0415
+        # Kokoro 0.9.4 does not register its German language code even though
+        # the official German voices use the ``d`` prefix.  Registering both
+        # directions keeps df_kerstin genuinely German instead of silently
+        # falling back to the American-English pipeline.
+        try:
+            from kokoro import pipeline as kokoro_pipeline
+            kokoro_pipeline.LANG_CODES.setdefault("d", "de")
+            kokoro_pipeline.ALIASES.setdefault("de", "d")
+        except (AttributeError, ImportError):
+            # Later Kokoro releases may move/remove these compatibility maps
+            # because German is supported natively there.
+            pass
         return KPipeline
 
     try:
@@ -208,6 +243,7 @@ _KOKORO_LANG_CODES = {
     "p": "p",   # Brazilian Portuguese
     "r": "r",   # Russian           (rf_*, rm_*)
     "e": "e",   # German            (ef_*, em_*)
+    "d": "d",   # German            (df_*, dm_*; Kokoro 0.9.x)
 }
 
 
@@ -223,8 +259,8 @@ class KokoroTTSEngine:
     the first real speak() call has zero compilation overhead.
     """
 
-    def __init__(self, voice: str = "af_heart", speed: float = 1.0):
-        self.voice     = voice
+    def __init__(self, voice: str = DEFAULT_KOKORO_FEMALE_VOICE, speed: float = 1.0):
+        self.voice     = select_female_tts_voice("kokoro", voice)
         self.speed     = speed
         self._pipeline = None
         self._lock     = threading.Lock()
@@ -353,9 +389,10 @@ class KokoroTTSEngine:
 class ElevenLabsTTSEngine:
     """ElevenLabs cloud TTS – API key required."""
 
-    def __init__(self, api_key: str, voice_id: str = "pNInz6obpgDQGcFmaJgB"):
+    def __init__(self, api_key: str,
+                 voice_id: str = DEFAULT_ELEVENLABS_FEMALE_VOICE_ID):
         self.api_key  = api_key
-        self.voice_id = voice_id
+        self.voice_id = select_female_tts_voice("elevenlabs", voice_id)
 
     def speak(self, text: str) -> None:
         import requests
@@ -417,6 +454,8 @@ class TTSPlayer:
                 on_done()
 
     def stop(self) -> None:
+        import sounddevice as sd
+
         sd.stop()
         with self._lock:
             self._playing = False
@@ -429,14 +468,16 @@ class TTSPlayer:
 def create_tts_player(config: dict) -> TTSPlayer:
     engine_name = config.get("tts_engine", "edgetts").lower()
     if engine_name == "kokoro":
-        voice  = config.get("tts_voice", "af_heart")
+        requested = str(config.get("tts_voice", "") or "").strip()
+        voice = select_female_tts_voice(engine_name, requested)
         speed  = float(config.get("tts_speed", 1.0))
         engine = KokoroTTSEngine(voice=voice, speed=speed)
     elif engine_name == "elevenlabs":
         api_key  = config.get("elevenlabs_api_key", "")
-        voice_id = config.get("tts_voice", "pNInz6obpgDQGcFmaJgB")
-        engine   = ElevenLabsTTSEngine(api_key=api_key, voice_id=voice_id)
+        engine = ElevenLabsTTSEngine(
+            api_key=api_key,
+            voice_id=select_female_tts_voice(engine_name),
+        )
     else:   # edgetts (default)
-        voice  = config.get("tts_voice", "en-US-GuyNeural")
-        engine = EdgeTTSEngine(voice=voice)
+        engine = EdgeTTSEngine(voice=select_female_tts_voice(engine_name))
     return TTSPlayer(engine)
