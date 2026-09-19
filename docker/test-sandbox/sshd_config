@@ -1,0 +1,43 @@
+Port 22
+Protocol 2
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+HostKey /etc/ssh/hostkeys/ssh_host_ed25519_key
+PidFile /run/sshd.pid
+
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PermitEmptyPasswords no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+AuthorizedKeysFile /run/sshd/authorized_keys
+StrictModes yes
+AllowUsers codex-test
+UsePAM no
+
+DisableForwarding yes
+AllowAgentForwarding no
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+X11Forwarding no
+GatewayPorts no
+PermitTunnel no
+PermitUserEnvironment no
+PermitUserRC no
+SetEnv PYTHONPATH=/workspace:/workspace/mica_core PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 TMPDIR=/tmp XDG_CACHE_HOME=/opt/mica-build/.cache
+
+LoginGraceTime 20
+MaxAuthTries 3
+MaxSessions 4
+ClientAliveInterval 300
+ClientAliveCountMax 2
+TCPKeepAlive no
+
+PrintMotd no
+PrintLastLog yes
+LogLevel VERBOSE
+Subsystem sftp internal-sftp

@@ -1,0 +1,10 @@
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+httpx>=0.27,<1.0
+pydantic>=2.8,<3.0
+# Local Markdown/code chunking for the rebuildable Brain index.  It is used
+# only inside the Compose network and never sends documents to a hosted API.
+chonkie[code]==1.7.0
+# Chonkie 1.7.0 expects the typed process result used by the 1.8 line;
+# 1.16 returns a plain dict and breaks CodeChunker._process_code.
+tree-sitter-language-pack==1.8.1

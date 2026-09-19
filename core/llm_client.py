@@ -1,7 +1,8 @@
 """
-Local LLM client for MARK XL.
+Local-first LLM client for MICA.
 
-Supports two backends — selected via  "llm_provider"  in config/api_keys.json:
+Backends are selected explicitly with ``MICA_LLM_PROVIDER`` (or the legacy
+``llm_provider`` config value):
 
   "llm_provider": "ollama"   (default)
         Uses Ollama's native /api/chat endpoint.
@@ -15,9 +16,22 @@ Supports two backends — selected via  "llm_provider"  in config/api_keys.json:
         Set  "llm_url": "http://localhost:1234"  in config.
         Note: tool-calling support depends on the model; use a model that
         supports function/tool calls (e.g. Qwen2.5, Llama-3.1, Mistral).
+
+  MICA_LLM_PROVIDER=openai_api
+        Uses OpenAI's Responses API. Requires ``OPENAI_API_KEY`` and always
+        sends ``store: false``. The key is read from the process environment.
+
+  MICA_LLM_PROVIDER=gemini
+        Uses Gemini's generateContent REST API. Requires ``GEMINI_API_KEY`` or
+        ``GOOGLE_API_KEY``. The key is read from the process environment.
+
+Cloud providers are opt-in. Missing/unknown configuration safely selects the
+local Ollama backend; the presence of an API key never changes the provider.
 """
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -42,14 +56,25 @@ CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 _DEFAULTS = {
     "llm_url":      "http://localhost:11434",
     "llm_model":    "llama3.2",
-    "llm_provider": "ollama",   # "ollama" | "openai"
+    "llm_provider": "ollama",
+    "openai_url":   "https://api.openai.com",
+    "openai_model": "gpt-4.1-mini",
+    "gemini_url":   "https://generativelanguage.googleapis.com",
+    "gemini_model": "gemini-2.5-flash",
 }
 
 
 def get_llm_provider() -> str:
-    """Returns 'ollama' or 'openai' (covers LM Studio, LocalAI, Jan, etc.)."""
-    raw = _load_config().get("llm_provider", "ollama").strip().lower()
-    return "openai" if raw in ("openai", "lmstudio", "localai", "jan", "llamacpp") else "ollama"
+    """Return a supported provider, defaulting safely to local Ollama."""
+    raw = os.environ.get("MICA_LLM_PROVIDER") or _load_config().get("llm_provider", "ollama")
+    raw = raw.strip().lower()
+    if raw in ("openai", "openai_compatible", "lmstudio", "localai", "jan", "llamacpp"):
+        return "openai"
+    if raw in ("openai_api", "openai-cloud", "openai_cloud"):
+        return "openai_api"
+    if raw in ("gemini", "google", "google_gemini"):
+        return "gemini"
+    return "ollama"
 
 
 def _load_config() -> dict:
@@ -67,6 +92,15 @@ def ensure_ollama_running(timeout: int = 15) -> bool:
     """
     url, _   = get_llm_settings()
     provider = get_llm_provider()
+
+    if provider in ("openai_api", "gemini"):
+        # Cloud backends do not have a local process to start. Validate only;
+        # never turn a startup health check into a billable network request.
+        try:
+            _get_cloud_api_key(provider)
+            return True
+        except RuntimeError:
+            return False
 
     if provider == "openai":
         # OpenAI-compatible servers (LM Studio, LocalAI, etc.) must be started
@@ -103,7 +137,17 @@ def ensure_ollama_running(timeout: int = 15) -> bool:
         kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-        subprocess.Popen(["ollama", "serve"], **kwargs)
+        ollama_cmd = shutil.which("ollama")
+        if not ollama_cmd and sys.platform == "win32":
+            local_app_data = os.environ.get("LOCALAPPDATA", "")
+            candidates = [
+                Path(local_app_data) / "Programs" / "Ollama" / "ollama.exe",
+                Path(local_app_data) / "Ollama" / "ollama.exe",
+            ]
+            ollama_cmd = next((str(path) for path in candidates if path.is_file()), None)
+        if not ollama_cmd:
+            raise FileNotFoundError("ollama executable not found")
+        subprocess.Popen([ollama_cmd, "serve"], **kwargs)
     except FileNotFoundError:
         print("[LLM] 'ollama' command not found. Install Ollama from https://ollama.com")
         return False
@@ -140,6 +184,10 @@ def warmup_model(system_prompt: str | None = None) -> bool:
     url, model = get_llm_settings()
     provider   = get_llm_provider()
     print(f"[LLM] Warming up '{model}' ({provider})…")
+
+    if provider in ("openai_api", "gemini"):
+        # A cloud "warmup" has no local model to load and would cost money.
+        return True
 
     messages: list[dict] = []
     if system_prompt:
@@ -220,10 +268,217 @@ def check_model_available(log: Callable | None = None) -> bool:
 
 def get_llm_settings() -> tuple[str, str]:
     """Returns (base_url, model_name)."""
-    cfg   = _load_config()
-    url   = cfg.get("llm_url",   _DEFAULTS["llm_url"]).rstrip("/")
-    model = cfg.get("llm_model", _DEFAULTS["llm_model"])
+    cfg = _load_config()
+    provider = get_llm_provider()
+    if provider == "openai_api":
+        # Keep credentials pinned to the official origin. In particular, do
+        # not accept a configurable URL that could receive an API key.
+        url = _DEFAULTS["openai_url"]
+        model = (
+            os.environ.get("MICA_OPENAI_MODEL")
+            or os.environ.get("MICA_LLM_MODEL")
+            or cfg.get("openai_model")
+            or _DEFAULTS["openai_model"]
+        )
+    elif provider == "gemini":
+        url = _DEFAULTS["gemini_url"]
+        model = (
+            os.environ.get("MICA_GEMINI_MODEL")
+            or os.environ.get("MICA_LLM_MODEL")
+            or cfg.get("gemini_model")
+            or _DEFAULTS["gemini_model"]
+        )
+    else:
+        url = (os.environ.get("MICA_LLM_URL") or cfg.get("llm_url") or _DEFAULTS["llm_url"]).rstrip("/")
+        model = os.environ.get("MICA_LLM_MODEL") or cfg.get("llm_model") or _DEFAULTS["llm_model"]
     return url, model
+
+
+def _get_cloud_api_key(provider: str) -> str:
+    """Read a cloud credential from the environment without logging it."""
+    if provider == "openai_api":
+        key = os.environ.get("OPENAI_API_KEY", "").strip()
+        env_hint = "OPENAI_API_KEY"
+    elif provider == "gemini":
+        key = (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
+        env_hint = "GEMINI_API_KEY or GOOGLE_API_KEY"
+    else:
+        raise RuntimeError("Cloud credential requested for a local provider.")
+    if not key:
+        raise RuntimeError(f"{provider} is selected but {env_hint} is not set.")
+    return key
+
+
+def _message_text(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for item in content:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                chunks.append(item["text"])
+        return "\n".join(chunks)
+    return str(content or "")
+
+
+def _openai_tools(tools: list | None) -> list[dict]:
+    converted: list[dict] = []
+    for tool in tools or []:
+        function = tool.get("function", {}) if isinstance(tool, dict) else {}
+        name = function.get("name")
+        if not name:
+            continue
+        converted.append({
+            "type": "function",
+            "name": name,
+            "description": function.get("description", ""),
+            "parameters": function.get("parameters", {"type": "object", "properties": {}}),
+        })
+    return converted
+
+
+def _gemini_tools(tools: list | None) -> list[dict]:
+    declarations: list[dict] = []
+    for tool in tools or []:
+        function = tool.get("function", {}) if isinstance(tool, dict) else {}
+        if function.get("name"):
+            declarations.append({
+                "name": function["name"],
+                "description": function.get("description", ""),
+                "parameters": function.get("parameters", {"type": "object", "properties": {}}),
+            })
+    return [{"functionDeclarations": declarations}] if declarations else []
+
+
+def _post_cloud_json(
+    provider: str,
+    endpoint: str,
+    headers: dict[str, str],
+    payload: dict,
+    timeout: int,
+) -> dict:
+    """POST JSON while keeping credentials and remote response bodies out of errors."""
+    try:
+        response = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict):
+            raise ValueError("response is not an object")
+        return data
+    except requests.exceptions.Timeout:
+        raise RuntimeError(f"{provider} request timed out.") from None
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError(f"Could not connect to {provider}.") from None
+    except requests.exceptions.HTTPError as exc:
+        status = getattr(exc.response, "status_code", "unknown")
+        raise RuntimeError(f"{provider} request failed with HTTP {status}.") from None
+    except (ValueError, json.JSONDecodeError):
+        raise RuntimeError(f"{provider} returned an invalid response.") from None
+    except requests.exceptions.RequestException:
+        raise RuntimeError(f"{provider} request failed.") from None
+
+
+def _call_openai_api(messages: list, tools: list | None, timeout: int, model: str | None = None) -> dict:
+    url, configured_model = get_llm_settings()
+    key = _get_cloud_api_key("openai_api")
+    payload: dict = {
+        "model": model or configured_model,
+        "input": messages,
+        "store": False,
+        "max_output_tokens": 600 if model else 150,
+    }
+    converted_tools = _openai_tools(tools)
+    if converted_tools:
+        payload["tools"] = converted_tools
+        payload["tool_choice"] = "auto"
+    data = _post_cloud_json(
+        "OpenAI API",
+        f"{url}/v1/responses",
+        {"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        payload,
+        timeout,
+    )
+    content_parts: list[str] = []
+    tool_calls: list[dict] = []
+    for item in data.get("output", []):
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            for part in item.get("content", []):
+                if isinstance(part, dict) and part.get("type") == "output_text":
+                    content_parts.append(part.get("text") or "")
+        elif item.get("type") == "function_call":
+            arguments = item.get("arguments") or "{}"
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    pass
+            tool_calls.append({
+                "id": item.get("call_id") or item.get("id", ""),
+                "function": {"name": item.get("name", ""), "arguments": arguments},
+            })
+    content = "".join(content_parts).strip()
+    if not content and not tool_calls:
+        raise RuntimeError("OpenAI API returned no text or tool call.")
+    return {"content": content, "tool_calls": tool_calls}
+
+
+def _call_gemini(messages: list, tools: list | None, timeout: int, model: str | None = None) -> dict:
+    from urllib.parse import quote
+
+    url, configured_model = get_llm_settings()
+    selected_model = (model or configured_model).removeprefix("models/")
+    key = _get_cloud_api_key("gemini")
+    system_chunks: list[str] = []
+    contents: list[dict] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        text = _message_text(message.get("content"))
+        if message.get("role") in ("system", "developer"):
+            system_chunks.append(text)
+            continue
+        role = "model" if message.get("role") == "assistant" else "user"
+        contents.append({"role": role, "parts": [{"text": text}]})
+    payload: dict = {
+        "contents": contents,
+        "generationConfig": {"maxOutputTokens": 600 if model else 150},
+    }
+    if system_chunks:
+        payload["systemInstruction"] = {"parts": [{"text": "\n\n".join(system_chunks)}]}
+    converted_tools = _gemini_tools(tools)
+    if converted_tools:
+        payload["tools"] = converted_tools
+    data = _post_cloud_json(
+        "Gemini API",
+        f"{url}/v1beta/models/{quote(selected_model, safe='')}:generateContent",
+        {"x-goog-api-key": key, "Content-Type": "application/json"},
+        payload,
+        timeout,
+    )
+    candidates = data.get("candidates") or []
+    parts = candidates[0].get("content", {}).get("parts", []) if candidates else []
+    content_parts: list[str] = []
+    tool_calls: list[dict] = []
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        if isinstance(part.get("text"), str):
+            content_parts.append(part["text"])
+        function_call = part.get("functionCall")
+        if isinstance(function_call, dict):
+            tool_calls.append({
+                "id": "",
+                "function": {
+                    "name": function_call.get("name", ""),
+                    "arguments": function_call.get("args") or {},
+                },
+            })
+    content = "".join(content_parts).strip()
+    if not content and not tool_calls:
+        raise RuntimeError("Gemini API returned no text or tool call.")
+    return {"content": content, "tool_calls": tool_calls}
 
 
 def call_llm(
@@ -239,6 +494,12 @@ def call_llm(
     """
     url, model = get_llm_settings()
     provider   = get_llm_provider()
+
+    if provider == "openai_api":
+        return _call_openai_api(messages, tools, timeout)
+
+    if provider == "gemini":
+        return _call_gemini(messages, tools, timeout)
 
     if provider == "openai":
         endpoint = f"{url}/v1/chat/completions"
@@ -346,6 +607,12 @@ def call_llm_text(
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
+
+    provider = get_llm_provider()
+    if provider == "openai_api":
+        return _call_openai_api(messages, None, timeout, model=m)["content"]
+    if provider == "gemini":
+        return _call_gemini(messages, None, timeout, model=m)["content"]
 
     payload = {"model": m, "messages": messages, "stream": False, "keep_alive": -1, "options": {"num_predict": 600}}
 
@@ -501,6 +768,18 @@ def call_llm_stream(
     Tool calls always appear in the final "done" event.
     """
     provider = get_llm_provider()
+    if provider in ("openai_api", "gemini"):
+        result = (
+            _call_openai_api(messages, tools, timeout)
+            if provider == "openai_api"
+            else _call_gemini(messages, tools, timeout)
+        )
+        content = result["content"]
+        for sentence in _SENT_END.split(content):
+            if sentence.strip():
+                yield {"type": "sentence", "text": sentence.strip()}
+        yield {"type": "done", "content": content, "tool_calls": result["tool_calls"]}
+        return
     if provider == "openai":
         yield from _stream_openai(messages, tools, timeout)
         return
