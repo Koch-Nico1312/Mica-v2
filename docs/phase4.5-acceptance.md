@@ -20,7 +20,7 @@ Stand: 2026-09-19. Phase 4.5 schließt die Perzeptions- und Präsenzlücken gege
    - Endpunkte: `GET /v1/ambient/events`, `POST /v1/ambient/events/{id}/acknowledge`, `GET /v1/ambient/status`, `POST /v1/ambient/evaluate`.
 
 3. **Sprach-Adressierungserkennung / Proactive Audio (`AddressingDetector`)**:
-   - Mark-LI-inspiriert: Erkennt zuverlässig, ob Sprache direkt an MICA gerichtet ist oder aus Hintergrundgesprächen, Fernsehen/Medien oder Telefonaten stammt.
+   - Inspiriert: Erkennt zuverlässig, ob Sprache direkt an MICA gerichtet ist oder aus Hintergrundgesprächen, Fernsehen/Medien oder Telefonaten stammt.
    - Mehrstufige Klassifikation:
      - Direkte Namens-Vokative (`Mica`, `JARVIS`, `Computer`) -> Hohe Konfidenz (0.95+).
      - Direkte Befehls-/Frageformulierungen (`kannst du bitte`, `wie spät ist es`, `zeige mir`, `schalte`) -> Hohe Konfidenz (0.85+).
