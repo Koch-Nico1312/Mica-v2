@@ -7,4 +7,4 @@ pydantic>=2.8,<3.0
 chonkie[code]==1.7.0
 # Chonkie 1.7.0 expects the typed process result used by the 1.8 line;
 # 1.16 returns a plain dict and breaks CodeChunker._process_code.
-tree-sitter-language-pack==1.8.1
+tree-sitter-language-pack==1.20.0
