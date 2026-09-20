@@ -193,6 +193,160 @@ def _format_news(query: str, results: list[dict]) -> str:
     return "\n".join(lines).strip()
 
 
+# ── Price Comparison (Punkt 35) ───────────────────────────────────────────────
+
+def compare_prices(items: list, aspect: str = "price") -> str:
+    """
+    Vergleiche Preise für mehrere Produkte.
+    
+    Args:
+        items: Liste von Produkten zum Vergleichen
+        aspect: Vergleichsaspekt (price, specs, reviews, features)
+        
+    Returns:
+        Formatierter Vergleich
+    """
+    if not items or len(items) < 2:
+        return "Benötige mindestens 2 Produkte zum Vergleichen"
+    
+    comparison_results = []
+    
+    for item in items:
+        query = f"{item} {aspect} comparison price"
+        try:
+            results = _ddg_search(query, max_results=3)
+            if results:
+                item_info = {
+                    "name": item,
+                    "results": results
+                }
+                comparison_results.append(item_info)
+        except Exception as e:
+            print(f"[PriceCompare] Error for {item}: {e}")
+    
+    if not comparison_results:
+        return "Keine Vergleichsergebnisse gefunden"
+    
+    # Formatierung für Gemini-zusammenfassung
+    comparison_text = f"Price comparison for: {', '.join(items)}\n\n"
+    for item_data in comparison_results:
+        comparison_text += f"{item_data['name']}:\n"
+        for result in item_data['results'][:2]:  # Top 2 Ergebnisse
+            comparison_text += f"  - {result.get('title', 'N/A')}\n"
+            comparison_text += f"    {result.get('snippet', 'N/A')[:100]}\n"
+        comparison_text += "\n"
+    
+    # Versuche Gemini-Zusammenfassung
+    try:
+        from google import genai
+        client = genai.Client(api_key=_get_api_key())
+        chat = client.chats.create(
+            model="gemini-flash-latest",
+            config={"tools": [{"google_search": {}}]},
+        )
+        summary_prompt = (
+            f"Compare these {aspect} for the products: {', '.join(items)}. "
+            f"Focus on {aspect}. Provide a clear comparison with recommendations. "
+            f"Here is the raw data:\n{comparison_text}"
+        )
+        response = chat.send_message(summary_prompt)
+        return response_text(response)
+    except Exception as e:
+        print(f"[PriceCompare] Summary failed: {e}")
+        return comparison_text
+
+
+# ── Opening Hours (Punkt 36) ────────────────────────────────────────────────────
+
+def find_opening_hours(location: str) -> str:
+    """
+    Suche Öffnungszeiten für ein Geschäft oder Ort.
+    
+    Args:
+        location: Name des Geschäfts oder Orts
+        
+    Returns:
+        Öffnungszeiten Information
+    """
+    query = f"{location} opening hours today"
+    
+    try:
+        results = _ddg_search(query, max_results=5)
+        if not results:
+            return f"Keine Öffnungszeiten gefunden für: {location}"
+        
+        # Extrahiere Öffnungszeiten aus den Ergebnissen
+        hours_info = f"Opening hours for {location}:\n\n"
+        for i, result in enumerate(results, 1):
+            hours_info += f"{i}. {result.get('title', 'N/A')}\n"
+            snippet = result.get('snippet', '')
+            if snippet:
+                hours_info += f"   {snippet[:150]}\n"
+            hours_info += f"   Source: {result.get('url', 'N/A')}\n\n"
+        
+        return hours_info
+    except Exception as e:
+        print(f"[OpeningHours] Error: {e}")
+        return f"Fehler bei der Suche nach Öffnungszeiten für {location}"
+
+
+# ── Route Search (Punkt 37) ────────────────────────────────────────────────────
+
+def search_route(origin: str, destination: str, transport_mode: str = "car") -> str:
+    """
+    Suche Route zwischen zwei Orten.
+    
+    Args:
+        origin: Startort
+        destination: Zielort
+        transport_mode: Verkehrsmittel (car, public_transport, walking, bike)
+        
+    Returns:
+        Routeninformation
+    """
+    query = f"route from {origin} to {destination} by {transport_mode} distance time"
+    
+    try:
+        results = _ddg_search(query, max_results=5)
+        if not results:
+            return f"Keine Route gefunden von {origin} nach {destination}"
+        
+        route_info = f"Route from {origin} to {destination} ({transport_mode}):\n\n"
+        
+        for i, result in enumerate(results, 1):
+            route_info += f"{i}. {result.get('title', 'N/A')}\n"
+            snippet = result.get('snippet', '')
+            if snippet:
+                route_info += f"   {snippet[:150]}\n"
+            route_info += f"   Source: {result.get('url', 'N/A')}\n\n"
+        
+        # Versuche detailliertere Information durch Gemini
+        try:
+            from google import genai
+            client = genai.Client(api_key=_get_api_key())
+            chat = client.chats.create(
+                model="gemini-flash-latest",
+                config={"tools": [{"google_search": {}}]},
+            )
+            detail_prompt = (
+                f"Get detailed route information from {origin} to {destination} "
+                f"using {transport_mode}. Include distance, estimated time, "
+                f"and alternative routes if available."
+            )
+            response = chat.send_message(detail_prompt)
+            detailed_info = response_text(response)
+            
+            if detailed_info and len(detailed_info) > 50:
+                route_info += f"\nDetailed information:\n{detailed_info}"
+        except Exception as e:
+            print(f"[RouteSearch] Detail search failed: {e}")
+        
+        return route_info
+    except Exception as e:
+        print(f"[RouteSearch] Error: {e}")
+        return f"Fehler bei der Routensuche von {origin} nach {destination}"
+
+
 # ── Briefing helper ────────────────────────────────────────────────────────────
 
 def _gemini_headlines(n: int = 5) -> tuple[list[str], str]:
@@ -345,6 +499,11 @@ def web_search(
     mode   = params.get("mode",  "search").lower().strip()
     items  = params.get("items", [])
     aspect = params.get("aspect", "general").strip() or "general"
+    
+    # Neue Parameter für erweiterte Funktionen
+    origin = params.get("origin", "").strip()
+    destination = params.get("destination", "").strip()
+    transport_mode = params.get("transport_mode", "car").strip()
 
     if not query and not items:
         return "Please provide a search query."
@@ -366,6 +525,12 @@ def web_search(
             return _research(query)
         if mode == "price":
             return _price(query)
+        if mode == "opening_hours":
+            return find_opening_hours(query)
+        if mode == "route":
+            if not origin or not destination:
+                return "Route search requires both origin and destination parameters"
+            return search_route(origin, destination, transport_mode)
         return _search(query)
 
     except Exception as e:

@@ -193,3 +193,72 @@ def save_plugin_enabled(plugin_name: str, enabled: bool) -> None:
     plugins_cfg[plugin_name] = enabled
     data["plugins_enabled"] = plugins_cfg
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+# ── Personality Modes ───────────────────────────────────────────────────────────
+AVAILABLE_PERSONALITIES = ["normal", "technical", "concentrated", "casual"]
+DEFAULT_PERSONALITY = "normal"
+
+PERSONALITY_SYSTEM_PROMPTS = {
+    "normal": "You are a helpful, friendly AI assistant.",
+    "technical": "You are a technical expert assistant. Focus on precision, technical details, and accurate terminology.",
+    "concentrated": "You are a focused, direct assistant. Be concise and get straight to the point without unnecessary elaboration.",
+    "casual": "You are a casual, relaxed assistant. Use informal language and be conversational."
+}
+
+
+def get_personality_mode() -> str:
+    """Return the current personality mode."""
+    return load_api_keys().get("personality_mode", DEFAULT_PERSONALITY) or DEFAULT_PERSONALITY
+
+
+def save_personality_mode(mode: str) -> None:
+    """Persist the chosen personality mode."""
+    mode = (mode or "").strip()
+    selected = mode if mode in AVAILABLE_PERSONALITIES else DEFAULT_PERSONALITY
+    _patch_config(personality_mode=selected)
+
+
+def get_personality_prompt() -> str:
+    """Return the system prompt for the current personality mode."""
+    mode = get_personality_mode()
+    return PERSONALITY_SYSTEM_PROMPTS.get(mode, PERSONALITY_SYSTEM_PROMPTS[DEFAULT_PERSONALITY])
+
+
+# ── Model Selection ─────────────────────────────────────────────────────────────
+AVAILABLE_MODELS = {
+    "flash": "models/gemini-2.5-flash-native-audio-preview-12-2025",
+    "pro": "models/gemini-2.5-pro",
+    "flash_lite": "models/gemini-2.5-flash-lite"
+}
+DEFAULT_MODEL = "flash"
+
+MODEL_DESCRIPTIONS = {
+    "flash": "Schnelles, Audio-fähiges Modell für tägliche Aufgaben",
+    "pro": "Hochwertiges Modell für komplexe Aufgaben",
+    "flash_lite": "Leichtes Modell für einfache Anfragen"
+}
+
+
+def get_model_selection() -> str:
+    """Return the current selected model key."""
+    return load_api_keys().get("model_selection", DEFAULT_MODEL) or DEFAULT_MODEL
+
+
+def save_model_selection(model_key: str) -> None:
+    """Persist the chosen model selection."""
+    model_key = (model_key or "").strip()
+    selected = model_key if model_key in AVAILABLE_MODELS else DEFAULT_MODEL
+    _patch_config(model_selection=selected)
+
+
+def get_model_name() -> str:
+    """Return the actual model name for API calls."""
+    model_key = get_model_selection()
+    return AVAILABLE_MODELS.get(model_key, AVAILABLE_MODELS[DEFAULT_MODEL])
+
+
+def get_model_description() -> str:
+    """Return description of current model."""
+    model_key = get_model_selection()
+    return MODEL_DESCRIPTIONS.get(model_key, MODEL_DESCRIPTIONS[DEFAULT_MODEL])
