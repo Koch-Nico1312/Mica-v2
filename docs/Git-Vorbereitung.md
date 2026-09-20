@@ -11,6 +11,10 @@ Das Projekt hat bereits ein Git-Repository konfiguriert:
 
 ### Option 1: Neues Repository erstellen
 
+> ⚠️ **Warnung:** `rm -rf .git` löscht die komplette Commit-Historie
+> unwiderruflich. Vorher Backup machen oder Option 2 (neuer Branch/Clone)
+> verwenden.
+
 Wenn Sie ein komplett neues Git-Repository für MICA V2 erstellen möchten:
 
 ```bash
@@ -118,7 +122,7 @@ git push origin main
 - Dokumentation (docs/)
 - Konfigurations-Beispiele (.env.example, *.example.json)
 - Requirements-Dateien (requirements.txt, requirements-phase0.*)
-- Setup-Dateien (setup.py, start_mica_local.ps1)
+- Setup-Dateien (setup.py, install_and_start.ps1)
 
 ### Sollten NICHT committet werden (bereits in .gitignore):
 - API-Keys (config/api_keys.json)

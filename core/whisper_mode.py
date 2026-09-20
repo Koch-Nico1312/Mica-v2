@@ -23,10 +23,16 @@ class WhisperMode:
         self.mode_change_threshold = 5  # Frames bis zum Moduswechsel
     
     def calculate_rms(self, audio_data: np.ndarray) -> float:
-        """Berechne RMS (Root Mean Square) als Lautstärkemessung."""
-        if len(audio_data) == 0:
+        """Berechne RMS auf einer einheitlichen 0-1 PCM-Skala."""
+        samples = np.asarray(audio_data)
+        if samples.size == 0:
             return 0.0
-        return float(np.sqrt(np.mean(audio_data ** 2)))
+        if np.issubdtype(samples.dtype, np.integer):
+            scale = float(max(abs(np.iinfo(samples.dtype).min), np.iinfo(samples.dtype).max))
+            normalized = samples.astype(np.float64) / scale
+        else:
+            normalized = samples.astype(np.float64)
+        return float(np.sqrt(np.mean(np.square(normalized))))
     
     def normalize_level(self, rms: float, max_expected: float = 0.1) -> float:
         """Normalisiere RMS auf 0-1 Skala."""
@@ -45,9 +51,9 @@ class WhisperMode:
         rms = self.calculate_rms(audio_data)
         level = self.normalize_level(rms)
         
-        if level < self.whisper_threshold:
+        if rms < self.whisper_threshold:
             detected = "silence"
-        elif level < self.normal_threshold:
+        elif rms < self.normal_threshold:
             detected = "whisper"
         else:
             detected = "normal"
@@ -68,6 +74,9 @@ class WhisperMode:
             self.current_mode = "whisper"
         elif self.consecutive_normal_frames >= self.mode_change_threshold:
             self.current_mode = "normal"
+        elif detected == "silence":
+            # P2 fix: Return silence immediately when detected
+            return "silence", level
         
         return self.current_mode, level
     
@@ -113,7 +122,11 @@ class WhisperMode:
         if target_gain == 1.0:
             return audio_data
         
-        return audio_data * target_gain
+        adjusted = np.asarray(audio_data, dtype=np.float64) * target_gain
+        if np.issubdtype(np.asarray(audio_data).dtype, np.integer):
+            info = np.iinfo(np.asarray(audio_data).dtype)
+            adjusted = np.clip(adjusted, info.min, info.max)
+        return adjusted.astype(np.asarray(audio_data).dtype, copy=False)
     
     def is_speech_present(self, audio_data: np.ndarray) -> bool:
         """
@@ -125,8 +138,7 @@ class WhisperMode:
         Returns:
             True wenn Sprache vorhanden
         """
-        _, level = self.detect_speech_mode(audio_data)
-        return level >= self.whisper_threshold
+        return self.calculate_rms(audio_data) >= self.whisper_threshold
     
     def get_audio_description(self, audio_data: np.ndarray) -> str:
         """

@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 import sys
 
+from core.ids import new_id
+
 
 def get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -35,7 +37,7 @@ class DashboardWidget:
         if self.position is None:
             self.position = {"x": 0, "y": 0, "width": 2, "height": 1}
         if not self.widget_id:
-            self.widget_id = f"widget_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.widget_id = new_id("widget")
 
 
 class PersonalDashboard:
@@ -129,7 +131,7 @@ class PersonalDashboard:
         Returns:
             Widget ID
         """
-        widget_id = f"widget_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        widget_id = new_id("widget")
         
         widget = DashboardWidget(
             widget_id=widget_id,

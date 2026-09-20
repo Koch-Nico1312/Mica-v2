@@ -505,7 +505,9 @@ def web_search(
     destination = params.get("destination", "").strip()
     transport_mode = params.get("transport_mode", "car").strip()
 
-    if not query and not items:
+    if mode == "route" and (not origin or not destination):
+        return "Route search requires both origin and destination parameters"
+    if mode != "route" and not query and not items:
         return "Please provide a search query."
 
     if items and mode not in ("compare",):
@@ -514,7 +516,7 @@ def web_search(
     if player:
         player.write_log(f"[Search:{mode}] {query or ', '.join(items)}")
 
-    print(f"[WebSearch] 🔍 mode={mode!r}  query={query!r}")
+    print(f"[WebSearch] mode={mode!r} query={query!r}")
 
     try:
         if mode == "compare" and items:
@@ -528,8 +530,6 @@ def web_search(
         if mode == "opening_hours":
             return find_opening_hours(query)
         if mode == "route":
-            if not origin or not destination:
-                return "Route search requires both origin and destination parameters"
             return search_route(origin, destination, transport_mode)
         return _search(query)
 

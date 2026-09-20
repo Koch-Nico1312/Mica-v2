@@ -51,12 +51,13 @@ cd Mica V2
 pip install -r requirements.txt
 
 # 3. Konfiguration einrichten
-# Kopieren Sie config/api_keys.json.example und fügen Sie Ihre API-Keys hinzu
+# Erstellen Sie config/api_keys.json (siehe Abschnitt Konfiguration) und
+# fügen Sie Ihren Gemini-API-Key hinzu - eine .example-Datei existiert nicht im Repo
 
 # 4. Starten
 python local_main.py
 # Oder nutzen Sie das PowerShell Script:
-.\start_mica_local.ps1
+.\install_and_start.ps1
 ```
 
 ### Quick Start (Linux/Mac)
@@ -69,7 +70,8 @@ cd "Mica V2"
 pip install -r requirements.txt
 
 # 3. Konfiguration einrichten
-# Kopieren Sie config/api_keys.json.example und fügen Sie Ihre API-Keys hinzu
+# Erstellen Sie config/api_keys.json (siehe Abschnitt Konfiguration) und
+# fügen Sie Ihren Gemini-API-Key hinzu - eine .example-Datei existiert nicht im Repo
 
 # 4. Starten
 python local_main.py
@@ -546,7 +548,7 @@ result = loader.execute_plugin("plugin_name", parameters)
 - [Projekt-Übersicht](Projekt-Übersicht.md) - Allgemeine Projektinformationen
 - [Architektur](Architektur.md) - Detaillierte System-Architektur
 - [Advanced Agents](../docs/ADVANCED_AGENTS.md) - Advanced Agent System Dokumentation
-- [Devin Changes](19.09.26-DevinChanges.md) - Änderungen vom 19.09.2026
+- [Devin Changes](20.09.26-DevinChanges.md) - Änderungen vom 20.09.2026
 
 ### Externe Ressourcen
 - [Gemini API Documentation](https://ai.google.dev/docs)

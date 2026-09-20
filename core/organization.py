@@ -10,6 +10,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
 
+from core.ids import new_id
+
 
 def get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -56,7 +58,7 @@ class CalendarEvent:
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
         if not self.event_id:
-            self.event_id = f"event_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.event_id = new_id("event")
 
 
 @dataclass
@@ -79,7 +81,7 @@ class Task:
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
         if not self.task_id:
-            self.task_id = f"task_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.task_id = new_id("task")
 
 
 @dataclass
@@ -95,17 +97,26 @@ class TimeBlock:
     
     def __post_init__(self):
         if not self.block_id:
-            self.block_id = f"block_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.block_id = new_id("block")
 
 
 class OrganizationManager:
     """Verwaltet Kalender, Aufgaben und Planung."""
+
+    @staticmethod
+    def _parse_iso(value: str) -> Optional[datetime]:
+        """Parses ISO datetime strings; returns None instead of raising."""
+        try:
+            return datetime.fromisoformat(str(value))
+        except (TypeError, ValueError):
+            return None
     
     def __init__(self):
         self.events: Dict[str, CalendarEvent] = {}
         self.tasks: Dict[str, Task] = {}
         self.time_blocks: Dict[str, TimeBlock] = {}
         self.data = self._load_data()
+        self._restore_data()
         
     def _load_data(self) -> dict:
         """Lade Organisations-Daten."""
@@ -128,6 +139,27 @@ class OrganizationManager:
             pass
         
         return default_data
+
+    def _restore_data(self) -> None:
+        """Rebuild typed runtime objects from the persisted JSON document."""
+        for event_id, raw in self.data.get("events", {}).items():
+            try:
+                self.events[event_id] = CalendarEvent(**raw)
+            except (TypeError, ValueError):
+                continue
+        for task_id, raw in self.data.get("tasks", {}).items():
+            try:
+                task_data = dict(raw)
+                task_data["status"] = TaskStatus(task_data.get("status", TaskStatus.TODO.value))
+                task_data["priority"] = TaskPriority(task_data.get("priority", TaskPriority.MEDIUM.value))
+                self.tasks[task_id] = Task(**task_data)
+            except (TypeError, ValueError):
+                continue
+        for block_id, raw in self.data.get("time_blocks", {}).items():
+            try:
+                self.time_blocks[block_id] = TimeBlock(**raw)
+            except (TypeError, ValueError):
+                continue
     
     def _save_data(self) -> None:
         """Speichere Organisations-Daten."""
@@ -139,6 +171,13 @@ class OrganizationManager:
             "time_blocks": {k: asdict(v) for k, v in self.time_blocks.items()},
             "settings": self.data.get("settings", {})
         }
+        temp_path = ORGANIZATION_DATA_PATH.with_suffix(".json.tmp")
+        temp_path.write_text(
+            json.dumps(save_data, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+        temp_path.replace(ORGANIZATION_DATA_PATH)
+        self.data = save_data
     
     def _convert_task_for_json(self, task: Task) -> dict:
         """Konvertiere Task für JSON-Speicherung."""
@@ -146,11 +185,6 @@ class OrganizationManager:
         data["status"] = task.status.value
         data["priority"] = task.priority.value
         return data
-        
-        ORGANIZATION_DATA_PATH.write_text(
-            json.dumps(save_data, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
     
     # ── Kalender (Punkte 71-72) ────────────────────────────────────────────────
     
@@ -170,7 +204,9 @@ class OrganizationManager:
         end = datetime.fromisoformat(end_date)
         
         for event in self.events.values():
-            event_start = datetime.fromisoformat(event.start_time)
+            event_start = self._parse_iso(event.start_time)
+            if event_start is None:
+                continue  # kaputte Zeitstempel überspringen, nicht abstürzen
             if start <= event_start <= end:
                 events.append(event)
         
@@ -201,7 +237,7 @@ class OrganizationManager:
         Returns:
             Event ID
         """
-        event_id = f"event_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        event_id = new_id("event")
         
         event = CalendarEvent(
             event_id=event_id,
@@ -225,7 +261,9 @@ class OrganizationManager:
         
         upcoming = []
         for event in self.events.values():
-            event_start = datetime.fromisoformat(event.start_time)
+            event_start = self._parse_iso(event.start_time)
+            if event_start is None:
+                continue
             if now <= event_start <= future:
                 upcoming.append(event)
         
@@ -250,7 +288,7 @@ class OrganizationManager:
             Reminder ID
         """
         # Erinnerung als spezielles Event speichern
-        reminder_id = f"reminder_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        reminder_id = new_id("reminder")
         
         event = CalendarEvent(
             event_id=reminder_id,
@@ -273,8 +311,8 @@ class OrganizationManager:
         
         for event in self.events.values():
             if event.title.startswith("Reminder:"):
-                event_time = datetime.fromisoformat(event.start_time)
-                if event_time <= now:
+                event_time = self._parse_iso(event.start_time)
+                if event_time is not None and event_time <= now:
                     due_reminders.append(event)
         
         return due_reminders
@@ -302,7 +340,7 @@ class OrganizationManager:
         Returns:
             Task ID
         """
-        task_id = f"task_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        task_id = new_id("task")
         
         task = Task(
             task_id=task_id,
@@ -408,14 +446,17 @@ class OrganizationManager:
             
             # Fälligkeit
             if task.due_date:
-                due = datetime.fromisoformat(task.due_date)
-                days_until_due = (due - now).days
-                if days_until_due <= 0:
-                    score += 50  # Überfällig
-                elif days_until_due <= 1:
-                    score += 30  # Morgen fällig
-                elif days_until_due <= 7:
-                    score += 10  # Diese Woche fällig
+                due = self._parse_iso(task.due_date)
+                if due is None:
+                    score += 25  # unparsebares Fälligkeitsdatum: mittlere Dringlichkeit
+                else:
+                    days_until_due = (due - now).days
+                    if days_until_due <= 0:
+                        score += 50  # Überfällig
+                    elif days_until_due <= 1:
+                        score += 30  # Morgen fällig
+                    elif days_until_due <= 7:
+                        score += 10  # Diese Woche fällig
             
             return score
         
@@ -440,22 +481,22 @@ class OrganizationManager:
         day_tasks = []
         for task in self.tasks.values():
             if task.due_date:
-                task_date = datetime.fromisoformat(task.due_date).date()
-                if task_date == target_date:
+                task_date = self._parse_iso(task.due_date)
+                if task_date is not None and task_date.date() == target_date:
                     day_tasks.append(task)
         
         # Ereignisse für diesen Tag
         day_events = []
         for event in self.events.values():
-            event_date = datetime.fromisoformat(event.start_time).date()
-            if event_date == target_date:
+            event_date = self._parse_iso(event.start_time)
+            if event_date is not None and event_date.date() == target_date:
                 day_events.append(event)
         
         # Zeitblöcke für diesen Tag
         day_blocks = []
         for block in self.time_blocks.values():
-            block_date = datetime.fromisoformat(block.start_time).date()
-            if block_date == target_date:
+            block_date = self._parse_iso(block.start_time)
+            if block_date is not None and block_date.date() == target_date:
                 day_blocks.append(block)
         
         return {
@@ -518,7 +559,7 @@ class OrganizationManager:
         Returns:
             Block ID
         """
-        block_id = f"block_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        block_id = new_id("block")
         
         block = TimeBlock(
             block_id=block_id,
@@ -539,8 +580,10 @@ class OrganizationManager:
         blocks = []
         
         for block in self.time_blocks.values():
-            block_date = datetime.fromisoformat(block.start_time).date()
-            if block_date == target_date:
+            block_date = self._parse_iso(block.start_time)
+            if block_date is None:
+                continue
+            if block_date.date() == target_date:
                 blocks.append(block)
         
         blocks.sort(key=lambda b: b.start_time)
@@ -565,7 +608,9 @@ class OrganizationManager:
         
         for task in self.tasks.values():
             if task.due_date and task.status != TaskStatus.DONE:
-                due_date = datetime.fromisoformat(task.due_date)
+                due_date = self._parse_iso(task.due_date)
+                if due_date is None:
+                    continue
                 if now <= due_date <= future:
                     days_until = (due_date - now).days
                     deadlines.append({
@@ -588,7 +633,9 @@ class OrganizationManager:
         
         for task in self.tasks.values():
             if task.due_date and task.status != TaskStatus.DONE:
-                due_date = datetime.fromisoformat(task.due_date)
+                due_date = self._parse_iso(task.due_date)
+                if due_date is None:
+                    continue
                 if due_date < now:
                     days_overdue = (now - due_date).days
                     overdue.append({

@@ -11,6 +11,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
 
+from core.ids import new_id
+
 
 def get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -53,7 +55,7 @@ class StudySession:
     
     def __post_init__(self):
         if not self.session_id:
-            self.session_id = f"session_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.session_id = new_id("session")
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
 
@@ -73,7 +75,7 @@ class QuizQuestion:
         if self.options is None:
             self.options = []
         if not self.question_id:
-            self.question_id = f"question_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.question_id = new_id("question")
 
 
 @dataclass
@@ -94,7 +96,7 @@ class LearningProgress:
         if self.strengths is None:
             self.strengths = []
         if not self.progress_id:
-            self.progress_id = f"progress_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.progress_id = new_id("progress")
 
 
 class LearningManager:
@@ -105,7 +107,9 @@ class LearningManager:
         self.questions: Dict[str, QuizQuestion] = {}
         self.progress: Dict[str, LearningProgress] = {}
         self.study_plans: Dict[str, dict] = {}
+        self.quizzes: Dict[str, dict] = {}
         self.data = self._load_data()
+        self._restore_data()
     
     def _load_data(self) -> dict:
         """Lade Lern-Daten."""
@@ -114,6 +118,7 @@ class LearningManager:
             "questions": {},
             "progress": {},
             "study_plans": {},
+            "quizzes": {},
             "settings": {
                 "default_session_duration": 30,
                 "quiz_length": 5
@@ -128,29 +133,74 @@ class LearningManager:
             pass
         
         return default_data
+
+    def _restore_data(self) -> None:
+        """Rebuild typed learning state from persisted JSON."""
+        for session_id, raw in self.data.get("sessions", {}).items():
+            try:
+                session_data = dict(raw)
+                session_data["subject"] = Subject(session_data.get("subject", Subject.GENERAL.value))
+                self.sessions[session_id] = StudySession(**session_data)
+            except (TypeError, ValueError):
+                continue
+        for question_id, raw in self.data.get("questions", {}).items():
+            try:
+                question_data = dict(raw)
+                question_data["subject"] = Subject(question_data.get("subject", Subject.GENERAL.value))
+                question_data["difficulty"] = Difficulty(
+                    question_data.get("difficulty", Difficulty.BEGINNER.value)
+                )
+                self.questions[question_id] = QuizQuestion(**question_data)
+            except (TypeError, ValueError):
+                continue
+        for progress_id, raw in self.data.get("progress", {}).items():
+            try:
+                progress_data = dict(raw)
+                progress_data["subject"] = Subject(progress_data.get("subject", Subject.GENERAL.value))
+                self.progress[progress_id] = LearningProgress(**progress_data)
+            except (TypeError, ValueError):
+                continue
+        self.study_plans = dict(self.data.get("study_plans", {}))
+        self.quizzes = dict(self.data.get("quizzes", {}))
     
     def _save_data(self) -> None:
         """Speichere Lern-Daten."""
         LEARNING_DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
         
         save_data = {
-            "sessions": {k: asdict(v) for k, v in self.sessions.items()},
-            "questions": {k: asdict(v) for k, v in self.questions.items()},
+            "sessions": {k: self._convert_session_for_json(v) for k, v in self.sessions.items()},
+            "questions": {k: self._convert_question_for_json(v) for k, v in self.questions.items()},
             "progress": {k: self._convert_progress_for_json(v) for k, v in self.progress.items()},
             "study_plans": self.study_plans,
+            "quizzes": self.quizzes,
             "settings": self.data.get("settings", {})
         }
+        temp_path = LEARNING_DATA_PATH.with_suffix(".json.tmp")
+        temp_path.write_text(
+            json.dumps(save_data, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+        temp_path.replace(LEARNING_DATA_PATH)
+        self.data = save_data
+
+    @staticmethod
+    def _convert_session_for_json(session: StudySession) -> dict:
+        data = asdict(session)
+        data["subject"] = session.subject.value
+        return data
+
+    @staticmethod
+    def _convert_question_for_json(question: QuizQuestion) -> dict:
+        data = asdict(question)
+        data["subject"] = question.subject.value
+        data["difficulty"] = question.difficulty.value
+        return data
     
     def _convert_progress_for_json(self, progress: LearningProgress) -> dict:
         """Konvertiere Progress für JSON-Speicherung."""
         data = asdict(progress)
         data["subject"] = progress.subject.value
         return data
-        
-        LEARNING_DATA_PATH.write_text(
-            json.dumps(save_data, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
     
     # ── Hausaufgaben erklären (Punkt 81) ───────────────────────────────────────
     
@@ -216,7 +266,7 @@ Je nach Art der Frage gibt es verschiedene Lösungswege:
         Returns:
             Plan ID
         """
-        plan_id = f"plan_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        plan_id = new_id("plan")
         
         exam = datetime.fromisoformat(exam_date)
         now = datetime.now()
@@ -227,21 +277,25 @@ Je nach Art der Frage gibt es verschiedene Lösungswege:
         
         # Verteile Themen auf die verfügbaren Tage
         topics_per_day = max(1, len(topics) // days_until_exam)
+        remaining_topics = len(topics) % days_until_exam
         
         daily_schedule = {}
         current_day = now
+        topic_idx = 0
         
         for day in range(days_until_exam):
             day_str = current_day.isoformat()
-            start_idx = day * topics_per_day
-            end_idx = min(start_idx + topics_per_day, len(topics))
+            # Distribute remaining topics evenly across first days
+            day_count = topics_per_day + (1 if day < remaining_topics else 0)
+            end_idx = min(topic_idx + day_count, len(topics))
             
             daily_schedule[day_str] = {
-                "topics": topics[start_idx:end_idx],
+                "topics": topics[topic_idx:end_idx],
                 "hours": hours_per_day,
                 "completed": False
             }
             
+            topic_idx = end_idx
             current_day += timedelta(days=1)
         
         study_plan = {
@@ -273,6 +327,10 @@ Je nach Art der Frage gibt es verschiedene Lösungswege:
         """
         Erstelle Quiz (Punkt 83).
         
+        Legt Fragen mit definierten richtigen Antworten an. Die Auswertung
+        erfolgt deterministisch über answer_quiz(); Ergebnisse werden
+        NICHT mehr simuliert.
+        
         Args:
             subject: Fach
             topic: Thema
@@ -282,14 +340,12 @@ Je nach Art der Frage gibt es verschiedene Lösungswege:
         Returns:
             Quiz ID
         """
-        quiz_id = f"quiz_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        quiz_id = new_id("quiz")
         
-        # Generiere Beispielfragen (in echtem System aus Datenbank)
         questions = []
-        for i in range(num_questions):
-            question_id = f"{quiz_id}_q{i}"
+        for i in range(max(1, int(num_questions))):
             question = QuizQuestion(
-                question_id=question_id,
+                question_id=f"{quiz_id}_q{i}",
                 subject=subject,
                 question=f"Frage {i+1} zum Thema {topic}",
                 answer=f"Antwort {i+1}",
@@ -298,45 +354,70 @@ Je nach Art der Frage gibt es verschiedene Lösungswege:
                 explanation=f"Erklärung für Frage {i+1}"
             )
             questions.append(question)
-            self.questions[question_id] = question
+            self.questions[question.question_id] = question
         
+        self.quizzes[quiz_id] = {
+            "quiz_id": quiz_id,
+            "subject": subject.value,
+            "topic": topic,
+            "difficulty": difficulty.value,
+            "question_ids": [q.question_id for q in questions],
+            "created_at": datetime.now().isoformat(),
+        }
+        self._save_data()
         return quiz_id
     
-    def run_quiz(self, quiz_id: str) -> Tuple[float, List[dict]]:
+    def answer_quiz(self, quiz_id: str, answers: Dict[str, str]) -> Tuple[float, List[dict]]:
         """
-        Führe Quiz aus (simuliert).
+        Werte ein Quiz deterministisch aus (Punkt 83).
         
         Args:
             quiz_id: Quiz ID
+            answers: Mapping question_id -> gegebene Antwort
             
         Returns:
-            (Score, Ergebnisse)
+            (Score 0-1, Ergebnisliste)
         """
-        # In echtem System würde dies interaktiv sein
-        # Hier simuliert mit zufälligen Ergebnissen
-        import random
-        
-        quiz_questions = [q for q in self.questions.values() if q.question_id.startswith(quiz_id)]
-        if not quiz_questions:
-            return 0.0, []
+        quiz = self.quizzes.get(quiz_id)
+        if not quiz:
+            return 0.0, [{"error": f"Quiz nicht gefunden: {quiz_id}"}]
         
         results = []
         correct_count = 0
-        
-        for question in quiz_questions:
-            is_correct = random.choice([True, False])  # Simuliert
+        for question_id in quiz["question_ids"]:
+            question = self.questions.get(question_id)
+            if question is None:
+                continue
+            given = str(answers.get(question_id, "")).strip()
+            is_correct = bool(given) and given.casefold() == question.answer.casefold()
             if is_correct:
                 correct_count += 1
-            
             results.append({
                 "question_id": question.question_id,
                 "question": question.question,
+                "given": given,
                 "correct": is_correct,
-                "explanation": question.explanation
+                "explanation": question.explanation,
             })
         
-        score = correct_count / len(quiz_questions)
+        total = len(quiz["question_ids"])
+        score = correct_count / total if total else 0.0
         return score, results
+    
+    def run_quiz(self, quiz_id: str) -> List[QuizQuestion]:
+        """Veraltet: liefert die Fragen des Quiz zur Beantwortung zurück.
+        
+        Die frühere Zufalls-Simulation ist entfernt; die Auswertung
+        erfolgt über answer_quiz().
+        """
+        quiz = self.quizzes.get(quiz_id)
+        if not quiz:
+            return []
+        return [
+            self.questions[question_id]
+            for question_id in quiz["question_ids"]
+            if question_id in self.questions
+        ]
     
     # ── Fehler analysieren (Punkt 84) ───────────────────────────────────────────
     
@@ -409,7 +490,7 @@ Aus diesem Fehler können wir lernen:
         Returns:
             Session ID
         """
-        session_id = f"session_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        session_id = new_id("session")
         
         session = StudySession(
             session_id=session_id,
@@ -544,19 +625,29 @@ Aus diesem Fehler können wir lernen:
         if not pdf_file.exists():
             return [{"error": f"PDF nicht gefunden: {pdf_path}"}]
         
-        # Echte PDF-Durchsuchung würde pdfminer oder ähnliches benötigen
-        # Hier simuliert mit Textdatei-Fallback
         try:
             if pdf_file.suffix.lower() == ".pdf":
-                # Simuliert - würde echte PDF-Lib benötigen
-                return [
-                    {
-                        "page": 1,
-                        "line": 10,
-                        "context": f"...{search_term}...",  # Simuliert
-                        "pdf_path": str(pdf_path)
-                    }
-                ]
+                if not search_term.strip():
+                    return [{"error": "Suchbegriff darf nicht leer sein"}]
+                try:
+                    from pypdf import PdfReader
+                except ImportError:
+                    return [{"error": "PDF-Suche benötigt das Paket 'pypdf'"}]
+
+                results = []
+                reader = PdfReader(str(pdf_file))
+                needle = search_term.casefold()
+                for page_number, page in enumerate(reader.pages, 1):
+                    text = page.extract_text() or ""
+                    for line_number, line in enumerate(text.splitlines(), 1):
+                        if needle in line.casefold():
+                            results.append({
+                                "page": page_number,
+                                "line": line_number,
+                                "context": line.strip()[:300],
+                                "pdf_path": str(pdf_file)
+                            })
+                return results
             else:
                 # Textdatei durchsuchen
                 content = pdf_file.read_text(encoding="utf-8", errors="ignore")

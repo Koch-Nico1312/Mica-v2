@@ -3,12 +3,15 @@
 Implementiert Punkt 100: "Mach es einfach"-Modus.
 """
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
+
+from core.ids import new_id
 
 
 def get_base_dir() -> Path:
@@ -59,21 +62,23 @@ class AutonomousTask:
         if self.results is None:
             self.results = {}
         if not self.task_id:
-            self.task_id = f"task_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.task_id = new_id("task")
 
 
 class AutonomousMode:
     """"Mach es einfach"-Modus."""
     
-    def __init__(self):
+    def __init__(self, task_executor: Optional[Callable] = None):
         self.active = False
         self.autonomy_level = AutonomyLevel.SEMI_AUTONOMOUS
         self.task_queue: List[AutonomousTask] = []
         self.completed_tasks: List[AutonomousTask] = []
+        self.failed_tasks: List[AutonomousTask] = []
         self.config = self._load_config()
         self.decision_callbacks: Dict[str, Callable] = {}
+        self.task_executor = task_executor
         self._register_decision_callbacks()
-        
+
     def _load_config(self) -> dict:
         """Lade Autonomie-Konfiguration."""
         default_config = {
@@ -127,6 +132,12 @@ class AutonomousMode:
         """Deaktiviere autonomen Modus."""
         self.active = False
         print("[AutonomousMode] Deactivated")
+
+    def set_task_executor(self, executor: Optional[Callable]) -> None:
+        """Set the trusted executor used for real task execution."""
+        if executor is not None and not callable(executor):
+            raise TypeError("task executor must be callable")
+        self.task_executor = executor
     
     def add_task(self, description: str) -> str:
         """
@@ -145,7 +156,7 @@ class AutonomousMode:
         requires_confirmation = self._determine_confirmation_need(complexity)
         estimated_duration = self._estimate_duration(complexity, steps)
         
-        task_id = f"task_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        task_id = new_id("task")
         
         task = AutonomousTask(
             task_id=task_id,
@@ -164,25 +175,35 @@ class AutonomousMode:
         """Analysiere Aufgaben-Komplexität."""
         description_lower = description.lower()
         
-        # Einfache Aufgaben
-        simple_keywords = ["open", "close", "start", "stop", "show", "tell", "what", "how"]
-        if any(keyword in description_lower for keyword in simple_keywords):
-            return TaskComplexity.SIMPLE
-        
-        # Moderate Aufgaben
-        moderate_keywords = ["create", "delete", "move", "copy", "rename", "organize", "schedule"]
-        if any(keyword in description_lower for keyword in moderate_keywords):
-            return TaskComplexity.MODERATE
-        
+        # Kritische Aufgaben zuerst prüfen (P1 fix).
+        # Wortgrenzen statt Substring, sonst matcht "format" in "information".
+        # 'remove'/'entferne' allein sind NICHT kritisch (z.B. 'Erinnerung entfernen'),
+        # nur kombiniert mit destruktiven Objekten (Datei/Ordner/Verzeichnis).
+        critical_keywords = [r"delete\w*", r"shutdown\w*", r"restart\w*", r"format\w*",
+                             r"install\w*", r"lösch\w*", r"loesch\w*",
+                             r"herunterfahren", r"neustart\w*"]
+        destructive_objects = ("file", "folder", "directory", "datei", "ordner", "verzeichnis", "disk", "festplatte")
+        if any(re.search(rf"\b{keyword}\b", description_lower) for keyword in critical_keywords):
+            return TaskComplexity.CRITICAL
+        if ("remove" in description_lower or "entferne" in description_lower) and any(
+            obj in description_lower for obj in destructive_objects
+        ):
+            return TaskComplexity.CRITICAL
+
         # Komplexe Aufgaben
         complex_keywords = ["develop", "implement", "integrate", "optimize", "refactor", "debug"]
         if any(keyword in description_lower for keyword in complex_keywords):
             return TaskComplexity.COMPLEX
+
+        # Moderate Aufgaben
+        moderate_keywords = ["create", "move", "copy", "rename", "organize", "schedule"]
+        if any(keyword in description_lower for keyword in moderate_keywords):
+            return TaskComplexity.MODERATE
         
-        # Kritische Aufgaben
-        critical_keywords = ["delete", "remove", "shutdown", "restart", "format", "install"]
-        if any(keyword in description_lower for keyword in critical_keywords):
-            return TaskComplexity.CRITICAL
+        # Einfache Aufgaben zuletzt prüfen
+        simple_keywords = ["open", "close", "start", "stop", "show", "tell", "what", "how"]
+        if any(keyword in description_lower for keyword in simple_keywords):
+            return TaskComplexity.SIMPLE
         
         return TaskComplexity.MODERATE
     
@@ -275,10 +296,10 @@ class AutonomousMode:
     def _check_permissions(self, task: AutonomousTask) -> bool:
         """Prüfe Berechtigungen."""
         # Prüfe ob geforderte Aktionen erlaubt sind
-        if "file_operations" in str(task.required_tools):
+        if any(name in task.required_tools for name in ("file_controller", "file_processor")):
             return self.config.get("allow_file_operations", True)
         
-        if "system_changes" in str(task.required_tools):
+        if any(name in task.required_tools for name in ("computer_settings", "computer_control")):
             return self.config.get("allow_system_changes", False)
         
         return True
@@ -290,6 +311,12 @@ class AutonomousMode:
         Returns:
             Aufgabe-Ergebnis oder None
         """
+        if not self.active:
+            return {
+                "status": "failed",
+                "error": "Autonomous mode is not active"
+            }
+
         if not self.task_queue:
             return None
         
@@ -313,53 +340,98 @@ class AutonomousMode:
                 "estimated_duration": task.estimated_duration
             }
         
-        # Führe Aufgabe aus
+        # Führe Aufgabe aus (inkl. Retries im selben Slot, damit ein
+        # hartnäckiger Task die Queue nicht blockiert - Head-of-Line).
         task.status = "in_progress"
-        result = self._execute_task(task)
         
-        if result.get("success"):
-            task.status = "completed"
+        if self.task_executor is None:
+            result = self._execute_task(task)
+            previous_results = task.results or {}
+            attempt_history = list(previous_results.get("attempt_history", []))
+            attempt_history.append(dict(result))
+            result["retry_count"] = 0
+            result["attempt_history"] = attempt_history
             task.results = result
-            self.completed_tasks.append(task)
-            self.task_queue.remove(task)
-        else:
-            task.status = "failed"
-            # Retry Logic
-            if self.config.get("auto_retry", True):
-                self._retry_task(task)
+            self._quarantine_failed_task(task, "no_executor")
+            return result
         
+        result = self._execute_task(task)
+        max_retries = self.config.get("max_retries", 3)
+        auto_retry = self.config.get("auto_retry", True)
+        
+        while not result.get("success"):
+            task.status = "failed"
+            previous_results = task.results or {}
+            retry_count = previous_results.get("retry_count", 0)
+            attempt_history = list(previous_results.get("attempt_history", []))
+            attempt_history.append(dict(result))
+            result["retry_count"] = retry_count
+            result["attempt_history"] = attempt_history
+            task.results = result
+            
+            if not auto_retry:
+                self._quarantine_failed_task(task, "auto_retry_disabled")
+                return result
+            if retry_count >= max_retries:
+                self._quarantine_failed_task(task, "max_retries_exhausted")
+                return result
+            
+            # Retry im selben Slot - Folgeaufgaben rücken sofort nach.
+            task.results["retry_count"] = retry_count + 1
+            task.status = "retrying"
+            task.current_step = 0
+            result = self._execute_task(task)
+        
+        task.status = "completed"
+        task.results = result
+        self.completed_tasks.append(task)
+        self.task_queue.remove(task)
         return result
     
     def _execute_task(self, task: AutonomousTask) -> dict:
-        """Führe einzelne Aufgabe aus."""
-        # In echter Implementierung würde hier die tatsächliche Ausführung stattfinden
-        # Für jetzt simuliert
-        
-        results = {
-            "task_id": task.task_id,
-            "success": True,
-            "steps_completed": len(task.steps),
-            "duration_minutes": task.estimated_duration,
-            "output": f"Task completed: {task.description}"
-        }
-        
-        return results
+        """Execute through a trusted adapter and never invent success."""
+        if self.task_executor is None:
+            return {
+                "task_id": task.task_id,
+                "success": False,
+                "steps_completed": 0,
+                "error": "No autonomous task executor is configured",
+            }
+        try:
+            raw_result = self.task_executor(task)
+            if isinstance(raw_result, dict):
+                success = bool(raw_result.get("success"))
+                output = raw_result.get("output", raw_result)
+            else:
+                success = bool(raw_result)
+                output = raw_result
+            result = {
+                "task_id": task.task_id,
+                "success": success,
+                "steps_completed": len(task.steps) if success else 0,
+                "output": output,
+            }
+            if isinstance(raw_result, dict) and "error" in raw_result:
+                result["error"] = raw_result["error"]
+            return result
+        except Exception as exc:
+            return {
+                "task_id": task.task_id,
+                "success": False,
+                "steps_completed": 0,
+                "error": str(exc),
+            }
     
-    def _retry_task(self, task: AutonomousTask) -> None:
-        """Wiederhole Aufgabe."""
-        max_retries = self.config.get("max_retries", 3)
-        
-        retry_count = task.results.get("retry_count", 0) if task.results else 0
-        
-        if retry_count < max_retries:
-            # Setze Aufgabe an Anfang der Queue
-            if task in self.task_queue:
-                self.task_queue.remove(task)
-            self.task_queue.insert(0, task)
-            
-            if task.results is None:
-                task.results = {}
-            task.results["retry_count"] = retry_count + 1
+    def _quarantine_failed_task(self, task: AutonomousTask, reason: str) -> None:
+        """Move a terminal failure out of the executable queue, retaining diagnostics."""
+        if task in self.task_queue:
+            self.task_queue.remove(task)
+        task.status = "failed"
+        if task.results is None:
+            task.results = {}
+        task.results["terminal_reason"] = reason
+        if task not in self.failed_tasks:
+            self.failed_tasks.append(task)
     
     def confirm_task(self, task_id: str, approved: bool) -> bool:
         """
@@ -408,6 +480,17 @@ class AutonomousMode:
                     "status": task.status,
                     "results": task.results
                 }
+
+        # Suche in endgültig fehlgeschlagenen Aufgaben
+        for task in self.failed_tasks:
+            if task.task_id == task_id:
+                return {
+                    "task_id": task.task_id,
+                    "description": task.description,
+                    "complexity": task.complexity.value,
+                    "status": task.status,
+                    "results": task.results
+                }
         
         return None
     
@@ -418,6 +501,7 @@ class AutonomousMode:
             "autonomy_level": self.autonomy_level.value,
             "pending_tasks": len(self.task_queue),
             "completed_tasks": len(self.completed_tasks),
+            "failed_tasks": len(self.failed_tasks),
             "current_task": self.task_queue[0].task_id if self.task_queue else None
         }
     

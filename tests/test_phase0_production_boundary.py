@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class Phase0ProductionBoundaryTests(unittest.TestCase):
     def test_canonical_windows_entrypoint_has_no_direct_cloud_or_action_dispatch(self):
         source = (ROOT / "local_main.py").read_text(encoding="utf-8").lower()
-        launcher = (ROOT / "start_mica_local.ps1").read_text(encoding="utf-8").lower()
+        launcher = (ROOT / "install_and_start.ps1").read_text(encoding="utf-8").lower()
         self.assertNotIn("gemini", source)
         self.assertNotIn("google.genai", source)
         self.assertNotIn("from actions", source)
