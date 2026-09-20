@@ -82,7 +82,6 @@ The script will:
 - 🚀 Start MICA Core after installation
 
 **Manual Installation:**
-
 ```bash
 # Clone the repository
 git clone https://github.com/Koch-Nico1312/Mica-v2.git
