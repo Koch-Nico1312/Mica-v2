@@ -63,6 +63,26 @@ MICA V2 is a sophisticated AI assistant that combines advanced multi-agent coord
 
 ### Installation
 
+**Windows (Recommended - Automated):**
+
+```powershell
+# Clone the repository
+git clone https://github.com/Koch-Nico1312/Mica-v2.git
+cd Mica-v2
+
+# Run the automated installer and launcher
+.\install_and_start.ps1
+```
+
+The script will:
+- ⚠️ Show a warning on first run (dependencies installation takes time)
+- 📥 Automatically install `uv` package manager if needed
+- 🐍 Create local Python environment
+- 📦 Install all dependencies with progress bars
+- 🚀 Start MICA Core after installation
+
+**Manual Installation:**
+
 ```bash
 # Clone the repository
 git clone https://github.com/Koch-Nico1312/Mica-v2.git
@@ -77,8 +97,6 @@ cp .env.example .env
 
 # Start the application
 python local_main.py
-# Or use the PowerShell script on Windows:
-.\start_mica_local.ps1
 ```
 
 ### Quick Start with Ollama (Local LLM)
