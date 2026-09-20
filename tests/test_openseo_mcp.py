@@ -12,7 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from actions.seo_agent import BudgetStore, daily_budget, enabled, seo_action, store_api_key
+from actions.seo_agent import (
+    BudgetStore,
+    budget_db_path,
+    daily_budget,
+    enabled,
+    seo_action,
+    store_api_key,
+    validated_endpoint,
+)
 
 
 class OpenSeoTests(unittest.TestCase):
@@ -108,6 +116,43 @@ class OpenSeoTests(unittest.TestCase):
         self.assertTrue(captured["url"].endswith("/mcp"))
         self.assertEqual(captured["json"]["method"], "tools/call")
         self.assertEqual(captured["json"]["params"]["name"], "keyword_research")
+
+    def test_plaintext_endpoint_is_refused_outside_loopback(self) -> None:
+        os.environ["MICA_OPENSEO_ENABLED"] = "1"
+        os.environ["MICA_OPENSEO_URL"] = "http://openseo.example"
+        with self.assertRaises(ValueError):
+            validated_endpoint()
+        with patch("actions.seo_agent.BudgetStore") as store:
+            result = seo_action({"workflow": "keyword_research", "query": "seo"})
+        # The key must never travel in cleartext, and no budget is burned on a
+        # misconfigured endpoint.
+        self.assertIn("https", result)
+        store.return_value.consume.assert_not_called()
+
+    def test_loopback_and_https_endpoints_are_allowed(self) -> None:
+        for url in ("http://127.0.0.1:3000", "http://localhost:3000", "https://openseo.example"):
+            with self.subTest(url=url):
+                os.environ["MICA_OPENSEO_URL"] = url
+                self.assertEqual(validated_endpoint(), url)
+        for url in ("ftp://openseo.example", "https://", "openseo.example"):
+            with self.subTest(url=url):
+                os.environ["MICA_OPENSEO_URL"] = url.rstrip("/")
+                with self.assertRaises(ValueError):
+                    validated_endpoint()
+
+    def test_budget_db_path_ignores_the_working_directory(self) -> None:
+        os.environ.pop("MICA_OPENSEO_DB", None)
+        before = budget_db_path()
+        self.assertTrue(before.is_absolute())
+        self.assertEqual(before.name, "connectors.sqlite3")
+        cwd = os.getcwd()
+        try:
+            os.chdir(self.root)
+            self.assertEqual(budget_db_path(), before)
+        finally:
+            os.chdir(cwd)
+        os.environ["MICA_OPENSEO_DB"] = str(self.root / "explicit.sqlite3")
+        self.assertEqual(budget_db_path(), self.root / "explicit.sqlite3")
 
     def test_store_api_key_without_keyring_reports_clearly(self) -> None:
         with patch.dict(sys.modules, {"keyring": None}):

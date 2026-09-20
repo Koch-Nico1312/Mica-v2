@@ -32,6 +32,7 @@ import py_compile
 import re
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -105,12 +106,21 @@ def _resolve(relative_path: str) -> Path:
     return candidate
 
 
-def _backup(path: Path, label: str) -> Path:
+@dataclass(frozen=True)
+class _Backup:
+    """A snapshot of one file, including whether the file existed at all."""
+
+    path: Path
+    existed: bool
+
+
+def _backup(path: Path, label: str) -> _Backup:
     backup_dir = own_root() / "memory" / "self-edits"
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup = backup_dir / f"{stamp}-{path.name}.bak"
-    backup.write_bytes(path.read_bytes() if path.exists() else b"")
+    existed = path.exists()
+    backup.write_bytes(path.read_bytes() if existed else b"")
     index = backup_dir / "index.jsonl"
     with index.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps({
@@ -118,8 +128,9 @@ def _backup(path: Path, label: str) -> Path:
             "file": str(path.relative_to(own_root())).replace("\\", "/"),
             "label": label[:200],
             "backup": backup.name,
+            "existed": existed,
         }, ensure_ascii=False) + "\n")
-    return backup
+    return _Backup(path=backup, existed=existed)
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -136,15 +147,23 @@ def _atomic_write(path: Path, content: str) -> None:
     os.replace(handle.name, path)
 
 
-def _register_undo(path: Path, backup: Path, label: str) -> None:
+def _register_undo(path: Path, backup: _Backup, label: str) -> None:
     try:
         from core import undo as undo_stack
 
         def restore() -> str:
-            if backup.exists():
-                path.write_bytes(backup.read_bytes())
+            if not backup.path.exists():
+                return f"Kein Backup für {path.name} gefunden"
+            if backup.existed:
+                path.write_bytes(backup.path.read_bytes())
                 return f"Wiederhergestellt: {path.name}"
-            return f"Kein Backup für {path.name} gefunden"
+            # The file did not exist before: restoring means removing it again,
+            # not leaving an empty file behind.
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            return f"Entfernt: {path.name} (existierte vorher nicht)"
 
         undo_stack.push_undo(f"Selbst-Änderung: {label}", restore)
     except Exception:
@@ -324,7 +343,7 @@ def apply_setting(key: str, value: str) -> dict[str, Any]:
     backup = _backup(target, f"{key} setzen")
     _atomic_write(target, "\n".join(lines).rstrip("\n") + "\n")
     _register_undo(target, backup, f"{key} setzen")
-    return {**preview, "written": True, "backup": backup.name}
+    return {**preview, "written": True, "backup": backup.path.name}
 
 
 # ── Quellcode-Änderung ───────────────────────────────────────────────────────
@@ -372,11 +391,11 @@ def apply_source_edit(relative_path: str, old_text: str, new_text: str) -> dict[
         try:
             py_compile.compile(str(path), doraise=True)
         except py_compile.PyCompileError as error:
-            path.write_bytes(backup.read_bytes())  # sofort zurückrollen
+            path.write_bytes(backup.path.read_bytes())  # sofort zurückrollen
             raise ValueError(f"Kompilierung fehlgeschlagen — Änderung zurückgerollt: {error}") from error
     _register_undo(path, backup, f"Quelländerung in {preview['path']}")
     return {
-        "written": True, "path": preview["path"], "backup": backup.name,
+        "written": True, "path": preview["path"], "backup": backup.path.name,
         "diff": preview["diff"],
     }
 

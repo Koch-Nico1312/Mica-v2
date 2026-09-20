@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import core.self_source as self_source
+from core import undo
 
 
 class SelfSourceTests(unittest.TestCase):
@@ -99,6 +100,25 @@ class SelfSourceTests(unittest.TestCase):
         self.assertIn("MODEL_ROUTER_BUDGET_HOURLY=1.0", backup.read_text(encoding="utf-8"))
         history = self_source.edit_history()
         self.assertEqual(history[0]["file"], ".env")
+
+    def test_undo_restores_the_previous_value(self) -> None:
+        undo.clear()
+        self_source.apply_setting("MODEL_ROUTER_BUDGET_HOURLY", "2.5")
+        undo.undo_last()
+        self.assertIn("MODEL_ROUTER_BUDGET_HOURLY=1.0", (self.root / ".env").read_text(encoding="utf-8"))
+
+    def test_undo_removes_a_file_that_did_not_exist_before(self) -> None:
+        env = self.root / ".env"
+        env.unlink()
+        undo.clear()
+        result = self_source.apply_setting("MODEL_ROUTER_BUDGET_HOURLY", "2.5")
+        self.assertTrue(result["written"])
+        self.assertTrue(env.is_file())
+        message = undo.undo_last()
+        # Restoring a file that never existed means removing it, not leaving an
+        # empty file behind that would then shadow .env.example defaults.
+        self.assertFalse(env.exists())
+        self.assertIn("Entfernt", message)
 
     def test_unknown_setting_is_refused(self) -> None:
         with self.assertRaises(ValueError):

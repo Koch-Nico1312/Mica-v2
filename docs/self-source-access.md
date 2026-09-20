@@ -31,7 +31,9 @@ HUDs (`core.confirm`), und `undo` stellt den Zustand danach wieder her.
 4. **Syntaxprüfung vor dem Schreiben** — ungültiges Python wird verworfen.
 5. **Backup + Undo** — jede Änderung landet unter `memory/self-edits/` und im
    Undo-Stack; nach dem Schreiben wird bei `.py` noch einmal `py_compile`
-   geprüft und im Fehlerfall automatisch zurückgerollt.
+   geprüft und im Fehlerfall automatisch zurückgerollt. Hat die Datei vorher
+   nicht existiert (z. B. eine noch fehlende `.env`), entfernt das Undo sie
+   wieder, statt eine leere Datei zu hinterlassen.
 6. **Bestätigungspflicht** — ohne gebundenes HUD wird nichts geschrieben
    (fail-closed), auch nicht im Headless-Betrieb.
 7. **Quellcode nur mit Flag** — `MICA_SELF_EDIT_ENABLED=1` (Standard aus).

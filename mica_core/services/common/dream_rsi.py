@@ -186,17 +186,33 @@ class DreamTreeStore:
             conn.execute("COMMIT")
 
     def tag_tree(self, improvement_id: str, error_signature: str) -> None:
-        """Attach an improvement-signal signature to the tree of a proposal."""
+        """Attach an improvement-signal signature to the propose node of a tree.
+
+        The signature links a repeated error signal to the candidate it opened,
+        so later cycles can reason about occurrences instead of guessing from
+        artifact names. It round-trips through ``trees()`` as ``detail``.
+        """
+        signature = str(error_signature or "").strip()
+        if not signature:
+            return
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            tree_row = conn.execute(
-                "SELECT tree_id FROM dream_nodes WHERE improvement_id = ? AND event = 'propose' LIMIT 1",
+            row = conn.execute(
+                "SELECT id, detail FROM dream_nodes WHERE improvement_id = ? AND event = 'propose' LIMIT 1",
                 (improvement_id,),
             ).fetchone()
-            if tree_row:
+            if row is not None:
+                detail: dict[str, Any] = {}
+                try:
+                    parsed = json.loads(row[1]) if row[1] else {}
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    parsed = {}
+                if isinstance(parsed, dict):
+                    detail = parsed
+                detail["error_signature"] = signature[:300]
                 conn.execute(
-                    "UPDATE dream_nodes SET detail = COALESCE(detail, '{}') WHERE tree_id = ? AND event = 'propose'",
-                    (tree_row[0],),
+                    "UPDATE dream_nodes SET detail = ? WHERE id = ?",
+                    (_canonical(detail), row[0]),
                 )
             conn.execute("COMMIT")
 
@@ -204,11 +220,11 @@ class DreamTreeStore:
         """Return every discovery tree as an ordered list of nodes."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT tree_id, improvement_id, improvement_name, kind, event, outcome, reward, cost, created_at "
+                "SELECT tree_id, improvement_id, improvement_name, kind, event, outcome, reward, cost, created_at, detail "
                 "FROM dream_nodes ORDER BY created_at ASC, id ASC"
             ).fetchall()
         ordered: dict[str, list[dict[str, Any]]] = {}
-        keys = ("tree_id", "improvement_id", "improvement_name", "kind", "event", "outcome", "reward", "cost", "created_at")
+        keys = ("tree_id", "improvement_id", "improvement_name", "kind", "event", "outcome", "reward", "cost", "created_at", "detail")
         for row in rows:
             ordered.setdefault(row[0], []).append(dict(zip(keys, row)))
         return list(ordered.values())
@@ -300,28 +316,103 @@ class ReplaySimulator:
     """Replay recorded discovery trees under a candidate exploration policy.
 
     The simulator is the Dream-RSI "world model": all outcomes are already
-    recorded, so evaluating a policy costs only reads. A policy earns reward
-    for validated evaluations and successful promotions, loses reward on
-    rollbacks, and pays a cost per simulated step. Policies that stop early
-    after failed shadow evaluations avoid wasted retries — visible as a
-    better reward-per-cost score.
+    recorded, so evaluating a policy costs only reads. Every policy field maps
+    to a counterfactual the recorded history can answer:
+
+    - ``propose_after_occurrences``: a repeat candidate for the same signal is
+      only opened once the signal was seen that often; below the threshold the
+      propose never happens (no cost, but also no reward — the recorded tree is
+      skipped entirely). First occurrences are always simulated.
+    - ``max_open_candidates``: once that many admitted candidates are still
+      open in the history, further proposes are rejected by the online gate, so
+      those trees are skipped.
+    - ``retry_backoff_factor``: repeat proposes pay their step cost multiplied
+      by ``backoff ** retry_index``, i.e. retries get progressively expensive.
+    - ``kind_preference``: validated reward and the promotion bonus are weighted
+      by the preference rank of the recorded artifact kind (1.0 / 0.75 / 0.5),
+      so preferring the kind that actually validates scores higher.
+    - ``stop_on_shadow_failure``: a failed evaluation ends that tree, saving the
+      retries recorded after it.
+
+    Reward, cost and the quotients are relative numbers: only the ordering
+    between candidate policies matters, never their absolute value.
     """
 
     PROMOTION_BONUS = 0.5
     WASTED_PENALTY = 0.5
     MIN_COST = 0.5
+    KIND_WEIGHTS = (1.0, 0.75, 0.5)
+
+    @staticmethod
+    def _int_field(policy: dict[str, Any], name: str, default: int) -> int:
+        try:
+            return int(policy.get(name, default))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _float_field(policy: dict[str, Any], name: str, default: float) -> float:
+        try:
+            value = float(policy.get(name, default))
+        except (TypeError, ValueError):
+            return default
+        return value if value > 0 else default
+
+    def _weight(self, policy: dict[str, Any], kind: str) -> float:
+        preference = policy.get("kind_preference")
+        if not isinstance(preference, (list, tuple)):
+            preference = DEFAULT_POLICY["kind_preference"]
+        try:
+            rank = [str(item).casefold() for item in preference].index(str(kind).casefold())
+        except ValueError:
+            rank = len(preference)
+        return self.KIND_WEIGHTS[min(rank, len(self.KIND_WEIGHTS) - 1)]
+
+    @staticmethod
+    def _improvement_name(nodes: list[dict[str, Any]]) -> str:
+        for node in nodes:
+            name = str(node.get("improvement_name") or "")
+            if name:
+                return name
+        return ""
+
+    @staticmethod
+    def _resolved(nodes: list[dict[str, Any]]) -> bool:
+        return any(node.get("event") in {"promote", "rollback"} for node in nodes)
+
+    def _admit(self, policy: dict[str, Any], retry_index: int, open_candidates: int) -> bool:
+        """Would the online gate have opened this candidate at all?"""
+        threshold = max(1, self._int_field(policy, "propose_after_occurrences", DEFAULT_POLICY["propose_after_occurrences"]))
+        if retry_index > 0 and retry_index + 1 < threshold:
+            return False
+        limit = max(1, self._int_field(policy, "max_open_candidates", DEFAULT_POLICY["max_open_candidates"]))
+        return open_candidates < limit
 
     def replay(self, trees: list[list[dict[str, Any]]], policy: dict[str, Any]) -> dict[str, Any]:
         total_reward = 0.0
         total_cost = 0.0
         promotions = 0
         wasted = 0
+        skipped = 0
+        admitted = 0
+        occurrences: dict[str, int] = {}
+        open_candidates = 0
         for nodes in trees:
-            reward, cost, tree_promotions, tree_wasted = self._replay_tree(nodes, policy)
+            name = self._improvement_name(nodes)
+            retry_index = occurrences.get(name, 0) if name else 0
+            if name:
+                occurrences[name] = retry_index + 1
+            if not self._admit(policy, retry_index, open_candidates):
+                skipped += 1
+                continue
+            admitted += 1
+            reward, cost, tree_promotions, tree_wasted = self._replay_tree(nodes, policy, retry_index)
             total_reward += reward
             total_cost += cost
             promotions += tree_promotions
             wasted += tree_wasted
+            if not self._resolved(nodes):
+                open_candidates += 1
         wasted_fraction = wasted / promotions if promotions else 0.0
         score = round(total_reward / max(total_cost, self.MIN_COST) - self.WASTED_PENALTY * wasted_fraction, 4)
         return {
@@ -330,29 +421,39 @@ class ReplaySimulator:
             "expected_cost": round(total_cost, 3),
             "branch_count": len(trees),
             "wasted_fraction": round(wasted_fraction, 3),
+            "admitted": admitted,
+            "skipped": skipped,
         }
 
     def _replay_tree(
-        self, nodes: list[dict[str, Any]], policy: dict[str, Any],
+        self, nodes: list[dict[str, Any]], policy: dict[str, Any], retry_index: int = 0,
     ) -> tuple[float, float, int, int]:
         reward = 0.0
         cost = 0.0
         promotions = 0
         wasted = 0
+        backoff = self._float_field(policy, "retry_backoff_factor", DEFAULT_POLICY["retry_backoff_factor"])
+        retry_cost = backoff ** max(0, retry_index)
         for node in nodes:
             event = node["event"]
+            # The lifecycle listener prices only evaluate/promote (1.0) and stores
+            # 0.0 for the rest, so a missing or zero cost means "one step" here.
+            try:
+                step = float(node.get("cost") or 1.0)
+            except (TypeError, ValueError):
+                step = 1.0
             if event == "propose":
-                cost += 1.0
+                cost += step * retry_cost
             elif event == "evaluate":
-                cost += 1.0
+                cost += step
                 if node["outcome"] == "validated":
-                    reward += float(node["reward"])
+                    reward += float(node["reward"]) * self._weight(policy, node.get("kind", ""))
                 elif node["outcome"] == "failed" and policy.get("stop_on_shadow_failure"):
                     break
             elif event == "promote":
-                cost += 1.0
+                cost += step
                 promotions += 1
-                reward += self.PROMOTION_BONUS
+                reward += self.PROMOTION_BONUS * self._weight(policy, node.get("kind", ""))
             elif event == "rollback":
                 reward += float(node["reward"])
                 wasted += 1
@@ -540,39 +641,101 @@ class DreamRSIEngine:
 
         if self.scorer is not None and len(evaluations) > 1:
             try:
-                reranked = self.scorer.rerank(evaluations)
+                # A scorer only reorders; anything it returns must still be a
+                # complete evaluation row, otherwise the cycle would crash on a
+                # third-party adapter instead of simply keeping the ranking.
+                reranked = self._ordered_rerank(evaluations, self.scorer.rerank(evaluations))
                 if reranked:
                     evaluations = reranked
             except Exception:
                 pass
 
-        winner = evaluations[0]
-        improved = winner["score"] > evaluations[-1]["score"] if len(evaluations) > 1 else False
+        best_overall = evaluations[0]
+        baseline_score = next(
+            (item["score"] for item in evaluations if item["policy"] == baseline),
+            stats["score"],
+        )
+        # Only a candidate the replay actually scores above the active policy may
+        # be proposed. Taking the first entry of the list is not enough: the Laya
+        # reranker may order a lower-scoring candidate first, and without this
+        # guard the loop could adopt a policy the simulator itself scored as a
+        # regression against the running configuration.
+        candidate = next(
+            (
+                item for item in evaluations
+                if item["policy"] != baseline and item["score"] > baseline_score
+            ),
+            None,
+        )
         proposal_id = ""
-        if winner["policy"] != baseline:
+        if candidate is not None:
             evidence = (
-                f"Dream-RSI Replay: score={winner['score']} baseline_score="
-                f"{next((item['score'] for item in evaluations if item['policy'] == baseline), None)} "
-                f"pool={pool_size} branches={winner['branch_count']} "
-                f"wasted_fraction={winner['wasted_fraction']} source={winner['source']}"
+                f"Dream-RSI Replay: score={candidate['score']} baseline_score={baseline_score} "
+                f"pool={pool_size} branches={candidate['branch_count']} "
+                f"wasted_fraction={candidate['wasted_fraction']} source={candidate['source']}"
             )
             try:
                 proposal = self.registry.propose(
-                    POLICY_ARTIFACT_NAME, "config", _canonical(winner["policy"]), evidence,
+                    POLICY_ARTIFACT_NAME, "config", _canonical(candidate["policy"]), evidence,
                 )
                 proposal_id = str(proposal.get("id", ""))
             except (ValueError, RuntimeError) as error:
                 return finish(
                     "failed", f"proposal rejected: {error}",
-                    pool_size=pool_size, candidates=len(candidates), winner=winner,
+                    pool_size=pool_size, candidates=len(candidates), winner=candidate,
                     evaluations=evaluations,
                 )
-        return finish(
-            "completed",
-            "winner matches baseline; no proposal needed" if not proposal_id else "policy proposed",
-            pool_size=pool_size, candidates=len(candidates), winner=winner,
-            proposal_id=proposal_id, evaluations=evaluations,
+            return finish(
+                "completed", "policy proposed",
+                pool_size=pool_size, candidates=len(candidates), winner=candidate,
+                proposal_id=proposal_id, evaluations=evaluations,
+            )
+        reason = (
+            "best candidate matches the active policy; no proposal needed"
+            if best_overall["policy"] == baseline
+            else (
+                f"best candidate does not beat the active policy "
+                f"({best_overall['score']} <= {baseline_score}); no proposal"
+            )
         )
+        return finish(
+            "completed", reason,
+            pool_size=pool_size, candidates=len(candidates), winner=best_overall,
+            proposal_id="", evaluations=evaluations,
+        )
+
+    def _ordered_rerank(self, evaluations: list[dict[str, Any]], reranked: Any) -> list[dict[str, Any]]:
+        """Apply a scorer's order without letting it drop or corrupt candidates.
+
+        The scorer's valid rows come first, then every candidate it did not
+        return is appended in the engine's own order, so a buggy or partial
+        adapter can reorder but never shrink the candidate pool.
+        """
+        valid = self._valid_evaluations(reranked)
+        if not valid:
+            return evaluations
+        seen = {_canonical(item["policy"]) for item in valid}
+        return valid + [
+            item for item in evaluations if _canonical(item["policy"]) not in seen
+        ]
+
+    @staticmethod
+    def _valid_evaluations(items: Any) -> list[dict[str, Any]]:
+        """Keep only complete evaluation rows so a faulty scorer cannot crash a cycle."""
+        if not isinstance(items, list):
+            return []
+        valid: list[dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("policy"), dict):
+                continue
+            numbers = ("score", "expected_reward", "expected_cost", "branch_count", "wasted_fraction")
+            if any(
+                isinstance(item.get(field), bool) or not isinstance(item.get(field), (int, float))
+                for field in numbers
+            ):
+                continue
+            valid.append(item)
+        return valid
 
     def _open_candidate_count(self) -> int:
         list_fn = getattr(self.registry, "list", None)
