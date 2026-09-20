@@ -61,6 +61,20 @@ class ImprovementRegistry:
             if not self.active_state_path.exists():
                 self._publish_state(self._empty_runtime_state())
 
+    # Optional, externally assigned lifecycle listener (Dream-RSI discovery
+    # tree). The registry stays decoupled: it never imports the listener's
+    # module and a failing listener never affects the pipeline.
+    on_event: Any = None
+
+    def _emit(self, event: str, payload: dict[str, Any]) -> None:
+        listener = getattr(self, "on_event", None)
+        if not callable(listener):
+            return
+        try:
+            listener(event, payload)
+        except Exception:
+            pass
+
     @staticmethod
     def _now() -> str:
         return datetime.now(UTC).isoformat()
@@ -341,6 +355,9 @@ class ImprovementRegistry:
                     conn.execute("COMMIT")
         except (RuntimeError, TimeoutError) as error:
             raise ValueError(str(error)) from error
+        self._emit("propose", {
+            "improvement_id": entry["id"], "name": entry["name"], "kind": entry["kind"],
+        })
         document = self.brain.write(
             "improvements", f"Vorschlag: {entry['name']}",
             f"Typ: `{kind}`\n\nEvidenz:\n{evidence.strip()}\n\nVorschlag:\n{content.strip()}",
@@ -355,6 +372,10 @@ class ImprovementRegistry:
 
     def evaluate(self, improvement_id: str, tests_passed: bool, health_passed: bool, test_evidence: str, health_evidence: str) -> bool:
         if not (tests_passed and health_passed and test_evidence.strip() and health_evidence.strip()):
+            self._emit("evaluate", {
+                "improvement_id": improvement_id, "tests_passed": bool(tests_passed),
+                "health_passed": bool(health_passed), "evidence": str(test_evidence)[:600],
+            })
             return False
         with self._locked(), self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -363,6 +384,10 @@ class ImprovementRegistry:
                 "WHERE id = ? AND status = 'proposed'", (test_evidence[:4000], health_evidence[:4000], improvement_id),
             )
             conn.execute("COMMIT")
+        self._emit("evaluate", {
+            "improvement_id": improvement_id, "tests_passed": bool(tests_passed),
+            "health_passed": bool(health_passed), "evidence": str(test_evidence)[:600],
+        })
         return result.rowcount == 1
 
     @staticmethod
@@ -483,7 +508,10 @@ class ImprovementRegistry:
                 state = self._build_runtime_state(self._active_rows(conn, candidate[:7]))
             except (OSError, RuntimeError):
                 return False
-            return self._replace_status_and_publish(conn, existing[0] if existing else None, str(candidate[0]), state)
+            promoted = self._replace_status_and_publish(conn, existing[0] if existing else None, str(candidate[0]), state)
+            if promoted:
+                self._emit("promote", {"improvement_id": str(candidate[0]), "name": candidate[1], "kind": candidate[2]})
+            return promoted
 
     def rollback(self, name: str) -> bool:
         with self._locked(), self._connect() as conn:
@@ -498,7 +526,10 @@ class ImprovementRegistry:
                 state = self._build_runtime_state(self._active_rows(conn, previous))
             except (OSError, RuntimeError):
                 return False
-            return self._replace_status_and_publish(conn, str(active[0]), str(previous[0]), state, "rolled_back")
+            rolled_back = self._replace_status_and_publish(conn, str(active[0]), str(previous[0]), state, "rolled_back")
+            if rolled_back:
+                self._emit("rollback", {"improvement_id": str(active[0]), "name": name})
+            return rolled_back
 
     def record_shadow_failure(self, improvement_id: str, reason: str) -> bool:
         """Quarantine a failed candidate and restore the last known good state.
@@ -540,6 +571,8 @@ class ImprovementRegistry:
                 "WHERE id = ? AND status IN ('proposed', 'validated')", (reason[:4000], improvement_id),
             )
             conn.execute("COMMIT")
+            if result.rowcount == 1:
+                self._emit("shadow_failed", {"improvement_id": improvement_id, "name": current[1], "detail": {"reason": reason[:300]}})
             if result.rowcount != 1:
                 return False
             try:

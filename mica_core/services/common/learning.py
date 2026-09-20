@@ -179,6 +179,15 @@ class SafeWebClient:
         return urlunsplit(("https", parsed.netloc, parsed.path or "/", parsed.query, ""))
 
     def fetch(self, url: str, allowed_hosts: list[str]) -> dict[str, str]:
+        # Scrapling first when installed: its parser re-finds elements after
+        # site redesigns. The bounded httpx client below stays as the fallback
+        # and every guard (HTTPS-only, allowlist, public IP, size limit) still
+        # applies to the Scrapling path via validate_url().
+        if scrapling_wanted():
+            try:
+                return scrapling_fetch_page(url, allowed_hosts)
+            except Exception:
+                pass  # fall back to the bounded httpx client below
         current = self.validate_url(url, allowed_hosts)
         headers = {"User-Agent": "MICA-Learning/1.0", "Accept": "text/html,text/plain;q=0.9"}
         with httpx.Client(follow_redirects=False, trust_env=False, timeout=httpx.Timeout(10.0, connect=5.0)) as client:
@@ -307,6 +316,15 @@ def _search_html(url: str, parser: HTMLParser) -> list[dict[str, str]]:
 
 
 def curated_search(query: str, allowed_hosts: list[str], max_results: int) -> list[dict[str, str]]:
+    # Adaptive Scrapling search first (survives search-page redesigns); the
+    # hand-written stdlib parsers below remain the fallback path.
+    if scrapling_wanted():
+        try:
+            adaptive = scrapling_search(query, allowed_hosts, max_results)
+        except Exception:
+            adaptive = []
+        if adaptive:
+            return adaptive
     scoped = " OR ".join(f"site:{host}" for host in allowed_hosts)
     encoded = httpx.QueryParams({"q": f"({scoped}) {query}"})
     results: list[dict[str, str]] = []
@@ -517,3 +535,85 @@ def parse_research_command(message: str, domains: DomainRegistry) -> tuple[str, 
     if not domain:
         return (match.group(1).strip(), "")
     return (match.group(1).strip(), domain["id"])
+
+
+# ── Adaptive Scrapling layer (optional; guards unchanged) ────────────────────
+
+def scrapling_wanted() -> bool:
+    """Use Scrapling when enabled and importable. Enabled by default when the
+    package exists; set MICA_SCRAPLING_ENABLED=0 to force the stdlib parsers."""
+    flag = os.getenv("MICA_SCRAPLING_ENABLED", "1").strip().lower()
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    try:
+        import scrapling  # noqa: F401
+
+        return True
+    except Exception:
+        return False
+
+
+def scrapling_search(query: str, allowed_hosts: list[str], max_results: int) -> list[dict[str, str]]:
+    """Search via DuckDuckGo/Bing with Scrapling's adaptive parser.
+
+    Element locators are remembered (auto_save/adaptive=True), so a search-page
+    redesign re-locates results instead of returning nothing. Host filtering
+    stays identical to the stdlib path.
+    """
+    from scrapling.fetchers import Fetcher
+
+    scoped = " OR ".join(f"site:{host}" for host in allowed_hosts)
+    encoded = httpx.QueryParams({"q": f"({scoped}) {query}"})
+    results: list[dict[str, str]] = []
+    for url, link_selector, title_selector in (
+        ("https://html.duckduckgo.com/html/?" + str(encoded), "a.result__a", None),
+        ("https://www.bing.com/search?" + str(encoded), "li.b_algo h2 a", None),
+    ):
+        if results:
+            break
+        try:
+            page = Fetcher.get(
+                url,
+                stealthy_outputs=False,
+                adaptive=True,
+                auto_save=True,
+                timeout=10,
+            )
+            elements = page.css(link_selector, adaptive=True) or []
+            for element in elements[: max(8, max_results * 4)]:
+                href = str(element.attrib.get("href", ""))
+                title = re.sub(r"\s+", " ", element.text or "").strip()
+                if href.startswith("//duckduckgo.com/l/") or "duckduckgo.com/" in href and "uddg=" in href:
+                    parsed = urlsplit(href)
+                    if parsed.hostname and parsed.hostname.endswith("duckduckgo.com"):
+                        from urllib.parse import parse_qs as _pqs, unquote as _unq
+
+                        target = _pqs(parsed.query).get("uddg", [""])[0]
+                        href = _unq(target) if target else ""
+                if not href.startswith("https://") or not title:
+                    continue
+                host = (urlsplit(href).hostname or "").casefold().rstrip(".")
+                if any(host == expected or host.endswith("." + expected) for expected in allowed_hosts):
+                    results.append({"title": title, "url": href, "snippet": ""})
+        except Exception:
+            continue
+    return results[: max(8, max_results * 4)]
+
+
+def scrapling_fetch_page(url: str, allowed_hosts: list[str]) -> dict[str, str]:
+    """Fetch one allowlisted page through Scrapling; same limits as httpx path."""
+    client = SafeWebClient()
+    canonical = client.validate_url(url, allowed_hosts)  # all guards still apply
+    from scrapling.fetchers import Fetcher
+
+    page = Fetcher.get(
+        canonical,
+        stealthy_outputs=False,
+        adaptive=True,
+        auto_save=True,
+        timeout=10,
+    )
+    text = re.sub(r"\n{3,}", "\n\n", (page.get_all_text() or "")).strip()
+    if len(text) < 80:
+        raise ValueError("Source contains too little readable text")
+    return {"url": canonical, "text": text[:24_000]}
