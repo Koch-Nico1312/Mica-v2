@@ -4,6 +4,7 @@ Unit Tests für alle neuen Module (Punkte 1-100).
 import unittest
 import tempfile
 import json
+from unittest.mock import patch
 from pathlib import Path
 from datetime import datetime, timedelta
 import sys
@@ -16,7 +17,10 @@ from core.speaker_recognition import SpeakerRecognition
 from core.whisper_mode import WhisperMode
 from core.offline_fallback import OfflineFallback, NetworkDetector
 from core.intercom_mode import IntercomMode
-from core.smart_home import SmartHomeManager, Light, Switch, Thermostat, Sensor
+from core.smart_home import (
+    SmartHomeManager, Light, Switch, Thermostat, Sensor,
+    InMemorySmartHomeAdapter,
+)
 from core.server_monitor import ServerMonitor
 from core.automation import AutomationEngine, Action, Trigger, ActionType, TriggerType, Priority
 from core.organization import OrganizationManager, Task, CalendarEvent, TaskStatus, TaskPriority
@@ -189,7 +193,17 @@ class TestSmartHome(unittest.TestCase):
     """Tests für Smart Home."""
     
     def setUp(self):
-        self.shm = SmartHomeManager()
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self._config_patch = patch(
+            "core.smart_home.SMART_HOME_CONFIG_PATH",
+            Path(self._temp_dir.name) / "smart_home.json",
+        )
+        self._config_patch.start()
+        self.shm = SmartHomeManager(adapter=InMemorySmartHomeAdapter())
+
+    def tearDown(self):
+        self._config_patch.stop()
+        self._temp_dir.cleanup()
     
     def test_add_light(self):
         """Teste Lampe hinzufügen."""
@@ -469,11 +483,11 @@ class TestMica3D(unittest.TestCase):
         self.m3d = Mica3DIntegration()
     
     def test_connect(self):
-        """Teste Verbindung."""
+        """Ohne echten Engine-Adapter darf keine Verbindung behauptet werden."""
         success = self.m3d.connect()
         
-        self.assertTrue(success)
-        self.assertTrue(self.m3d.connected)
+        self.assertFalse(success)
+        self.assertFalse(self.m3d.connected)
     
     def test_create_object(self):
         """Teste Objekt-Erstellung."""

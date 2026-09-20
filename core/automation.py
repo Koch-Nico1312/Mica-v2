@@ -12,6 +12,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
 
+from core.ids import new_id
+
 # Einfacher Scheduler als Alternative zum schedule Paket
 class SimpleScheduler:
     """Einfacher Scheduler für zeitbasierte Automationen."""
@@ -62,10 +64,23 @@ class ScheduleJob:
         self.at_time = None
         self.job_func = None
         self.last_run = None
+        self.created_at = datetime.now()
     
     def day(self):
         """Täglich."""
         self.unit = 'days'
+        self.interval = 1
+        return self
+
+    def week(self):
+        """Wöchentlich ab dem Tag der Registrierung."""
+        self.unit = 'weeks'
+        self.interval = 1
+        return self
+
+    def month(self):
+        """Monatlich am Kalendertag der Registrierung."""
+        self.unit = 'months'
         self.interval = 1
         return self
     
@@ -85,17 +100,35 @@ class ScheduleJob:
         if not self.job_func:
             return False
         
-        if self.unit == 'days' and self.at_time:
-            target_time = datetime.strptime(self.at_time, "%H:%M").time()
-            target_datetime = datetime.combine(now.date(), target_time)
-            
-            # Prüfe ob heute schon gelaufen
-            if self.last_run and self.last_run.date() == now.date():
+        if self.unit in {'days', 'weeks', 'months'} and self.at_time:
+            try:
+                target_time = datetime.strptime(self.at_time, "%H:%M").time()
+            except ValueError:
+                # P1 fix: Invalid time format - don't crash, just skip
                 return False
             
-            # Prüfe ob Zeit erreicht
-            if now >= target_datetime and (self.last_run is None or self.last_run < target_datetime):
+            target_datetime = datetime.combine(now.date(), target_time)
+
+            if now < target_datetime:
+                return False
+
+            if self.last_run is None:
+                if self.unit == 'weeks' and now.weekday() != self.created_at.weekday():
+                    return False
+                if self.unit == 'months' and now.day != self.created_at.day:
+                    return False
                 return True
+
+            if self.unit == 'days':
+                return self.last_run.date() < now.date()
+            if self.unit == 'weeks':
+                return (now.date() - self.last_run.date()).days >= 7
+            if self.unit == 'months':
+                months_elapsed = (
+                    (now.year - self.last_run.year) * 12
+                    + now.month - self.last_run.month
+                )
+                return months_elapsed >= 1 and now.day == self.created_at.day
         
         return False
     
@@ -169,7 +202,7 @@ class Action:
         if self.parameters is None:
             self.parameters = {}
         if not self.action_id:
-            self.action_id = f"action_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.action_id = new_id("action")
 
 
 @dataclass
@@ -185,7 +218,7 @@ class Trigger:
         if self.parameters is None:
             self.parameters = {}
         if not self.trigger_id:
-            self.trigger_id = f"trigger_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.trigger_id = new_id("trigger")
 
 
 @dataclass
@@ -207,7 +240,7 @@ class Automation:
         if self.actions is None:
             self.actions = []
         if not self.automation_id:
-            self.automation_id = f"auto_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.automation_id = new_id("auto")
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
 
@@ -224,7 +257,10 @@ class AutomationEngine:
         self.running = False
         self.scheduler_thread: Optional[threading.Thread] = None
         self.action_handlers: Dict[ActionType, Callable] = {}
+        self.function_handlers: Dict[str, Callable] = {}
+        self.condition_evaluator: Optional[Callable[[str, Optional[Dict]], bool]] = None
         self._register_default_handlers()
+        self._load_automations()  # P1 fix: Load persisted automations
     
     def _load_config(self) -> dict:
         """Lade Automatisierungs-Konfiguration."""
@@ -244,13 +280,106 @@ class AutomationEngine:
         
         return default_config
     
+    def _load_automations(self) -> None:
+        """Lade persistierte Automationen und geplante Aufgaben."""
+        try:
+            if AUTOMATION_CONFIG_PATH.exists():
+                loaded = json.loads(AUTOMATION_CONFIG_PATH.read_text(encoding="utf-8"))
+                
+                # Restore automations
+                for auto_id, auto_data in loaded.get("automations", {}).items():
+                    try:
+                        actions = []
+                        for action_data in auto_data.get("actions", []):
+                            action_data = dict(action_data)
+                            action_data["action_type"] = ActionType(
+                                action_data.get("action_type", ActionType.CUSTOM.value)
+                            )
+                            actions.append(Action(**action_data))
+                        trigger_data = auto_data.get("trigger")
+                        if trigger_data:
+                            trigger_data = dict(trigger_data)
+                            trigger_data["trigger_type"] = TriggerType(
+                                trigger_data.get("trigger_type", TriggerType.MANUAL.value)
+                            )
+                            trigger = Trigger(**trigger_data)
+                        else:
+                            trigger = None
+                        
+                        automation = Automation(
+                            automation_id=auto_id,
+                            name=auto_data.get("name", ""),
+                            description=auto_data.get("description", ""),
+                            actions=actions,
+                            trigger=trigger,
+                            priority=Priority(auto_data.get("priority", Priority.MEDIUM)),
+                            enabled=auto_data.get("enabled", True),
+                            created_at=auto_data.get("created_at", ""),
+                            last_run=auto_data.get("last_run"),
+                            run_count=auto_data.get("run_count", 0),
+                            success_count=auto_data.get("success_count", 0)
+                        )
+                        self.automations[auto_id] = automation
+                        
+                        # Re-register all trigger kinds after a restart.
+                        if trigger and trigger.enabled:
+                            self._register_trigger(auto_id, trigger)
+                    except Exception as e:
+                        print(f"[Automation] Error loading automation {auto_id}: {e}")
+                
+                # Restore routines
+                self.routines = loaded.get("routines", {})
+                
+        except Exception as e:
+            print(f"[Automation] Error loading automations: {e}")
+    
+    def _save_automations(self) -> None:
+        """Speichere Automationen und geplante Aufgaben."""
+        try:
+            automations_data = {}
+            for auto_id, automation in self.automations.items():
+                automations_data[auto_id] = {
+                    "automation_id": automation.automation_id,
+                    "name": automation.name,
+                    "description": automation.description,
+                    "actions": [self._json_safe(asdict(action)) for action in automation.actions],
+                    "trigger": self._json_safe(asdict(automation.trigger)) if automation.trigger else None,
+                    "priority": automation.priority.value,
+                    "enabled": automation.enabled,
+                    "created_at": automation.created_at,
+                    "last_run": automation.last_run,
+                    "run_count": automation.run_count,
+                    "success_count": automation.success_count
+                }
+            
+            save_data = {
+                **self.config,
+                "automations": automations_data,
+                "routines": self.routines
+            }
+            
+            AUTOMATION_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            AUTOMATION_CONFIG_PATH.write_text(
+                json.dumps(save_data, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+        except Exception as e:
+            print(f"[Automation] Error saving automations: {e}")
+
+    @staticmethod
+    def _json_safe(value: Any) -> Any:
+        """Convert enums nested in persisted automation data to JSON values."""
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, dict):
+            return {key: AutomationEngine._json_safe(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [AutomationEngine._json_safe(item) for item in value]
+        return value
+    
     def _save_config(self) -> None:
         """Speichere Automatisierungs-Konfiguration."""
-        AUTOMATION_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        AUTOMATION_CONFIG_PATH.write_text(
-            json.dumps(self.config, indent=2, ensure_ascii=False),
-            encoding="utf-8"
-        )
+        self._save_automations()  # P1 fix: Use comprehensive save method
     
     def _register_default_handlers(self) -> None:
         """Registriere Standard-Aktions-Handler."""
@@ -263,6 +392,12 @@ class AutomationEngine:
     def register_action_handler(self, action_type: ActionType, handler: Callable) -> None:
         """Registriere einen custom Handler."""
         self.action_handlers[action_type] = handler
+
+    def register_function_handler(self, name: str, handler: Callable) -> None:
+        """Register an explicitly allowed callable for FUNCTION_CALL actions."""
+        if not name or not callable(handler):
+            raise ValueError("A function name and callable handler are required")
+        self.function_handlers[name] = handler
     
     def create_automation(self, 
                          name: str, 
@@ -276,14 +411,16 @@ class AutomationEngine:
         Args:
             name: Name der Automation
             description: Beschreibung
-            actions: Liste von Aktionen
+            actions: Liste von Aktionen (darf leer sein, aber nicht None)
             trigger: Optionaler Trigger
             priority: Priorität
             
         Returns:
             Automation ID
         """
-        automation_id = f"auto_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        if actions is None:
+            raise ValueError("actions must not be None")
+        automation_id = new_id("auto")
         
         automation = Automation(
             automation_id=automation_id,
@@ -302,6 +439,9 @@ class AutomationEngine:
         if trigger and trigger.enabled:
             self._register_trigger(automation_id, trigger)
         
+        # P1 fix: Persist automation
+        self._save_automations()
+        
         return automation_id
     
     def _register_trigger(self, automation_id: str, trigger: Trigger) -> None:
@@ -319,9 +459,37 @@ class AutomationEngine:
         try:
             time_str = trigger.parameters.get("time", "00:00")
             if time_str:
-                job = schedule.every().day.at(time_str).do(
+                # P1 fix: Validate time format before scheduling
+                try:
+                    datetime.strptime(time_str, "%H:%M")
+                except ValueError:
+                    print(f"[Automation] Invalid time format: {time_str} - skipping trigger")
+                    return
+                
+                frequency = str(trigger.parameters.get("frequency", "daily")).lower()
+                period = schedule.every()
+                if frequency == "daily":
+                    period = period.day()
+                elif frequency == "weekly":
+                    period = period.week()
+                elif frequency == "monthly":
+                    period = period.month()
+                else:
+                    raise ValueError(f"Unsupported frequency: {frequency}")
+                job = period.at(time_str).do(
                     self.run_automation, automation_id
                 )
+                automation = self.automations.get(automation_id)
+                if automation:
+                    try:
+                        job.created_at = datetime.fromisoformat(automation.created_at)
+                    except (TypeError, ValueError):
+                        pass
+                    if automation.last_run:
+                        try:
+                            job.last_run = datetime.fromisoformat(automation.last_run)
+                        except (TypeError, ValueError):
+                            pass
                 self.scheduled_tasks[automation_id] = job
         except Exception as e:
             print(f"[Automation] Error scheduling trigger: {e}")
@@ -360,10 +528,10 @@ class AutomationEngine:
         automation.run_count += 1
         
         try:
-            # Aktionen priorisiert ausführen
-            sorted_actions = sorted(automation.actions, key=lambda a: a.timeout)
-            
-            for action in sorted_actions:
+            # Aktionen in definierter Reihenfolge ausführen (Punkt 66).
+            # `timeout` ist eine Sekundenangabe, KEINE Priorität - die Ketten-
+            # reihenfolge aus automation.actions bleibt unverändert.
+            for action in automation.actions:
                 success = self._execute_action(action)
                 if not success and action.retry_count > 0:
                     # Retry Logic
@@ -371,12 +539,17 @@ class AutomationEngine:
                         success = self._execute_action(action)
                         if success:
                             break
+                if not success:
+                    self._save_automations()  # P1 fix: Persist changes even on failure
+                    return False
             
             automation.success_count += 1
+            self._save_automations()  # P1 fix: Persist changes on success
             return True
             
         except Exception as e:
             print(f"[Automation] Error executing {automation_id}: {e}")
+            self._save_automations()  # P1 fix: Persist changes on error
             return False
     
     def _execute_action(self, action: Action) -> bool:
@@ -415,10 +588,11 @@ class AutomationEngine:
         args = action.parameters.get("args", [])
         kwargs = action.parameters.get("kwargs", {})
         
-        # Hier könnte man Funktionen aus einem Registry aufrufen
-        # Für jetzt placeholder
-        print(f"[Automation] Would call function: {function_name}")
-        return True
+        handler = self.function_handlers.get(function_name)
+        if handler is None:
+            print(f"[Automation] Unknown function handler: {function_name}")
+            return False
+        return bool(handler(*args, **kwargs))
     
     def _handle_file_operation(self, action: Action) -> bool:
         """Handle File Operation Aktion."""
@@ -431,7 +605,15 @@ class AutomationEngine:
                 Path(file_path).write_text(action.parameters.get("content", ""))
                 return True
             elif operation == "delete":
-                Path(file_path).unlink()
+                # Fail-closed: Löschen erfordert ein explizites 'confirm': True
+                # in den Aktions-Parametern und eine existierende Datei.
+                if not action.parameters.get("confirm", False):
+                    print("[Automation] File delete requires explicit 'confirm': true")
+                    return False
+                target = Path(file_path)
+                if not file_path or not target.is_file():
+                    return False
+                target.unlink()
                 return True
             elif operation == "copy":
                 import shutil
@@ -464,9 +646,8 @@ class AutomationEngine:
     
     def _handle_custom(self, action: Action) -> bool:
         """Handle Custom Aktion."""
-        # Placeholder für custom actions
-        print(f"[Automation] Custom action: {action.description}")
-        return True
+        print(f"[Automation] No handler registered for custom action: {action.description}")
+        return False
     
     def trigger_event(self, event_type: str, event_data: Dict = None) -> List[str]:
         """
@@ -489,7 +670,33 @@ class AutomationEngine:
                     if success:
                         triggered_automations.append(automation_id)
         
+        # Wenn-Dann-Regeln (Punkt 65): CONDITION-Trigger werden über einen
+        # registrierten Evaluator ausgewertet. Ohne Evaluator bleiben sie
+        # inaktiv statt stillschweigend zu feuern.
+        if self.condition_evaluator is not None:
+            for automation in self.automations.values():
+                trigger = automation.trigger
+                if (
+                    automation.enabled
+                    and trigger is not None
+                    and trigger.enabled
+                    and trigger.trigger_type == TriggerType.CONDITION
+                    and self.condition_evaluator(trigger.condition, event_data)
+                ):
+                    if self.run_automation(automation.automation_id):
+                        triggered_automations.append(automation.automation_id)
+        
         return triggered_automations
+
+    def register_condition_evaluator(self, evaluator: Callable[[str, Optional[Dict]], bool]) -> None:
+        """Registriere Evaluator für Wenn-Dann-Regeln (Punkt 65).
+        
+        Args:
+            evaluator: Callable (condition, event_data) -> bool
+        """
+        if not callable(evaluator):
+            raise ValueError("Condition evaluator must be callable")
+        self.condition_evaluator = evaluator
     
     def create_if_then_rule(self, 
                            condition: str, 
@@ -507,7 +714,7 @@ class AutomationEngine:
             Regel ID
         """
         trigger = Trigger(
-            trigger_id=f"trigger_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            trigger_id=new_id("trigger"),
             trigger_type=TriggerType.CONDITION,
             condition=condition,
             parameters={"condition": condition},
@@ -562,6 +769,7 @@ class AutomationEngine:
                 return False
         
         self.routines[routine_name] = automation_ids
+        self._save_automations()  # P1 fix: Persist routines
         return True
     
     def run_routine(self, routine_name: str) -> bool:
@@ -602,7 +810,7 @@ class AutomationEngine:
             Task ID
         """
         trigger = Trigger(
-            trigger_id=f"trigger_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            trigger_id=new_id("trigger"),
             trigger_type=TriggerType.TIME,
             condition="",
             parameters={
@@ -638,6 +846,7 @@ class AutomationEngine:
             if task_id in self.automations:
                 self.automations[task_id].priority = priority
         
+        self._save_automations()  # P1 fix: Persist priority changes
         return True
     
     def generate_automation_from_description(self, description: str) -> Optional[str]:
@@ -645,48 +854,53 @@ class AutomationEngine:
         Generiere Automation aus natürlicher Sprache (Punkt 70).
         
         Args:
-            description: Beschreibung in natürlicher Sprache
+            description: Beschreibung in natürlicher Sprache (nicht None)
             
         Returns:
             Automation ID oder None
         """
-        # Einfache Schlüsselwort-basierte Generierung
-        # Echte Implementierung würde NLP/LLM benötigen
-        
+        if not isinstance(description, str) or not description.strip():
+            return None
+        # Einfache Schlüsselwort-basierte Generierung (Punkt 70).
+        # Es werden nur Aktionen erzeugt, die gegen den aktuellen Zustand
+        # geprüft wurden: Destruktive Operationen (delete, backup) werden
+        # bewusst NICHT generiert, und Smart-Home-Aktionen nur für Geräte,
+        # die wirklich registriert sind. Ohne eindeutiges Ziel -> None.
+        description_lower = description.lower()
         actions = []
         
-        # Schlüsselwort-Erkennung
-        if "file" in description.lower() and "delete" in description.lower():
-            actions.append(Action(
-                action_id="action_1",
-                action_type=ActionType.FILE_OPERATION,
-                parameters={
-                    "operation": "delete",
-                    "path": description.lower().split("delete")[-1].strip()
-                },
-                description="Delete file"
-            ))
-        
-        elif "backup" in description.lower():
-            actions.append(Action(
-                action_id="action_1",
-                action_type=ActionType.SYSTEM_COMMAND,
-                parameters={
-                    "command": "echo 'Backup would run here'"
-                },
-                description="Run backup"
-            ))
-        
-        elif "smart home" in description.lower() or "light" in description.lower():
-            actions.append(Action(
-                action_id="action_1",
-                action_type=ActionType.SMART_HOME,
-                parameters={
-                    "device_id": "light1",
-                    "action": "turn_on"
-                },
-                description="Control smart home"
-            ))
+        wants_light = (
+            "light" in description_lower or "lampe" in description_lower
+            or "licht" in description_lower or "smart home" in description_lower
+        )
+        if wants_light:
+            try:
+                from core.smart_home import get_smart_home_manager
+                lights = [
+                    device for device in get_smart_home_manager().devices.values()
+                    if device.device_type.value == "light"
+                ]
+            except Exception:
+                lights = []
+            
+            target = None
+            for light in lights:
+                if light.name.lower() in description_lower or light.device_id.lower() in description_lower:
+                    target = light
+                    break
+            if target is None and len(lights) == 1:
+                target = lights[0]
+            
+            if target is not None:
+                turn_off = any(word in description_lower for word in ("off", "aus", "ausmachen", "abschalten"))
+                actions.append(Action(
+                    action_type=ActionType.SMART_HOME,
+                    parameters={
+                        "device_id": target.device_id,
+                        "action": "turn_off" if turn_off else "turn_on",
+                    },
+                    description=f"Control {target.name}",
+                ))
         
         if not actions:
             return None
@@ -736,6 +950,7 @@ class AutomationEngine:
         """Aktiviere Automation."""
         if automation_id in self.automations:
             self.automations[automation_id].enabled = True
+            self._save_automations()  # P1 fix: Persist changes
             return True
         return False
     
@@ -743,6 +958,7 @@ class AutomationEngine:
         """Deaktiviere Automation."""
         if automation_id in self.automations:
             self.automations[automation_id].enabled = False
+            self._save_automations()  # P1 fix: Persist changes
             return True
         return False
     
@@ -754,6 +970,17 @@ class AutomationEngine:
             if automation_id in self.scheduled_tasks:
                 self.scheduled_tasks[automation_id].cancel()
                 del self.scheduled_tasks[automation_id]
+            # Event-Trigger-Registrierungen ebenfalls entfernen,
+            # sonst bleiben tote IDs in event_handlers hängen.
+            for automation_ids in self.event_handlers.values():
+                while automation_id in automation_ids:
+                    automation_ids.remove(automation_id)
+            self.event_handlers = {
+                event_type: automation_ids
+                for event_type, automation_ids in self.event_handlers.items()
+                if automation_ids
+            }
+            self._save_automations()  # P1 fix: Persist changes
             return True
         return False
     
