@@ -466,7 +466,6 @@ class ImprovementPromotion(BaseModel):
 
 class DreamCycleRequest(BaseModel):
     max_candidates: int = Field(default=3, ge=1, le=5)
-    approval_id: str | None = None
 
 
 class AgentPlanStep(BaseModel):
@@ -1929,14 +1928,13 @@ def dream_cycle(request: DreamCycleRequest) -> dict[str, Any]:
     """Run one bounded dream cycle on demand.
 
     Read-only replay; the only write is the policy proposal through the fully
-    validated registry. When the proposal lands, the caller receives the
-    approval_id for the parameter-bound promotion decision.
+    validated registry. Proposing needs no approval — promotion is the gated
+    step (`POST /v1/improvements/{id}/promote`), so this endpoint deliberately
+    returns no approval id and accepts none.
     """
-    decision = policy.decide("improvement.shadow", {"action": "dream.rsi", "params": {"max_candidates": request.max_candidates}})
-    approval_id = decision.approval_id or request.approval_id
     cycle = dream_engine.run_cycle(max_candidates=request.max_candidates, min_pool=3)
     audit.append("dream_rsi.manual_cycle", {"status": cycle["status"], "reason": cycle["reason"], "proposal_id": cycle.get("proposal_id", "")})
-    return {"cycle": cycle, "approval_id": approval_id}
+    return {"cycle": cycle}
 
 
 @app.post("/v1/improvements/{improvement_id}/promote")

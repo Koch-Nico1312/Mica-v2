@@ -10,7 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from actions.cua_driver import CONFIRM_COMMANDS, driver_available, enabled, native_app_control, status
+from actions.cua_driver import (
+    CONFIRM_COMMANDS,
+    MAX_TIMEOUT_SECONDS,
+    MIN_TIMEOUT_SECONDS,
+    _bounded_timeout,
+    _run_driver,
+    driver_available,
+    enabled,
+    native_app_control,
+    status,
+)
 
 
 class CuaDriverTests(unittest.TestCase):
@@ -70,6 +80,29 @@ class CuaDriverTests(unittest.TestCase):
             result = native_app_control({"action": "close", "app": "Notepad"}, confirm_request=gate)
         self.assertIn("CONFIRMATION_PENDING", result)
         self.assertEqual(ran, ["cua-close:Notepad"])
+
+    def test_timeout_is_clamped_into_a_bounded_window(self) -> None:
+        self.assertEqual(_bounded_timeout(15), 15)
+        self.assertEqual(_bounded_timeout(10_000), MAX_TIMEOUT_SECONDS)
+        self.assertEqual(_bounded_timeout(1), MIN_TIMEOUT_SECONDS)
+        self.assertEqual(_bounded_timeout("junk"), MIN_TIMEOUT_SECONDS)
+        self.assertEqual(_bounded_timeout(None), MIN_TIMEOUT_SECONDS)
+
+    def test_run_driver_uses_the_clamped_timeout(self) -> None:
+        captured: dict = {}
+
+        class Completed:
+            returncode = 0
+            stdout = "ok"
+            stderr = ""
+
+        def fake_run(args, **kwargs):
+            captured.update(kwargs)
+            return Completed()
+
+        with patch("actions.cua_driver.subprocess.run", side_effect=fake_run):
+            self.assertEqual(_run_driver("cua", ["apps", "list"], 99_999), "ok")
+        self.assertEqual(captured["timeout"], MAX_TIMEOUT_SECONDS)
 
     def test_close_without_ui_gate_is_refused(self) -> None:
         os.environ["MICA_CUA_ENABLED"] = "1"

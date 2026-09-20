@@ -18,11 +18,13 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
 import uuid
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterator
+from urllib.parse import urlsplit
 
 WORKFLOWS = {
     "keyword_research": "Keywords for a topic or seed term",
@@ -44,6 +46,19 @@ def server_url() -> str:
     return os.getenv("MICA_OPENSEO_URL", "").strip().rstrip("/")
 
 
+def get_base_dir() -> Path:
+    """Own installation root, matching the convention of the other adapters."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+
+def budget_db_path() -> Path:
+    """Stable path for the budget counter: never relative to the current CWD."""
+    override = os.getenv("MICA_OPENSEO_DB", "").strip()
+    return Path(override) if override else get_base_dir() / "connectors.sqlite3"
+
+
 def daily_budget() -> int:
     try:
         return max(0, int(os.getenv("MICA_OPENSEO_DAILY_BUDGET", "20")))
@@ -55,7 +70,7 @@ class BudgetStore:
     """Local, durable per-day request counter for paid SEO API calls."""
 
     def __init__(self, path: str | Path | None = None):
-        self.path = Path(path or os.getenv("MICA_OPENSEO_DB", "connectors.sqlite3"))
+        self.path = Path(path) if path else budget_db_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.execute(
@@ -123,13 +138,29 @@ def _load_api_key() -> str | None:
         return None
 
 
+def validated_endpoint() -> str:
+    """Return the MCP endpoint, refusing cleartext HTTP outside loopback.
+
+    The DataForSEO key travels in a request header, so an ``http://`` endpoint
+    would put it on the wire in plaintext; only a local server may be plaintext.
+    """
+    url = server_url()
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("MICA_OPENSEO_URL must be an http(s) endpoint")
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").casefold()
+    if not host:
+        raise ValueError("MICA_OPENSEO_URL has no host")
+    if parsed.scheme == "http" and host not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("MICA_OPENSEO_URL must use https; plain http is only allowed for a loopback MCP server")
+    return url
+
+
 def _mcp_call(workflow: str, params: dict[str, Any], budget: BudgetStore, timeout: int = 45) -> dict[str, Any]:
     """One JSON-RPC tools/call against the OpenSEO MCP endpoint."""
     import httpx
 
-    url = server_url()
-    if not url.startswith(("http://", "https://")):
-        raise ValueError("MICA_OPENSEO_URL must be an http(s) endpoint")
+    url = validated_endpoint()
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream"}
     api_key = _load_api_key()
     if api_key:
@@ -169,6 +200,11 @@ def seo_action(parameters: dict[str, Any], response: Any = None, player: Any = N
         return "seo: unknown workflow. Use one of: " + ", ".join(sorted(WORKFLOWS))
     if not query and not domain:
         return "seo: a 'query' or 'domain' parameter is required."
+    # Refuse a misconfigured endpoint before spending any budget on it.
+    try:
+        validated_endpoint()
+    except ValueError as error:
+        return f"seo: {error}"
 
     budget = BudgetStore()
     if not budget.consume(1):
