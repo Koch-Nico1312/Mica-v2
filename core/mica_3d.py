@@ -4,11 +4,13 @@ Implementiert Punkt 99: MICA-3D-Integration.
 """
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
+
+from core.ids import new_id
 
 
 def get_base_dir() -> Path:
@@ -110,14 +112,30 @@ class SceneObject:
                 scale=Vector3(1, 1, 1)
             )
         if not self.object_id:
-            self.object_id = f"obj_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.object_id = new_id("obj")
+
+    def to_dict(self) -> dict:
+        return {
+            "object_id": self.object_id,
+            "object_type": self.object_type.value,
+            "name": self.name,
+            "transform": self.transform.to_dict(),
+            "properties": self.properties,
+            "visible": self.visible,
+        }
 
 
 class Mica3DIntegration:
     """MICA-3D-Integration."""
     
-    def __init__(self):
+    def __init__(
+        self,
+        connector: Optional[Callable[[str], bool]] = None,
+        disconnecter: Optional[Callable[[], None]] = None,
+    ):
         self.connected = False
+        self._connector = connector
+        self._disconnecter = disconnecter
         self.scene_objects: Dict[str, SceneObject] = {}
         self.cameras: Dict[str, dict] = {}
         self.lights: Dict[str, dict] = {}
@@ -161,16 +179,39 @@ class Mica3DIntegration:
         Returns:
             True wenn erfolgreich
         """
-        # In echter Implementierung würde hier eine Verbindung zur 3D-Engine aufgebaut
-        # Für jetzt simulieren wir die Verbindung
+        target = connection_string.strip() or str(
+            self.config.get("connection_string", "")
+        ).strip()
+        self.connected = False
+
+        # A configured address is not proof of a live engine.  Only an injected
+        # adapter that has actually performed its own handshake may establish the
+        # connection.
+        if self._connector is None or not target:
+            return False
+
+        try:
+            verified = self._connector(target) is True
+        except Exception as exc:
+            print(f"[Mica3D] Verbindung fehlgeschlagen: {exc}")
+            return False
+
+        if not verified:
+            return False
+
+        self.config["connection_string"] = target
+        self._save_config()
         self.connected = True
-        if connection_string:
-            self.config["connection_string"] = connection_string
-            self._save_config()
         return True
     
     def disconnect(self) -> bool:
         """Trenne Verbindung."""
+        if self.connected and self._disconnecter is not None:
+            try:
+                self._disconnecter()
+            except Exception as exc:
+                print(f"[Mica3D] Trennen fehlgeschlagen: {exc}")
+                return False
         self.connected = False
         return True
     
@@ -191,7 +232,7 @@ class Mica3DIntegration:
         Returns:
             Objekt ID
         """
-        object_id = f"obj_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        object_id = new_id("obj")
         
         transform = Transform3D(
             position=Vector3(*position),
@@ -323,7 +364,7 @@ class Mica3DIntegration:
         """Speichere Szene."""
         scene_data = {
             "scene_name": scene_name,
-            "objects": {k: asdict(v) for k, v in self.scene_objects.items()},
+            "objects": {k: v.to_dict() for k, v in self.scene_objects.items()},
             "cameras": self.cameras,
             "lights": self.lights,
             "saved_at": datetime.now().isoformat()
@@ -348,9 +389,11 @@ class Mica3DIntegration:
         try:
             scene_data = json.loads(scene_path.read_text(encoding="utf-8"))
             
-            # Rekonstruiere Objekte
-            self.scene_objects = {}
+            # Rekonstruiere Objekte (streng validiert)
+            restored_objects = {}
             for obj_id, obj_data in scene_data.get("objects", {}).items():
+                if not isinstance(obj_data, dict):
+                    raise ValueError(f"Invalid object entry: {obj_id}")
                 transform_data = obj_data["transform"]
                 transform = Transform3D(
                     position=Vector3.from_dict(transform_data["position"]),
@@ -363,18 +406,34 @@ class Mica3DIntegration:
                     object_type=ObjectType(obj_data["object_type"]),
                     name=obj_data["name"],
                     transform=transform,
-                    properties=obj_data.get("properties", {}),
-                    visible=obj_data.get("visible", True)
+                    properties=dict(obj_data.get("properties", {})),
+                    visible=bool(obj_data.get("visible", True))
                 )
                 
-                self.scene_objects[obj_id] = scene_object
+                restored_objects[obj_id] = scene_object
             
-            self.cameras = scene_data.get("cameras", {})
-            self.lights = scene_data.get("lights", {})
+            # Kameras/Lichter nur übernehmen, wenn es strukturell gültige Dicts sind
+            cameras = scene_data.get("cameras", {})
+            lights = scene_data.get("lights", {})
+            if not isinstance(cameras, dict) or not isinstance(lights, dict):
+                raise ValueError("cameras and lights must be objects")
+            for cam in cameras.values():
+                if not isinstance(cam, dict) or not all(k in cam for k in ("position", "target", "up")):
+                    raise ValueError("Invalid camera entry in scene file")
+            for light in lights.values():
+                if not isinstance(light, dict) or not all(k in light for k in ("light_type", "position", "intensity", "color")):
+                    raise ValueError("Invalid light entry in scene file")
+            
+            self.scene_objects = restored_objects
+            self.cameras = cameras
+            self.lights = lights
             
             return True
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             print(f"[Mica3D] Error loading scene: {e}")
+            self.scene_objects = {}
+            self.cameras = {}
+            self.lights = {}
             return False
     
     def get_scene_info(self) -> dict:
@@ -391,7 +450,7 @@ class Mica3DIntegration:
     def export_scene(self, format: str = "json") -> str:
         """Exportiere Szene."""
         scene_data = {
-            "objects": {k: asdict(v) for k, v in self.scene_objects.items()},
+            "objects": {k: v.to_dict() for k, v in self.scene_objects.items()},
             "cameras": self.cameras,
             "lights": self.lights,
             "exported_at": datetime.now().isoformat()

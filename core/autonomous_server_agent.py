@@ -3,6 +3,8 @@ Autonomer Server-Agent für selbstständige Serverüberwachung und Diagnose.
 Implementiert Punkt 95: Autonomer Server-Agent.
 """
 import json
+import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -11,6 +13,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from enum import Enum
 import sys
+
+from core.ids import new_id
 
 
 def get_base_dir() -> Path:
@@ -51,10 +55,11 @@ class Issue:
     resolved: bool = False
     resolution: str = ""
     resolved_at: Optional[str] = None
+    target: Optional[str] = None   # Maschinenlesbares Ziel (z.B. Service-Name, Pfad)
     
     def __post_init__(self):
         if not self.issue_id:
-            self.issue_id = f"issue_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.issue_id = new_id("issue")
         if not self.detected_at:
             self.detected_at = datetime.now().isoformat()
 
@@ -70,7 +75,7 @@ class DiagnosticAction:
     
     def __post_init__(self):
         if not self.action_id:
-            self.action_id = f"action_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            self.action_id = new_id("action")
 
 
 class AutonomousServerAgent:
@@ -198,7 +203,7 @@ class AutonomousServerAgent:
     def _create_alert(self, issue: Issue) -> None:
         """Erstelle Alert für Problem."""
         alert = {
-            "alert_id": f"alert_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "alert_id": new_id("alert"),
             "issue_id": issue.issue_id,
             "severity": issue.severity.value,
             "category": issue.category,
@@ -253,44 +258,62 @@ class AutonomousServerAgent:
             return False
     
     def _fix_disk_space(self, issue: Issue) -> bool:
-        """Automatische Disk-Space Bereinigung."""
-        # Implementiere einfache Cleanup-Strategien
-        import subprocess
-        import shutil
+        """Automatische Disk-Space Bereinigung.
         
+        Plattformkorrekt: Windows-Temp-Pfade auf Windows, POSIX-Pfade auf
+        POSIX. Löscht ausschließlich Dateien (keine Verzeichnisse) älter
+        als 7 Tage.
+        """
         try:
-            # Temp-Files aufräumen
-            temp_dirs = [
-                "/tmp",
-                "/var/tmp",
-                str(Path.home() / ".cache")
-            ]
+            if sys.platform == "win32":
+                temp_dirs = [
+                    str(Path(os.environ.get("TEMP", r"C:\\Windows\\Temp"))),
+                    str(Path(os.environ.get("TMP", r"C:\\Windows\\Temp"))),
+                ]
+            else:
+                temp_dirs = ["/tmp", "/var/tmp"]
+            
+            cache_dir = Path.home() / ".cache"
+            if cache_dir.exists():
+                temp_dirs.append(str(cache_dir))
             
             for temp_dir in temp_dirs:
                 temp_path = Path(temp_dir)
-                if temp_path.exists():
-                    # Alte Dateien löschen (>7 Tage)
-                    cutoff = datetime.now() - timedelta(days=7)
-                    for item in temp_path.iterdir():
-                        if item.is_file():
-                            stat = item.stat()
-                            file_time = datetime.fromtimestamp(stat.st_mtime)
-                            if file_time < cutoff:
-                                try:
-                                    item.unlink()
-                                except Exception:
-                                    pass
+                if not temp_path.exists():
+                    continue
+                # Alte Dateien löschen (>7 Tage)
+                cutoff = datetime.now() - timedelta(days=7)
+                for item in temp_path.iterdir():
+                    try:
+                        if not item.is_file():
+                            continue
+                        stat = item.stat()
+                        file_time = datetime.fromtimestamp(stat.st_mtime)
+                        if file_time < cutoff:
+                            try:
+                                item.unlink()
+                            except Exception:
+                                pass
+                    except (OSError, ValueError):
+                        continue
             
             return True
         except Exception:
             return False
     
     def _fix_service(self, issue: Issue) -> bool:
-        """Automatischer Service-Restart."""
+        """Automatischer Service-Restart.
+        
+        Nutzt das maschinenlesbare `target`-Feld statt den Service-Namen
+        aus der Freitext-Beschreibung zu parsen.
+        """
         import subprocess
         
         try:
-            service_name = issue.description.split("service ")[-1].strip()
+            service_name = (issue.target or "").strip()
+            if not service_name or any(ch.isspace() for ch in service_name):
+                print(f"[ServerAgent] Refusing restart: no valid service target")
+                return False
             
             # Versuche Service zu restarten
             result = subprocess.run(
@@ -326,7 +349,7 @@ class AutonomousServerAgent:
                 if percent_used >= threshold:
                     severity = Severity.CRITICAL if percent_used >= 95 else Severity.ERROR
                     issues.append(Issue(
-                        issue_id=f"disk_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        issue_id=new_id("disk"),
                         severity=severity,
                         category="disk_space",
                         description=f"Disk space {percent_used:.1f}% used on {path}",
@@ -352,7 +375,7 @@ class AutonomousServerAgent:
             if percent_used >= threshold:
                 severity = Severity.CRITICAL if percent_used >= 95 else Severity.ERROR
                 issues.append(Issue(
-                    issue_id=f"memory_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    issue_id=new_id("memory"),
                     severity=severity,
                     category="memory",
                     description=f"Memory {percent_used:.1f}% used",
@@ -380,7 +403,7 @@ class AutonomousServerAgent:
             if cpu_percent >= threshold:
                 severity = Severity.CRITICAL if cpu_percent >= 95 else Severity.ERROR
                 issues.append(Issue(
-                    issue_id=f"cpu_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    issue_id=new_id("cpu"),
                     severity=severity,
                     category="cpu",
                     description=f"CPU {cpu_percent:.1f}% used",
@@ -412,11 +435,12 @@ class AutonomousServerAgent:
                 
                 if result.stdout.strip() != "active":
                     issues.append(Issue(
-                        issue_id=f"service_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        issue_id=new_id("service"),
                         severity=Severity.ERROR,
                         category="service_down",
                         description=f"Service {service_name} is not active",
-                        detected_at=datetime.now().isoformat()
+                        detected_at=datetime.now().isoformat(),
+                        target=service_name,
                     ))
                     
             except Exception:
@@ -444,7 +468,7 @@ class AutonomousServerAgent:
                 
                 if error_count > 10:  # Threshold
                     issues.append(Issue(
-                        issue_id=f"log_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        issue_id=new_id("log"),
                         severity=Severity.WARNING,
                         category="log_errors",
                         description=f"Found {error_count} errors in {log_path}",

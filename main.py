@@ -69,7 +69,10 @@ from actions.code_helper       import code_helper
 from actions.dev_agent         import dev_agent
 from actions.advanced_agent    import advanced_agent
 from actions.web_search        import web_search as web_search_action
+from actions.mica_features     import mica_feature
 from actions.computer_control  import computer_control
+from actions.cua_driver        import native_app_control
+from actions.seo_agent         import seo_action
 from actions.game_updater      import game_updater
 from actions.system_monitor    import SystemMonitor, get_system_status
 from actions.proactive         import ProactiveEngine
@@ -88,6 +91,7 @@ from core                      import audio_devices
 from core.genai_response       import response_text
 from core.error_checker        import validate_and_correct
 from core.response_prioritizer  import prioritize_and_format
+from core.self_source          import self_source_action
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -153,6 +157,29 @@ def _clean_transcript(text: str) -> str:
 
 TOOL_DECLARATIONS = [
     {
+        "name": "mica_feature",
+        "description": (
+            "Uses MICA's local feature modules. Domains/actions: "
+            "organization(create_task,list_tasks,complete_task,create_event,upcoming_events,deadlines,overview); "
+            "learning(explain_homework,create_study_plan,record_session,progress,create_quiz,answer_quiz,analyze_error,explain_code,analyze_code_error,summarize_document,search_pdf,search_knowledge,overview); "
+            "automation(list,run,generate,create,create_if_then,chain,create_routine,run_routine,prioritize,enable,disable,delete,status,schedule_recurring); "
+            "smart_home(register_device,control,create_scene,execute_scene,away,status,devices); "
+            "intercom(activate,connect,send,receive,status); dashboard(refresh,layout); "
+            "mica_3d(connect,create_object,list_objects,save_scene,load_scene,status); "
+            "autonomous(activate,add,execute_next,confirm,status); server(status,alerts). "
+            "Pass action arguments in payload. Device actions fail closed without a configured real adapter."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "domain": {"type": "STRING", "description": "Feature domain"},
+                "action": {"type": "STRING", "description": "Action within that domain"},
+                "payload": {"type": "STRING", "description": "Action-specific arguments encoded as a JSON object"},
+            },
+            "required": ["domain", "action"]
+        }
+    },
+    {
         "name": "open_app",
         "description": (
             "Opens any application on the computer. "
@@ -191,7 +218,7 @@ TOOL_DECLARATIONS = [
                 "destination": {"type": "STRING", "description": "Destination for route search"},
                 "transport_mode": {"type": "STRING", "description": "Transport mode for route: car | public_transport | walking | bike"},
             },
-            "required": ["query"]
+            "required": []
         }
     },
     {
@@ -718,6 +745,73 @@ TOOL_DECLARATIONS = [
             "required": [],
         },
     },
+    {
+        "name": "self_source",
+        "description": (
+            "Reads MICA's own source code and changes her own settings. "
+            "Actions: list (own files) | read (one file; secrets are masked) | search (find a term) | "
+            "settings (current values) | history (past self-edits) | preview_setting | preview_edit | "
+            "apply_setting | apply_edit. Every write is backed up, logged and requires the on-screen "
+            "confirmation; source edits additionally need MICA_SELF_EDIT_ENABLED=1. "
+            "Always run the matching preview_* action first and show the diff to the user."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":   {"type": "STRING", "description": "list | read | search | settings | history | preview_setting | preview_edit | apply_setting | apply_edit"},
+                "path":     {"type": "STRING", "description": "Path relative to MICA's installation (read/preview_edit/apply_edit)"},
+                "term":     {"type": "STRING", "description": "Search term (search)"},
+                "key":      {"type": "STRING", "description": "Setting name, e.g. MODEL_ROUTER_BUDGET_HOURLY (preview_setting/apply_setting)"},
+                "value":    {"type": "STRING", "description": "New setting value (preview_setting/apply_setting)"},
+                "old_text": {"type": "STRING", "description": "Exact text to replace, must occur exactly once (preview_edit/apply_edit)"},
+                "new_text": {"type": "STRING", "description": "Replacement text (preview_edit/apply_edit)"},
+                "limit":    {"type": "INTEGER", "description": "Max results for search (default 20)"},
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "native_app_control",
+        "description": (
+            "Controls NATIVE Windows applications in the background without stealing focus, "
+            "using the Cua driver when installed (MICA_CUA_ENABLED). "
+            "Actions: focus | type | press | click | double_click | right_click | scroll | read | "
+            "screenshot | list_apps | close. 'close' requires on-screen confirmation. "
+            "Returns guidance when the driver is missing — use computer_settings/computer_control "
+            "for normal desktop control."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":  {"type": "STRING", "description": "focus | type | press | click | double_click | right_click | scroll | read | screenshot | list_apps | close"},
+                "app":     {"type": "STRING", "description": "Application name or window title"},
+                "text":    {"type": "STRING", "description": "Text to type (type)"},
+                "key":     {"type": "STRING", "description": "Key or hotkey (press)"},
+                "amount":  {"type": "INTEGER", "description": "Scroll amount, may be negative (scroll)"},
+                "timeout": {"type": "INTEGER", "description": "Driver timeout seconds (default 15)"},
+            },
+            "required": ["action"]
+        }
+    },
+    {
+        "name": "seo_agent",
+        "description": (
+            "SEO workflows via OpenSEO (keyword_research, rank_tracking, competitor_insights, "
+            "backlinks, site_audit, ai_visibility) when MICA_OPENSEO_ENABLED=1 and an OpenSEO URL "
+            "is configured. Consumes a daily paid-API budget; workflow 'set_key' stores the "
+            "DataForSEO key in the OS keyring."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "workflow": {"type": "STRING", "description": "keyword_research | rank_tracking | competitor_insights | backlinks | site_audit | ai_visibility | set_key"},
+                "query":    {"type": "STRING", "description": "Topic or seed keyword"},
+                "domain":   {"type": "STRING", "description": "Domain for rank/backlink/audit workflows"},
+                "api_key":  {"type": "STRING", "description": "DataForSEO API key (set_key only; stored in the OS keyring)"},
+            },
+            "required": ["workflow"]
+        }
+    },
 ]
 
 class _ReconnectSignal(Exception):
@@ -1077,6 +1171,18 @@ class JarvisLive:
                 else:
                     result = await loop.run_in_executor(None, undo_stack.undo_last)
 
+            elif name == "self_source":
+                r = await loop.run_in_executor(None, lambda: self_source_action(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "native_app_control":
+                r = await loop.run_in_executor(None, lambda: native_app_control(parameters=args, player=self.ui))
+                result = r or "Done."
+
+            elif name == "seo_agent":
+                r = await loop.run_in_executor(None, lambda: seo_action(parameters=args, player=self.ui))
+                result = r or "Done."
+
             elif name == "open_app":
                 r = await loop.run_in_executor(None, lambda: open_app(parameters=args, response=None, player=self.ui))
                 result = r or f"Opened {args.get('app_name')}."
@@ -1169,6 +1275,11 @@ class JarvisLive:
                     _query = args.get("query") or ", ".join(args.get("items", []))
                     _label = f"{_mode.upper()} — {_query[:38]}" if _query else _mode.upper()
                     self.ui.show_content(_label, r)
+
+            elif name == "mica_feature":
+                result = await loop.run_in_executor(
+                    None, lambda: mica_feature(parameters=args, player=self.ui)
+                )
             elif name == "file_processor":
                 if not args.get("file_path") and self.ui.current_file:
                     args["file_path"] = self.ui.current_file

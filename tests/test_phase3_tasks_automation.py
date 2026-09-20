@@ -54,7 +54,7 @@ class SelectiveFailBrain(MarkdownBrain):
 class Phase3StoreTests(unittest.TestCase):
     def test_recovered_runtime_uses_normal_source_files(self) -> None:
         expected = [
-            ROOT / "local_main.py", ROOT / "start_mica_local.ps1",
+            ROOT / "local_main.py", ROOT / "install_and_start.ps1",
             ROOT / "requirements-phase0.lock", CORE / "services" / "api" / "app.py",
             CORE / "services" / "scheduler.py", CORE / "web_ui" / "index.html",
             CORE / "backup_restore.py", ROOT / "docs" / "phase2-acceptance.md",
@@ -62,9 +62,9 @@ class Phase3StoreTests(unittest.TestCase):
         self.assertTrue(all(path.is_file() for path in expected))
         task_module = importlib.import_module("services.common.task_automation")
         self.assertEqual(Path(task_module.__file__).suffix, ".py")
-        launcher = (ROOT / "start_mica_local.ps1").read_text(encoding="utf-8-sig")
+        launcher = (ROOT / "install_and_start.ps1").read_text(encoding="utf-8-sig")
         self.assertIn('"local_main.py"', launcher)
-        self.assertIn("start_mica_local.ps1", (ROOT / "readme.md").read_text(encoding="utf-8"))
+        self.assertIn("install_and_start.ps1", (ROOT / "readme.md").read_text(encoding="utf-8"))
 
     def test_recovered_backup_restore_path_rebuilds_truth(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

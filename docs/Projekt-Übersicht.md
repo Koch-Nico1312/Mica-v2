@@ -138,7 +138,7 @@ Umgebungsvariablen oder Konfiguration:
 python local_main.py
 
 # Oder mit PowerShell Script
-.\start_mica_local.ps1
+.\install_and_start.ps1
 ```
 
 ### Voice-Interaktion
