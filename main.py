@@ -79,12 +79,15 @@ from actions.background_monitor import (
 from actions.web_search        import _news as _fetch_news_sync
 from memory.config_manager     import (
     get_brief_enabled, get_voice, get_input_device, get_output_device,
+    get_personality_prompt, get_model_name,
 )
 from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
 from core                      import confirm as confirm_gate
 from core                      import audio_devices
 from core.genai_response       import response_text
+from core.error_checker        import validate_and_correct
+from core.response_prioritizer  import prioritize_and_format
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -94,7 +97,7 @@ def get_base_dir():
 BASE_DIR        = get_base_dir()
 API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 PROMPT_PATH     = BASE_DIR / "core" / "prompt.txt"
-LIVE_MODEL          = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+LIVE_MODEL          = get_model_name()
 CHANNELS            = 1
 SEND_SAMPLE_RATE    = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -129,13 +132,17 @@ def _get_api_key() -> str:
 
 def _load_system_prompt() -> str:
     try:
-        return PROMPT_PATH.read_text(encoding="utf-8")
+        base_prompt = PROMPT_PATH.read_text(encoding="utf-8")
     except Exception:
-        return (
+        base_prompt = (
             "You are JARVIS, Tony Stark's AI assistant. "
             "Be concise, direct, and always use the provided tools to complete tasks. "
             "Never simulate or guess results — always call the appropriate tool."
         )
+    
+    # Füge Persönlichkeits-Prompt hinzu
+    personality_prompt = get_personality_prompt()
+    return base_prompt + "\n\n" + personality_prompt
 
 _CTRL_RE = re.compile(r"<ctrl\d+>", re.IGNORECASE)
 
@@ -170,15 +177,19 @@ TOOL_DECLARATIONS = [
             "or topics — always prefer this over guessing. "
             "Modes: 'search' (default), 'news' (latest headlines on a topic), "
             "'research' (deep comprehensive answer), 'price' (product cost lookup), "
-            "'compare' (side-by-side comparison of items)."
+            "'compare' (side-by-side comparison of items), 'opening_hours' (find opening hours), "
+            "'route' (search routes between locations)."
         ),
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "query":  {"type": "STRING", "description": "Search query or topic"},
-                "mode":   {"type": "STRING", "description": "search | news | research | price | compare"},
+                "mode":   {"type": "STRING", "description": "search | news | research | price | compare | opening_hours | route"},
                 "items":  {"type": "ARRAY",  "items": {"type": "STRING"}, "description": "Items to compare (compare mode)"},
                 "aspect": {"type": "STRING", "description": "Comparison aspect: price | specs | reviews | features"},
+                "origin": {"type": "STRING", "description": "Starting location for route search"},
+                "destination": {"type": "STRING", "description": "Destination for route search"},
+                "transport_mode": {"type": "STRING", "description": "Transport mode for route: car | public_transport | walking | bike"},
             },
             "required": ["query"]
         }
@@ -1678,7 +1689,12 @@ class JarvisLive:
             )
             summary = response_text(resp)
             if summary:
-                save_session_summary(summary, lang)
+                # Wende Fehlerkorrektur und Priorisierung auf die Zusammenfassung an
+                corrected_summary, has_errors, errors = validate_and_correct(summary)
+                if has_errors:
+                    print(f"[Memory] 🔧 Fehler in Zusammenfassung korrigiert: {errors}")
+                prioritized_summary = prioritize_and_format(corrected_summary, use_key_points=True)
+                save_session_summary(prioritized_summary, lang)
         except Exception as e:
             print(f"[Memory] ⚠️ Session summary failed: {e}")
 

@@ -2,6 +2,12 @@
 config/api_keys.json
 config/credential-names.json
 config/certs/
+config/smart_home.json
+config/server_agent.json
+config/automation.json
+config/dashboard.json
+config/mica_3d.json
+config/autonomous_mode.json
 *.pem
 *.key
 .env
@@ -25,6 +31,8 @@ env/
 
 # ── Runtime state ────────────────────────────────────────────────────────
 memory/*.json
+memory/organization.json
+memory/learning.json
 *.log
 /approvals.sqlite3
 /connectors.sqlite3
@@ -37,6 +45,7 @@ memory/*.json
 /index/
 /improvement-workspace/
 /.mica-data/
+mica_3d_scenes/
 
 # ── Editor / OS ──────────────────────────────────────────────────────────
 .vscode/
@@ -44,6 +53,12 @@ memory/*.json
 Thumbs.db
 desktop.ini
 *.bak
+
+# ── AI Tool Configurations ────────────────────────────────────────────────
+.agents/
+.claude/
+agent/
+skills-lock.json
 
 # Local model payloads are verified downloads, not repository content.
 models/*
