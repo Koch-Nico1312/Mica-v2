@@ -13,8 +13,14 @@
 | Paper | MICA-Umsetzung |
 |---|---|
 | ❶ Online-Discovery protokolliert Traces | `ImprovementRegistry` emittiert Lifecycle-Events (propose/evaluate/shadow_failed/promote/rollback) → `DreamTreeStore` (`dream.sqlite3`) als Entdeckungsbaum |
-| ❷ Historie wird zum Replay-Simulator | `ReplaySimulator` traversiert aufgezeichnete Bäume alternativ (frühere Stopp-Schwellen, andere Reihenfolgen) — **rein lesend**, ohne Ausführung |
-| ③ Policies im Traum bewerten, beste zurückspielen | `DreamRSIEngine.run_cycle()` vergleicht Baseline + Grid- + LLM-Kandidaten, schlägt den Gewinner als `config`-Artefakt `dream-exploration-config` vor; die aktive Policy steuert danach `maybe_propose_improvement` („redeploy online") |
+| ❷ Historie wird zum Replay-Simulator | `ReplaySimulator` traversiert aufgezeichnete Bäume alternativ — **rein lesend**, ohne Ausführung. Jeder Policy-Regler beantwortet eine kontrafaktische Frage an die Historie: `propose_after_occurrences` (Wiederholungen werden erst ab der Schwelle geöffnet; Erst-Vorkommen immer), `max_open_candidates` (Cap auf noch offene Kandidaten), `retry_backoff_factor` (`backoff ** retry_index` auf die Vorschlags-Kosten), `kind_preference` (Gewichtung des Validierungs-Rewards nach Artefakt-Kind: 1.0/0.75/0.5), `stop_on_shadow_failure` (Abbruch nach dem ersten Fehlschlag spart die aufgezeichneten Retries). Die Antwort enthält zusätzlich `admitted`/`skipped`. Nur die *Reihenfolge* der Kandidaten ist bedeutsam, nie der Absolutwert |
+| ③ Policies im Traum bewerten, beste zurückspielen | `DreamRSIEngine.run_cycle()` vergleicht Baseline + Grid- + LLM-Kandidaten und schlägt den besten Kandidaten als `config`-Artefakt `dream-exploration-config` vor; die aktive Policy steuert danach `maybe_propose_improvement` („redeploy online") |
+
+Ein Kandidat wird **nur vorgeschlagen, wenn der Replay ihn strikt besser bewertet
+als die aktive Policy** (`score > baseline_score`). Ist der bestbewertete Kandidat
+die Baseline selbst, oder sortiert der Laya-Scorer einen schlechteren Kandidaten
+nach vorn, endet der Zyklus mit `status=completed`, `proposal_id=""` und einer
+begründenden `reason` — der Loop kann sich so nicht selbst verschlechtern.
 
 ## Sicherheit (unverändert)
 
@@ -36,10 +42,10 @@
 |---|---|
 | `mica_core/services/common/dream_rsi.py` | Baum-Speicher, Replay-Simulator, Policy-Schema, Engine |
 | `mica_core/services/common/laya_scorer.py` | Optionales lokales Scoring mit [Laya](https://github.com/NandhaKishorM/laya) (~33 ms, CPU, deutsch); deterministischer Heuristik-Fallback |
-| `mica_core/services/common/learning.py` | Recherche/Monitoring jetzt mit [Scrapling](https://github.com/D4Vinci/Scrapling) (adaptive Elemente überleben Web-Redesigns); HTTPX-Fallback bleibt, alle Guards (HTTPS-only, Allowlist, Public-IP, Größenlimit) unverändert |
+| `mica_core/services/common/learning.py` | Recherche/Monitoring jetzt mit [Scrapling](https://github.com/D4Vinci/Scrapling) (adaptive Elemente überleben Web-Redesigns). Der Scrapling-Fetch löst Redirects **selbst** auf und validiert jeden Hop über `SafeWebClient.validate_url` — Scraplings Default `follow_redirects="safe"` lehnt nur private/internale Ziele ab, nicht Allowlist-Abweichungen — und prüft Rohgröße (`MAX_BYTES`), Content-Type und die tatsächlich bedienende URL, bevor Text zurückgegeben wird. HTTPX-Fallback bleibt unverändert |
 | `mica_core/services/scheduler.py` | geplante Aktion `dream.rsi` (budgetiert) |
 | `actions/cua_driver.py` | [Cua Driver](https://github.com/trycua/cua): native Windows-Apps ohne Fokus-Klau; `close` hinter dem Bestätigungs-Gate; Fallback-Hinweis auf bestehende Steuerung |
-| `actions/seo_agent.py` | [OpenSEO](https://github.com/every-app/open-seo) via MCP: Key im OS-Keyring, Tagesbudget für bezahlte DataForSEO-Requests |
+| `actions/seo_agent.py` | [OpenSEO](https://github.com/every-app/open-seo) via MCP: Key im OS-Keyring, Tagesbudget für bezahlte DataForSEO-Requests. Der Endpoint muss HTTPS sein (Klartext-HTTP nur für einen Loopback-MCP-Server), und die Budget-DB liegt fest in der Installationswurzel (`<Wurzel>/connectors.sqlite3`, überschreibbar per `MICA_OPENSEO_DB`) statt relativ zum aktuellen Arbeitsverzeichnis |
 
 ## Env-Flags
 
@@ -59,7 +65,10 @@
 - `GET /v1/dream/state` — Pool-Größe, aktive Policy, letzte Zyklen
 - `GET /v1/dream/policies` — aufgezeichnete Replay-Auswertungen
 - `POST /v1/dream/cycle` — ein begrenzter Zyklus auf Abruf (liest nur;
-  einziger Schreibvorgang ist der validierte Policy-Vorschlag)
+  einziger Schreibvorgang ist der validierte Policy-Vorschlag). Braucht und
+  akzeptiert **keine** Freigabe: das Vorschlagen ist billig und umkehrbar,
+  freigabepflichtig ist erst die Promotion. Die Antwort enthält deshalb keine
+  `approval_id`
 - Scheduler: Aktion `dream.rsi` planbar (Budget 3 Kandidaten, Pool ≥ 3)
 
 ## Bewusst nicht umgesetzt

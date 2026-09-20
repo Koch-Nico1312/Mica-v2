@@ -27,6 +27,9 @@ import subprocess
 from typing import Any, Callable
 
 CONFIRM_COMMANDS = {"close", "quit"}
+MIN_TIMEOUT_SECONDS = 5
+# Upper bound: a driver call must never tie up a worker thread indefinitely.
+MAX_TIMEOUT_SECONDS = 120
 _SAFE_COMMANDS = {
     "focus", "type", "press", "click", "double_click", "right_click",
     "scroll", "read", "screenshot", "list_apps",
@@ -52,10 +55,19 @@ def status() -> dict[str, Any]:
     return {"enabled": enabled(), "driver": driver, "available": bool(driver)}
 
 
+def _bounded_timeout(timeout: Any) -> int:
+    """Clamp a requested driver timeout into a sane window."""
+    try:
+        value = int(timeout)
+    except (TypeError, ValueError):
+        value = MIN_TIMEOUT_SECONDS
+    return max(MIN_TIMEOUT_SECONDS, min(value, MAX_TIMEOUT_SECONDS))
+
+
 def _run_driver(driver: str, args: list[str], timeout: int) -> str:
     completed = subprocess.run(
         [driver, *args], capture_output=True, text=True,
-        encoding="utf-8", errors="replace", timeout=max(5, int(timeout)), check=False,
+        encoding="utf-8", errors="replace", timeout=_bounded_timeout(timeout), check=False,
         env={**os.environ, "CUA_NONINTERACTIVE": "1"},
     )
     if completed.returncode != 0:
@@ -78,7 +90,7 @@ def native_app_control(
         text:     text to type (type)
         key:      key or hotkey (press)
         amount:   scroll amount (scroll, may be negative)
-        timeout:  seconds for the driver call (default 15)
+        timeout:  seconds for the driver call (default 15, clamped to 5..120)
     """
     action = str(parameters.get("action", "")).strip().lower()
     if not action:
@@ -96,7 +108,7 @@ def native_app_control(
         )
 
     app = str(parameters.get("app", "")).strip()
-    timeout = int(parameters.get("timeout", 15) or 15)
+    timeout = _bounded_timeout(parameters.get("timeout", 15) or 15)
 
     def _invoke() -> str:
         if action == "list_apps":

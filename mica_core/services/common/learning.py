@@ -553,33 +553,80 @@ def scrapling_wanted() -> bool:
         return False
 
 
+def _scrapling_enable_adaptive(Fetcher: Any) -> None:
+    """Turn on adaptive parsing without hard-failing on Scrapling version drift."""
+    configure = getattr(Fetcher, "configure", None)
+    if callable(configure):
+        try:
+            configure(adaptive=True)
+            return
+        except Exception:
+            pass
+    try:
+        Fetcher.adaptive = True
+    except Exception:
+        pass
+
+
+def _scrapling_header(page: Any, name: str) -> str:
+    """Read one response header case-insensitively; empty string when absent."""
+    headers = getattr(page, "headers", None) or {}
+    value: Any = None
+    try:
+        value = headers.get(name)
+    except Exception:
+        value = None
+    if value is None:
+        try:
+            for key, item in headers.items():
+                if str(key).casefold() == name.casefold():
+                    value = item
+                    break
+        except Exception:
+            value = None
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    return str(value or "")
+
+
+def _scrapling_body_size(page: Any) -> int:
+    """Best-effort raw body size so the byte limit also covers raw payloads."""
+    body = getattr(page, "body", None)
+    if isinstance(body, (bytes, bytearray)):
+        return len(body)
+    if isinstance(body, str):
+        return len(body.encode("utf-8", errors="replace"))
+    html = getattr(page, "html_content", None)
+    if isinstance(html, str):
+        return len(html.encode("utf-8", errors="replace"))
+    return 0
+
+
 def scrapling_search(query: str, allowed_hosts: list[str], max_results: int) -> list[dict[str, str]]:
     """Search via DuckDuckGo/Bing with Scrapling's adaptive parser.
 
-    Element locators are remembered (auto_save/adaptive=True), so a search-page
+    Element locators are remembered (auto_save/adaptive), so a search-page
     redesign re-locates results instead of returning nothing. Host filtering
     stays identical to the stdlib path.
     """
     from scrapling.fetchers import Fetcher
 
+    _scrapling_enable_adaptive(Fetcher)
     scoped = " OR ".join(f"site:{host}" for host in allowed_hosts)
     encoded = httpx.QueryParams({"q": f"({scoped}) {query}"})
     results: list[dict[str, str]] = []
-    for url, link_selector, title_selector in (
-        ("https://html.duckduckgo.com/html/?" + str(encoded), "a.result__a", None),
-        ("https://www.bing.com/search?" + str(encoded), "li.b_algo h2 a", None),
+    for url, link_selector in (
+        ("https://html.duckduckgo.com/html/?" + str(encoded), "a.result__a"),
+        ("https://www.bing.com/search?" + str(encoded), "li.b_algo h2 a"),
     ):
         if results:
             break
         try:
-            page = Fetcher.get(
-                url,
-                stealthy_outputs=False,
-                adaptive=True,
-                auto_save=True,
-                timeout=10,
-            )
+            page = Fetcher.get(url, timeout=10, follow_redirects="safe", max_redirects=5)
+            # Relocate the saved locator first, record it when nothing is known yet.
             elements = page.css(link_selector, adaptive=True) or []
+            if not elements:
+                elements = page.css(link_selector, auto_save=True) or []
             for element in elements[: max(8, max_results * 4)]:
                 href = str(element.attrib.get("href", ""))
                 title = re.sub(r"\s+", " ", element.text or "").strip()
@@ -601,19 +648,47 @@ def scrapling_search(query: str, allowed_hosts: list[str], max_results: int) -> 
 
 
 def scrapling_fetch_page(url: str, allowed_hosts: list[str]) -> dict[str, str]:
-    """Fetch one allowlisted page through Scrapling; same limits as httpx path."""
+    """Fetch one allowlisted page through Scrapling under the same guards as httpx.
+
+    Redirects are not delegated to Scrapling: its default ``follow_redirects="safe"``
+    only rejects private/internal targets, not hops leaving the allowlist, so every
+    hop is resolved manually and re-validated with ``SafeWebClient.validate_url``.
+    The raw byte limit matches the httpx path exactly; the content-type check is the
+    same except that a missing header is tolerated (curl_cffi does not always report
+    one) — the byte cap, the minimum text length and the truncation still apply. The
+    URL that actually served the content is validated again before text is returned.
+    """
     client = SafeWebClient()
-    canonical = client.validate_url(url, allowed_hosts)  # all guards still apply
+    current = client.validate_url(url, allowed_hosts)  # all guards still apply
     from scrapling.fetchers import Fetcher
 
-    page = Fetcher.get(
-        canonical,
-        stealthy_outputs=False,
-        adaptive=True,
-        auto_save=True,
-        timeout=10,
-    )
-    text = re.sub(r"\n{3,}", "\n\n", (page.get_all_text() or "")).strip()
-    if len(text) < 80:
-        raise ValueError("Source contains too little readable text")
-    return {"url": canonical, "text": text[:24_000]}
+    _scrapling_enable_adaptive(Fetcher)
+    for _ in range(client.MAX_REDIRECTS + 1):
+        page = Fetcher.get(
+            current,
+            timeout=10,
+            # One mechanism only: "False" disables redirects entirely, so the
+            # hops below are the only way a request ever moves.
+            follow_redirects=False,
+        )
+        status = int(getattr(page, "status", 200) or 200)
+        if status in {301, 302, 303, 307, 308}:
+            location = _scrapling_header(page, "location")
+            if not location:
+                raise ValueError("Redirect has no location")
+            current = client.validate_url(urljoin(current, location), allowed_hosts)
+            continue
+        if status >= 400:
+            raise ValueError(f"Source returned HTTP {status}")
+        if _scrapling_body_size(page) > client.MAX_BYTES:
+            raise ValueError("Source exceeds the size limit")
+        content_type = _scrapling_header(page, "content-type").split(";", 1)[0].strip().lower()
+        if content_type and content_type not in {"text/html", "text/plain"}:
+            raise ValueError("Source content type is not supported")
+        # Whatever host actually served the content has to pass the guards too.
+        final = client.validate_url(str(getattr(page, "url", "") or current), allowed_hosts)
+        text = re.sub(r"\n{3,}", "\n\n", (page.get_all_text() or "")).strip()
+        if len(text) < 80:
+            raise ValueError("Source contains too little readable text")
+        return {"url": final, "text": text[:24_000]}
+    raise ValueError("Too many redirects")

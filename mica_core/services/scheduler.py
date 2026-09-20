@@ -150,8 +150,15 @@ if __name__ == "__main__":
     phase4 = Phase4Store(os.getenv("MICA_STATE_DB", os.getenv("SCHEDULE_DB", "/data/scheduler.sqlite3")))
     improvements = ImprovementRegistry(os.getenv("IMPROVEMENT_DB", "/data/improvements.sqlite3"), brain)
     # Dream-RSI records every improvement lifecycle event into the discovery
-    # tree and provides the dream engine for scheduled dream.rsi cycles.
-    dream = attach_dream_rsi(improvements, brain, summarizer=learning.summarizer)
+    # tree and provides the dream engine for scheduled dream.rsi cycles. This
+    # process has no LLM, so the engine gets no summarizer (a stub returning ""
+    # would only spend one useless candidate call per cycle) — and it still
+    # honours the emergency stop even if a due schedule slipped through.
+    dream = attach_dream_rsi(
+        improvements, brain,
+        summarizer=None,
+        emergency_stopped=policy.is_emergency_stopped,
+    )
     reset("scheduler")
     audit.append("scheduler.started", {"mode": "local", "poll_seconds": 30})
     while True:
