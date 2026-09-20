@@ -11,6 +11,7 @@ from services.common.brain import MarkdownBrain
 from services.common.health import reset, touch
 from services.common.learning import DomainRegistry, LearningService
 from services.common.improvements import ImprovementRegistry
+from services.common.dream_rsi import attach_dream_rsi
 from services.common.policy import PolicyEngine
 from services.common.phase4 import Phase4Store, enabled, phase4_enabled
 from services.common.scheduler_store import ScheduleStore
@@ -31,7 +32,7 @@ def _dispatch_plan_step(action: str, params: dict, idempotency_key: str, approva
     return payload
 
 
-def run_cycle(audit, brain, learning, schedules, tasks, policy, phase4=None, dispatch_plan_step=None, improvements=None, ambient_monitor=None) -> dict[str, int | str]:
+def run_cycle(audit, brain, learning, schedules, tasks, policy, phase4=None, dispatch_plan_step=None, improvements=None, ambient_monitor=None, dream=None) -> dict[str, int | str]:
     """Run one bounded scheduler pass so startup and safety behavior are testable."""
     emergency_stopped = policy.is_emergency_stopped()
     due = [] if emergency_stopped else schedules.claim_due()
@@ -79,6 +80,15 @@ def run_cycle(audit, brain, learning, schedules, tasks, policy, phase4=None, dis
                 audit.append("server_agent.scanned", {
                     "schedule_id": schedule["id"], "observation_id": observation["id"],
                     "status": "diagnostic" if observation["diagnostics"] else "healthy",
+                })
+            elif schedule["action"] == "dream.rsi":
+                if dream is None:
+                    raise RuntimeError("Dream-RSI engine is not wired")
+                cycle = dream.run_cycle(max_candidates=3, min_pool=3)
+                audit.append("dream_rsi.cycle", {
+                    "schedule_id": schedule["id"], "status": cycle["status"], "reason": cycle["reason"],
+                    "pool_size": int(cycle.get("pool_size", 0)), "candidates": int(cycle.get("candidates", 0)),
+                    "proposal_id": str(cycle.get("proposal_id", "") or ""),
                 })
             else:
                 # Delivery schedules stop at awaiting_approval. The API passes
@@ -139,11 +149,14 @@ if __name__ == "__main__":
     policy = PolicyEngine(os.getenv("APPROVAL_DB", "/data/approvals.sqlite3"))
     phase4 = Phase4Store(os.getenv("MICA_STATE_DB", os.getenv("SCHEDULE_DB", "/data/scheduler.sqlite3")))
     improvements = ImprovementRegistry(os.getenv("IMPROVEMENT_DB", "/data/improvements.sqlite3"), brain)
+    # Dream-RSI records every improvement lifecycle event into the discovery
+    # tree and provides the dream engine for scheduled dream.rsi cycles.
+    dream = attach_dream_rsi(improvements, brain, summarizer=learning.summarizer)
     reset("scheduler")
     audit.append("scheduler.started", {"mode": "local", "poll_seconds": 30})
     while True:
         try:
-            run_cycle(audit, brain, learning, schedules, tasks, policy, phase4, improvements=improvements)
+            run_cycle(audit, brain, learning, schedules, tasks, policy, phase4, improvements=improvements, dream=dream)
             # This proves a complete scheduling/index pass rather than only PID 1.
             touch("scheduler")
         except Exception as error:

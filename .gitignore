@@ -75,3 +75,6 @@ docs/Devin/
 # ── Build Artifacts and Temporary Files ─────────────────────────────────────
 brag-output-*/
 artifacts/*/improvement-workspace/
+
+# Codebuff/Freebuff local tool state
+.freebuff/

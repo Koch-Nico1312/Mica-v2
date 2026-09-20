@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEDULABLE_ACTIONS = {"brain.reindex", "learning.monitor", "reminder.create", "reminder.dispatch", "message.send", "server.scan"}
+SCHEDULABLE_ACTIONS = {"brain.reindex", "learning.monitor", "reminder.create", "reminder.dispatch", "message.send", "server.scan", "dream.rsi"}
 EXTERNAL_DELIVERY_ACTIONS = {"reminder.dispatch", "message.send"}
 MAX_RECURRENCE_SECONDS = 366 * 24 * 60 * 60
 MAX_RECURRENCE_OCCURRENCES = 1000

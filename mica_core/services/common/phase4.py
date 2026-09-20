@@ -816,7 +816,8 @@ class Phase4Store:
 
     def maybe_propose_improvement(self, error_type: str, context: str, registry: Any) -> dict[str, Any]:
         signal = self.improvement_signal(error_type, context)
-        if not enabled("MICA_SELF_IMPROVEMENT_ENABLED") or signal["occurrences"] < 3:
+        threshold = self._proposal_threshold(registry)
+        if not enabled("MICA_SELF_IMPROVEMENT_ENABLED") or signal["occurrences"] < threshold:
             return {**signal, "proposed": False}
         if signal["suggestion_id"] or signal["quarantined"]:
             return {**signal, "proposed": False, "deduplicated": True}
@@ -831,14 +832,50 @@ class Phase4Store:
             f"Fehlerklasse: {error_type}\n\nSicherer lokaler Kontext: {context[:500]}\n\n"
             "Vor einer Änderung reproduzieren, Ursache belegen und nur eine kleine Prompt-Anpassung vorschlagen."
         )
+        # Local System-1 triage (Laya when enabled, deterministic heuristic
+        # otherwise). It enriches the evidence; the occurrences gate stays
+        # authoritative so behaviour never depends on model availability.
+        from .laya_scorer import triage_signal
+
+        try:
+            triage = triage_signal(error_type, context, int(signal["occurrences"]))
+        except Exception:
+            triage = {"engine": "heuristic", "priority": None, "worth_proposing": None}
         candidate = registry.propose(
             f"recovery-{signal['signature'][:12]}", kind,
             content,
-            f"Drei oder mehr gleichartige lokale Fehler; Signatur {signal['signature']}",
+            f"Drei oder mehr gleichartige lokale Fehler; Signatur {signal['signature']}; "
+            f"Triage({triage.get('engine')})={triage.get('priority')}",
         )
+        try:
+            from .dream_rsi import tag_improvement_signature
+
+            tag_improvement_signature(registry, str(candidate["id"]), signal["signature"])
+        except Exception:
+            pass
         with self._connect() as conn:
             conn.execute("UPDATE improvement_signals SET suggestion_id=? WHERE signature=?", (candidate["id"], signal["signature"]))
         return {**signal, "suggestion_id": candidate["id"], "proposed": True}
+
+    @staticmethod
+    def _proposal_threshold(registry: Any) -> int:
+        """Read the promoted Dream-RSI exploration policy when available.
+
+        This is the Dream-RSI 'redeploy online' step: a promoted policy
+        artifact (data-only, checksum-verified) steers how eagerly the online
+        loop proposes. Falls back to the original fixed threshold of 3.
+        """
+        try:
+            from .dream_rsi import POLICY_ARTIFACT_NAME
+
+            artifact = registry.runtime_artifact(POLICY_ARTIFACT_NAME)
+            if artifact and artifact.get("kind") == "config":
+                value = json.loads(str(artifact.get("content", ""))).get("propose_after_occurrences")
+                if isinstance(value, int) and 1 <= value <= 20:
+                    return value
+        except Exception:
+            pass
+        return 3
 
     def quarantine_improvement(self, improvement_id: str) -> bool:
         """Prevent a failed shadow candidate from being proposed again for the same signal."""

@@ -32,6 +32,7 @@ from services.common.cloud_llm import (
 from services.common.connectors import ConnectorRegistry
 from services.common.contracts import ExecutionRequest, ExecutionResult, VoiceControl
 from services.common.improvements import ImprovementRegistry
+from services.common.dream_rsi import attach_dream_rsi
 from services.common.learning import DomainRegistry, LearningService, parse_research_command
 from services.common.migration import migrate_legacy_memory
 from services.common.orchestrator import Orchestrator
@@ -63,6 +64,21 @@ schedule_store = ScheduleStore(os.getenv("SCHEDULE_DB", "/data/scheduler.sqlite3
 task_store = TaskAutomationStore(os.getenv("SCHEDULE_DB", "/data/scheduler.sqlite3"))
 phase4_store = Phase4Store(os.getenv("MICA_STATE_DB", os.getenv("SCHEDULE_DB", "/data/scheduler.sqlite3")))
 improvements = ImprovementRegistry(os.getenv("IMPROVEMENT_DB", "/data/improvements.sqlite3"), brain)
+def _dream_summarizer(prompt: str) -> str:
+    """Lazily resolved: names below exist after full module import."""
+    return _local_completion(
+        prompt, 768, 0.2,
+        system_prompt=(persona_prompt("technical") + " Du optimierst Explorations-Policies als reines JSON."),
+    )
+
+
+# Dream-RSI: discovery tree over improvement lifecycle events + replay loop.
+# Records in both API and scheduler processes share one store (MICA_DREAM_DB).
+dream_engine = attach_dream_rsi(
+    improvements, brain,
+    summarizer=_dream_summarizer,
+    emergency_stopped=policy.is_emergency_stopped,
+)
 connectors = ConnectorRegistry(os.getenv("CONNECTOR_DB", "/data/connectors.sqlite3"))
 approval_sessions = LocalApprovalSessions(os.getenv("MICA_APPROVAL_SECRET", ""))
 operations = OperationLedger(os.getenv(
@@ -445,6 +461,11 @@ class ImprovementEvaluation(BaseModel):
 
 
 class ImprovementPromotion(BaseModel):
+    approval_id: str | None = None
+
+
+class DreamCycleRequest(BaseModel):
+    max_candidates: int = Field(default=3, ge=1, le=5)
     approval_id: str | None = None
 
 
@@ -1889,6 +1910,33 @@ def evaluate_improvement(improvement_id: str, request: ImprovementEvaluation) ->
     if evaluated:
         audit.append("improvement.validated", {"improvement_id": improvement_id, "status": "validated"})
     return {"validated": evaluated, "promoted": promoted}
+
+
+@app.get("/v1/dream/state")
+def dream_state() -> dict[str, Any]:
+    """Dream-RSI overview: pool, active policy and recent cycles."""
+    return dream_engine.state()
+
+
+@app.get("/v1/dream/policies")
+def dream_policies() -> dict[str, Any]:
+    """Recorded replay evaluations of candidate exploration policies."""
+    return {"evaluations": dream_engine.store.evaluations(50)}
+
+
+@app.post("/v1/dream/cycle")
+def dream_cycle(request: DreamCycleRequest) -> dict[str, Any]:
+    """Run one bounded dream cycle on demand.
+
+    Read-only replay; the only write is the policy proposal through the fully
+    validated registry. When the proposal lands, the caller receives the
+    approval_id for the parameter-bound promotion decision.
+    """
+    decision = policy.decide("improvement.shadow", {"action": "dream.rsi", "params": {"max_candidates": request.max_candidates}})
+    approval_id = decision.approval_id or request.approval_id
+    cycle = dream_engine.run_cycle(max_candidates=request.max_candidates, min_pool=3)
+    audit.append("dream_rsi.manual_cycle", {"status": cycle["status"], "reason": cycle["reason"], "proposal_id": cycle.get("proposal_id", "")})
+    return {"cycle": cycle, "approval_id": approval_id}
 
 
 @app.post("/v1/improvements/{improvement_id}/promote")
