@@ -324,6 +324,11 @@ Get model usage statistics.
 
 ### Code Agent Configuration
 
+`allowed_roots` is optional. Without it the agent works in `~/Desktop`,
+`~/Desktop/JarvisProjects`, `~/Projects`, `~/code`, `~/src` and the Mica
+installation itself. Set `MICA_CODE_AGENT_ROOTS` (separated by `os.pathsep`) to
+replace those defaults, or pass `allowed_roots=[...]` for a single instance.
+
 ```python
 agent = CodeAgent(
     project_root="/path/to/project",
@@ -423,7 +428,9 @@ To migrate:
 ### Code Agent Issues
 
 **Problem:** "Project root not in allowed directories"
-**Solution:** Add the project path to `allowed_roots` during initialization
+**Solution:** The defaults cover `~/Desktop`, `~/Projects`, `~/code`, `~/src` and the
+Mica installation. For any other location pass `allowed_roots` during initialization
+or point `MICA_CODE_AGENT_ROOTS` at the directories that should be writable.
 
 **Problem:** "LLM description failed"
 **Solution:** Check LLM provider configuration and connectivity

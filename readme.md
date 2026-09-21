@@ -74,12 +74,21 @@ cd Mica-v2
 .\install_and_start.ps1
 ```
 
+For a real Explorer double-click, open `Start MICA.cmd`. It calls the same
+PowerShell launcher with the correct project directory and execution policy.
+
 The script will:
+- 🔄 Fetch and fast-forward to the newest upstream version when the checkout is clean
+- 🛡️ Preserve local changes and continue offline if an update is unsafe or unavailable
 - ⚠️ Show a warning on first run (dependencies installation takes time)
 - 📥 Automatically install `uv` package manager if needed
 - 🐍 Create local Python environment
-- 📦 Install all dependencies with progress bars
-- 🚀 Start MICA Core after installation
+- 📦 Synchronize the locked dependencies after every code update
+- ✅ Verify that the generation-2 PyQt UI and its assets are present
+- 🚀 Start the local MICA Core with the new UI
+
+Use `.\install_and_start.ps1 -NoUpdate` for an offline start, or add
+`-SetupOnly` to update and verify the installation without opening MICA.
 
 **Manual Installation:**
 ```bash
@@ -95,7 +104,7 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # Start the application
-python local_main.py
+python desktop/local_main.py
 ```
 
 ### Quick Start with Ollama (Local LLM)
@@ -109,7 +118,7 @@ ollama serve
 ollama pull llama3.2
 
 # Start MICA V2
-python local_main.py
+python desktop/local_main.py
 ```
 
 ## ⚙️ Configuration
@@ -139,7 +148,7 @@ USER_NAME=Your Name
 
 ### API Keys Configuration
 
-Alternatively, configure API keys in `config/api_keys.json`:
+Alternatively, configure API keys in `desktop/config/api_keys.json`:
 
 ```json
 {
@@ -161,7 +170,7 @@ Audio devices can be configured through the UI:
 
 ### Voice Interaction
 
-1. Start the application with `python local_main.py`
+1. Start the application with `python desktop/local_main.py`
 2. Speak naturally to the assistant
 3. The assistant recognizes intent and executes appropriate actions
 
@@ -191,14 +200,41 @@ Use advanced_agent with action "route_llm" and task_description "Implement secur
 
 ## 🏗️ Architecture
 
-MICA V2 consists of multiple layers:
+The repository is organized around two separate runtimes: the Windows desktop
+application and the API/Docker backend. They have different responsibilities,
+so the desktop `core/` and backend services are intentionally kept separate.
 
-1. **User Interface Layer:** Voice, Text, Remote Control
-2. **Main Orchestration Layer:** JarvisLive Controller, Tool Router, Session Management
-3. **Advanced Agent System:** Code Agent, Coordinator, Model Router, Plugin Loader
-4. **Action Layer:** Browser Control, Computer Control, File Manager, etc.
-5. **Core Services Layer:** LLM Client, Memory Management, Plugin Discovery
-6. **External Services Layer:** Ollama, Gemini, OpenAI, Browser Drivers
+```mermaid
+flowchart TD
+    MICA["MICA V2"]
+
+    MICA --> DESKTOP["desktop/ · Windows app"]
+    DESKTOP --> ENTRY["local_main.py · local entry point"]
+    DESKTOP --> UI["ui.py · PyQt interface"]
+    DESKTOP --> DCORE["core/ · audio, LLM, safety, memory clients"]
+    DESKTOP --> ACTIONS["actions/ · assistant capabilities"]
+    DESKTOP --> PLUGINS["plugins/ · isolated extensions"]
+    DESKTOP --> RESOURCES["assets/ · config/ · models/ · memory/"]
+
+    MICA --> BACKEND["backend/ · API and container runtime"]
+    BACKEND --> SERVICES["services/ · API, common services, scheduler"]
+    BACKEND --> BROKER["tool_broker.py · guarded action dispatch"]
+    BACKEND --> HOST["windows_host_agent/ · native Windows boundary"]
+    BACKEND --> WEB["web_ui/ · browser-based Brain UI"]
+    BACKEND --> COMPOSE["docker-compose.yml · backend deployment"]
+
+    MICA --> LOCAL[".mica-data/ · local-only state (not committed)"]
+    LOCAL --> STATE["audit/ · brain/ · health/ · index/"]
+    LOCAL --> OUTPUTS["workspace/artifacts/ · local-history/"]
+
+    MICA --> SUPPORT["docs/ · tests/ · docker/ · launchers"]
+```
+
+The root `install_and_start.ps1` handles update/setup and launches the desktop
+app; `Start MICA.cmd` provides a double-click entry point. `.mica-data/`
+contains private runtime state and local evidence and is excluded from Git.
+`docs/` describes usage and acceptance, while `tests/` holds automated and
+manual verification tools.
 
 For detailed architecture documentation, see [docs/Architektur.md](docs/Architektur.md).
 
@@ -237,15 +273,15 @@ For detailed architecture documentation, see [docs/Architektur.md](docs/Architek
 
 ### Adding New Actions
 
-1. Create a new file in `actions/`
+1. Create a new file in `desktop/actions/`
 2. Implement the action function with standard signature
-3. Add tool declaration in `main.py`
+3. Add tool declaration in `desktop/main.py`
 4. Add execution logic in `_execute_tool`
 5. Test with voice/text commands
 
 ### Adding New Plugins
 
-1. Create a new file in `plugins/`
+1. Create a new file in `desktop/plugins/`
 2. Implement plugin structure with `PLUGIN` dict and `run()` function
 3. Plugin is automatically discovered and loaded
 
@@ -253,19 +289,25 @@ For detailed architecture documentation, see [docs/Architektur.md](docs/Architek
 
 ```
 Mica V2/
-├── actions/              # Action modules
-├── core/                 # Core components
-│   ├── code_agent.py    # Dedicated Code Agent
-│   ├── agent_coordinator.py  # Multi-Agent Coordinator
-│   ├── model_router.py   # Dynamic Model Router
-│   └── isolated_plugin_loader.py  # Process-Isolated Plugins
-├── mica_core/           # MICA Core Services
-├── memory/              # Memory management
-├── plugins/             # Plugin directory
-├── config/              # Configuration files
-├── docs/                # Documentation
-├── main.py              # Main entry point
-└── local_main.py        # Local entry point
+├── desktop/             # Windows desktop app and its resources
+│   ├── actions/
+│   ├── core/
+│   ├── dashboard/
+│   ├── memory/
+│   ├── plugins/
+│   ├── config/           # Desktop configuration
+│   ├── assets/           # Desktop UI and voice assets
+│   ├── models/           # Local model files
+│   ├── local_main.py     # Local app entry point
+│   ├── main.py           # Legacy cloud entry point
+│   └── ui.py
+├── backend/              # API, Docker services, and host agent
+├── .mica-data/            # Hidden local state, artifacts, and archived runtime data
+├── docs/                 # Documentation
+├── tests/                # Project checks
+├── docker/               # Test sandbox images
+├── Start MICA.cmd         # Double-click launcher
+└── install_and_start.ps1 # Windows update and start launcher
 ```
 
 ## 📚 Documentation
@@ -285,7 +327,7 @@ Mica V2/
 - Check port 11434
 
 **API key errors:**
-- Check `config/api_keys.json`
+- Check `desktop/config/api_keys.json`
 - Set environment variables for cloud providers
 - Verify key format and permissions
 

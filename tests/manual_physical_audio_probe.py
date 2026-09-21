@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "desktop"))
 
 from ui import JarvisUI, MainWindow
 
@@ -33,7 +34,7 @@ def _level_from_pcm(raw: bytes) -> tuple[float, float]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--duration", type=float, default=3.0)
-    parser.add_argument("--output", type=Path, default=Path("artifacts/mica-hud-physical-mic.png"))
+    parser.add_argument("--output", type=Path, default=Path(".mica-data/workspace/artifacts/mica-hud-physical-mic.png"))
     args = parser.parse_args()
 
     input_device = int(sd.default.device[0])

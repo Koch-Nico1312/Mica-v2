@@ -32,10 +32,10 @@ item has current evidence.
 - [x] Qwen, whisper.cpp and Piper files have pinned provenance and verified
   SHA-256 values; all seven local Core containers became healthy and the real
   `/v1/turns` path returned `Mica lokal bereit`. See
-  `models/provenance.json` and `artifacts/phase0-local-core-current.json`.
+  `desktop/models/provenance.json` and `.mica-data/workspace/artifacts/phase0-local-core-current.json`.
 - [ ] Data and real backup target are confirmed BitLocker-protected.
 - [x] Local broker-to-agent mTLS accepts the generated client identity and
-  rejects a connection without it; see `artifacts/phase0-mtls-current.json`.
+  rejects a connection without it; see `.mica-data/workspace/artifacts/phase0-mtls-current.json`.
   The probe ran through `host.docker.internal:9443` and an actual
   `system_status` dispatch also succeeded.
 - [ ] Firewall evidence shows port 9443 reachable only from the Docker subnet.
@@ -53,7 +53,7 @@ item has current evidence.
 - [ ] Emergency stop is exercised during file, browser and test-process work,
   survives restart and blocks all new actions. The real test-process case is
   green, including process-tree termination and restart persistence; see
-  `artifacts/phase0-emergency-process-current.json`. File and browser cases are
+  `.mica-data/workspace/artifacts/phase0-emergency-process-current.json`. File and browser cases are
   still pending.
 - [ ] Cleanup absence tests pass for QR pairing, marketplace, publishing,
   multi-tenant ACL and direct production Gemini/action dispatch.
@@ -71,7 +71,7 @@ Run these on the production Windows PC. They never store microphone PCM:
 .\.venv-local\Scripts\python.exe tests\manual_wake_word_acceptance.py background --model C:\path\to\hey-mica.onnx --hours 8
 ```
 
-The first two update `artifacts/phase0-voice-acceptance-current.json`; the wake
-tests update `artifacts/phase0-wake-word-acceptance-current.json`. A candidate
+The first two update `.mica-data/workspace/artifacts/phase0-voice-acceptance-current.json`; the wake
+tests update `.mica-data/workspace/artifacts/phase0-wake-word-acceptance-current.json`. A candidate
 ONNX model must be supplied locally by the operator. Production wake-word
 startup remains blocked until both wake thresholds and provenance are recorded.

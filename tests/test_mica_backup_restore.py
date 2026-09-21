@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-ROOT = Path(__file__).resolve().parents[1] / "mica_core"
+ROOT = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(ROOT))
 
 from backup_restore import BackupDrillError, create_backup, run_drill, verify_restore

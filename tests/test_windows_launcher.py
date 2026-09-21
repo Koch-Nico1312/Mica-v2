@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from mica_core import windows_launcher
+from backend import windows_launcher
 
 
 class WindowsLauncherTests(unittest.TestCase):

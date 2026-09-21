@@ -51,11 +51,11 @@ cd Mica V2
 pip install -r requirements.txt
 
 # 3. Konfiguration einrichten
-# Erstellen Sie config/api_keys.json (siehe Abschnitt Konfiguration) und
+# Erstellen Sie desktop/config/api_keys.json (siehe Abschnitt Konfiguration) und
 # fügen Sie Ihren Gemini-API-Key hinzu - eine .example-Datei existiert nicht im Repo
 
 # 4. Starten
-python local_main.py
+python desktop/local_main.py
 # Oder nutzen Sie das PowerShell Script:
 .\install_and_start.ps1
 ```
@@ -70,11 +70,11 @@ cd "Mica V2"
 pip install -r requirements.txt
 
 # 3. Konfiguration einrichten
-# Erstellen Sie config/api_keys.json (siehe Abschnitt Konfiguration) und
+# Erstellen Sie desktop/config/api_keys.json (siehe Abschnitt Konfiguration) und
 # fügen Sie Ihren Gemini-API-Key hinzu - eine .example-Datei existiert nicht im Repo
 
 # 4. Starten
-python local_main.py
+python desktop/local_main.py
 ```
 
 ## Installation
@@ -128,11 +128,11 @@ ollama pull llama3.2
 
 **Gemini API (Cloud - Für Advanced Features):**
 - API Key von https://ai.google.dev
-- Konfiguration in `config/api_keys.json`
+- Konfiguration in `desktop/config/api_keys.json`
 
 **OpenAI API (Cloud - Alternative):**
 - API Key von https://platform.openai.com
-- Konfiguration in `config/api_keys.json`
+- Konfiguration in `desktop/config/api_keys.json`
 
 ### Browser-Drivers
 
@@ -151,7 +151,7 @@ Für Browser-Automatisierung werden folgende Drivers benötigt:
 
 ### API-Konfiguration
 
-Erstellen Sie `config/api_keys.json`:
+Erstellen Sie `desktop/config/api_keys.json`:
 ```json
 {
   "gemini_api_key": "your-gemini-api-key",
@@ -365,21 +365,17 @@ Detaillierte Dokumentation finden Sie in [docs/ADVANCED_AGENTS.md](../docs/ADVAN
 
 ```
 Mica V2/
-├── actions/              # Action-Module
-├── core/                 # Kern-Komponenten
-├── mica_core/           # MICA Core Services
-├── memory/              # Memory-Management
-├── plugins/             # Plugin-Verzeichnis
-├── config/              # Konfiguration
+├── desktop/             # Desktop-App, Kernmodule und Ressourcen
+├── backend/              # Separater API-/Docker-Backenddienst
 ├── docs/                # Dokumentation
-├── Dokumentation/       # Deutsche Dokumentation
-├── main.py              # Haupt-Einstieg
-└── local_main.py        # Local Entry
+├── tests/               # Projektprüfungen
+├── docker/              # Test-Sandbox
+└── install_and_start.ps1
 ```
 
 ### Hinzufügen neuer Actions
 
-1. Erstellen Sie eine neue Datei in `actions/`
+1. Erstellen Sie eine neue Datei in `desktop/actions/`
 2. Implementieren Sie die Action-Funktion:
 ```python
 def my_action(parameters, response=None, player=None, session_memory=None, speak=None) -> str:
@@ -387,7 +383,7 @@ def my_action(parameters, response=None, player=None, session_memory=None, speak
     return "Result"
 ```
 
-3. Fügen Sie Tool-Deklaration in `main.py` hinzu:
+3. Fügen Sie Tool-Deklaration in `desktop/main.py` hinzu:
 ```python
 {
     "name": "my_action",
@@ -447,7 +443,7 @@ python -m pytest tests/integration/
 
 **Manual Testing:**
 ```bash
-python local_main.py
+python desktop/local_main.py
 ```
 
 ### Code-Style
@@ -475,7 +471,7 @@ ollama pull llama3.2
 ```
 
 **API-Key Fehler:**
-- Prüfen Sie `config/api_keys.json`
+- Prüfen Sie `desktop/config/api_keys.json`
 - Verifizieren Sie API Key Format
 - Stellen Sie sicher, dass Umgebungsvariablen gesetzt sind
 
@@ -499,7 +495,7 @@ ollama pull llama3.2
 Logs werden in folgenden Orten gespeichert:
 - Console Output (stdout/stderr)
 - UI Log Panel
-- Audit Logs (`audit/`)
+- Audit Logs (`.mica-data/audit/`)
 - Plugin Logs (Isolated Process)
 
 ### Debug-Modus

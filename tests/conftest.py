@@ -5,6 +5,16 @@ Jeder Test erhält automatisch isolierte Pfade in ein temporäres Verzeichnis.
 Einzelne Tests können dieselben Attribute zusätzlich enger patchen.
 """
 import pytest
+import sys
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DESKTOP_ROOT = PROJECT_ROOT / "desktop"
+BACKEND_ROOT = PROJECT_ROOT / "backend"
+for _path in (str(PROJECT_ROOT), str(DESKTOP_ROOT), str(BACKEND_ROOT)):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
 
 @pytest.fixture(autouse=True)

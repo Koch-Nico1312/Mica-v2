@@ -1,6 +1,6 @@
 # Selbst-Quellcode-Zugriff — MICA liest ihren eigenen Code und ändert Einstellungen
 
-Modul: `core/self_source.py` · Tool: `self_source` · Tests: `tests/test_self_source.py`
+Modul: `desktop/core/self_source.py` · Tool: `self_source` · Tests: `tests/test_self_source.py`
 
 ## Was MICA kann
 
@@ -46,7 +46,7 @@ HUDs (`core.confirm`), und `undo` stellt den Zustand danach wieder her.
   der eigenen Installation.
 - Keine Änderungen an Policy-, Freigabe-, Audit- oder Host-Agent-Bereichen —
   diese Grenzen bleiben wie in der übrigen Architektur unangetastet.
-- Der isolierte Improvement-Loop (`mica_core`) bleibt der Ort für validierte
+- Der isolierte Improvement-Loop (`backend`) bleibt der Ort für validierte
   Artefakte; `self_source` ist der direkte, sichtbare Weg für den Nutzer am HUD.
 
 ## Verhältnis zu Dream-RSI

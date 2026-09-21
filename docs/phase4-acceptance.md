@@ -34,7 +34,7 @@ während eines realen Schritts und der mehrtägige Pilot bleiben physische Gates
 
 ## Lokale Nachweise
 
-- `python -m compileall -q actions config core memory mica_core tests local_main.py main.py ui.py`: bestanden.
+- `python -m compileall -q desktop backend tests`: bestanden.
 - Hauptsuite: 185 Tests bestanden.
 - Core-/Deployment-/Voice-/Learning-Suite: 14 Tests bestanden.
 - Phase-4-Fokus: 23 Tests innerhalb der Hauptsuite bestanden.

@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 
-DEFAULT_OUTPUT = Path("artifacts/phase0-wake-word-acceptance-current.json")
+DEFAULT_OUTPUT = Path(".mica-data/workspace/artifacts/phase0-wake-word-acceptance-current.json")
 
 
 def _read(path: Path) -> dict[str, object]:
