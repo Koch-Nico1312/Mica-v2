@@ -29,7 +29,7 @@ class PwaNavigationTests(unittest.TestCase):
             },
             clear=False,
         ):
-            module = importlib.import_module("mica_core.services.api.app")
+            module = importlib.import_module("backend.services.api.app")
             module = importlib.reload(module)
             document = {
                 "id": document_id,
@@ -64,7 +64,7 @@ class PwaNavigationTests(unittest.TestCase):
                 "target": document_id,
             }])
 
-        html = (ROOT / "mica_core" / "web_ui" / "index.html").read_text(encoding="utf-8")
+        html = (ROOT / "backend" / "web_ui" / "index.html").read_text(encoding="utf-8")
         self.assertIn("function openAudit(id)", html)
         self.assertIn("open:()=>openDocument(documentId)", html)
         self.assertIn("open:()=>openAudit(auditId(event))", html)

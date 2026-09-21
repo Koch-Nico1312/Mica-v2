@@ -451,7 +451,7 @@ Agent Workers
 ### Logging
 - Application Logs (stdout/stderr)
 - UI Logs (Log Panel)
-- Audit Logs (mica_core/services/common/audit.py)
+- Audit Logs (backend/services/common/audit.py)
 - Plugin Logs (Isolated Process)
 
 ### Metrics

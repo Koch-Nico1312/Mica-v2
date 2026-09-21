@@ -4,9 +4,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from mica_core.services.common.operations import OperationLedger, PRICE_TABLE_VERSION
-from mica_core.services.common.contracts import ExecutionRequest, ExecutionResult, VoiceControl
-from mica_core.services.common.turn_budget import TurnBudget, TurnBudgetExceeded
+from backend.services.common.operations import OperationLedger, PRICE_TABLE_VERSION
+from backend.services.common.contracts import ExecutionRequest, ExecutionResult, VoiceControl
+from backend.services.common.turn_budget import TurnBudget, TurnBudgetExceeded
 
 
 class OperationLedgerTests(unittest.TestCase):

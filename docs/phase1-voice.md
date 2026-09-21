@@ -47,13 +47,13 @@ files stay outside the production image.
 
 ## Samples
 
-- `artifacts/phase1-voice-samples/kokoro-df_kerstin.wav`
+- `.mica-data/workspace/artifacts/phase1-voice-samples/kokoro-df_kerstin.wav`
   - SHA-256: `bad1961d391ed5c8c283c8eb53235766ed2eab35858c643f57409b4a3d2b0af3`
   - 11.12 seconds, mono PCM, 16 bit, 24,000 Hz
-- `artifacts/phase1-voice-samples/qwen3-serena-de.wav`
+- `.mica-data/workspace/artifacts/phase1-voice-samples/qwen3-serena-de.wav`
   - SHA-256: `fad17ac16eafcfe529f869a179013d7e8304cf7e631472435e141260e5ba88b1`
   - 11.76 seconds, mono PCM, 16 bit, 24,000 Hz
-- `artifacts/phase1-voice-samples/dii_de-DE.wav`
+- `.mica-data/workspace/artifacts/phase1-voice-samples/dii_de-DE.wav`
   - SHA-256: `d3ec199ddfe23e6256bd8dd1ea7a6a31bedd3a38ae0ecacccd793441b7243c7`
   - 65.67 seconds, mono PCM, 16 bit, 22,050 Hz
 

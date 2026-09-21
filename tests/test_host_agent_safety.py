@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-HOST_AGENT_ROOT = Path(__file__).resolve().parents[1] / "mica_core" / "host_agent"
+HOST_AGENT_ROOT = Path(__file__).resolve().parents[1] / "backend" / "host_agent"
 sys.path.insert(0, str(HOST_AGENT_ROOT))
 
 

@@ -7,7 +7,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "mica_core"
+ROOT = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(ROOT))
 
 from services.common.audit import AuditLog, redact_secrets

@@ -118,14 +118,14 @@ git push origin main
 ## Wichtige Dateien für Git
 
 ### Sollten committet werden:
-- Alle neuen Python-Dateien (core/, actions/, mica_core/)
+- Alle neuen Python-Dateien (desktop/core/, desktop/actions/, backend/)
 - Dokumentation (docs/)
 - Konfigurations-Beispiele (.env.example, *.example.json)
 - Requirements-Dateien (requirements.txt, requirements-phase0.*)
 - Setup-Dateien (setup.py, install_and_start.ps1)
 
 ### Sollten NICHT committet werden (bereits in .gitignore):
-- API-Keys (config/api_keys.json)
+- API-Keys (desktop/config/api_keys.json)
 - Environment-Files (.env)
 - Python Cache (__pycache__, *.pyc)
 - Virtual Environments (.venv, venv)
@@ -168,7 +168,7 @@ Siehe [docs/README.md](docs/README.md) für vollständige Dokumentation.
 
 ```bash
 pip install -r requirements.txt
-python local_main.py
+python desktop/local_main.py
 ```
 
 ## License
@@ -183,10 +183,10 @@ Vor dem Commit sollten Sie sicherstellen:
 ```bash
 # 1. Keine sensiblen Daten committen
 git status
-# Überprüfen Sie, dass config/api_keys.json nicht in den Changes steht
+# Überprüfen Sie, dass desktop/config/api_keys.json nicht in den Changes steht
 
 # 2. Python-Syntax checken
-python -m py_compile core/*.py actions/*.py
+python -m py_compile desktop/core/*.py desktop/actions/*.py
 
 # 3. Imports checken
 python -c "import core.code_agent; import core.agent_coordinator; import core.model_router; import core.isolated_plugin_loader"

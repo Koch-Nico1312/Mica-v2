@@ -214,8 +214,8 @@ def run_interrupt(output: Path, sample: Path) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="MICA physical voice acceptance")
     parser.add_argument("command", choices=("ptt", "interrupt"))
-    parser.add_argument("--output", type=Path, default=Path("artifacts/phase0-voice-acceptance-current.json"))
-    parser.add_argument("--sample", type=Path, default=Path("artifacts/phase1-voice-samples/kokoro-df_kerstin.wav"))
+    parser.add_argument("--output", type=Path, default=Path(".mica-data/workspace/artifacts/phase0-voice-acceptance-current.json"))
+    parser.add_argument("--sample", type=Path, default=Path(".mica-data/workspace/artifacts/phase1-voice-samples/kokoro-df_kerstin.wav"))
     args = parser.parse_args()
     if args.command == "ptt":
         return run_ptt(args.output.resolve())

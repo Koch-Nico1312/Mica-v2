@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MICA_CORE = ROOT / "mica_core"
+MICA_CORE = ROOT / "backend"
 sys.path.insert(0, str(MICA_CORE))
 
 from services.common import cloud_llm

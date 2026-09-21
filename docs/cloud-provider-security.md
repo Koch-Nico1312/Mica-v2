@@ -18,7 +18,7 @@ use local Kokoro. This pairing never selects a cloud provider on its own.
 - On the supported Windows path, store provider keys in Windows Credential
   Manager, add only the selected key name to
   `config/credential-names.json`, and start through
-  `python -m mica_core.windows_launcher`. The launcher exposes it only to the
+`python -m backend.windows_launcher`. The launcher exposes it only to the
   MICA process environment. For example, the optional mapping is
   `{"OPENAI_API_KEY": "MICA_OPENAI_API_KEY"}` or
   `{"GEMINI_API_KEY": "MICA_GEMINI_API_KEY"}`. A plain

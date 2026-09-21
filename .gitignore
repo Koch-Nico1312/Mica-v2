@@ -1,13 +1,13 @@
 # ── Secrets — never commit ───────────────────────────────────────────────
-config/api_keys.json
-config/credential-names.json
-config/certs/
-config/smart_home.json
-config/server_agent.json
-config/automation.json
-config/dashboard.json
-config/mica_3d.json
-config/autonomous_mode.json
+desktop/config/api_keys.json
+desktop/config/credential-names.json
+desktop/config/certs/
+desktop/config/smart_home.json
+desktop/config/server_agent.json
+desktop/config/automation.json
+desktop/config/dashboard.json
+desktop/config/mica_3d.json
+desktop/config/autonomous_mode.json
 *.pem
 *.key
 .env
@@ -16,7 +16,7 @@ config/autonomous_mode.json
 !*.env.example
 !.env.*.example
 .env.test-sandbox
-mica_core/.env
+backend/.env
 .sandbox/
 
 # ── Python ───────────────────────────────────────────────────────────────
@@ -30,22 +30,18 @@ venv/
 env/
 
 # ── Runtime state ────────────────────────────────────────────────────────
-memory/*.json
-memory/organization.json
-memory/learning.json
+desktop/memory/*.json
+desktop/memory/organization.json
+desktop/memory/learning.json
+desktop/memory/self-edits/
 *.log
 /approvals.sqlite3
 /connectors.sqlite3
 /idempotency.sqlite3
 /improvements.sqlite3
 /scheduler.sqlite3
-/audit/
-/brain/
-/health/
-/index/
-/improvement-workspace/
 /.mica-data/
-mica_3d_scenes/
+desktop/mica_3d_scenes/
 
 # ── Editor / OS ──────────────────────────────────────────────────────────
 .vscode/
@@ -61,9 +57,9 @@ agent/
 skills-lock.json
 
 # Local model payloads are verified downloads, not repository content.
-models/*
-!models/README.md
-!models/provenance.json
+desktop/models/*
+!desktop/models/README.md
+!desktop/models/provenance.json
 
 # ── Documentation Builds ───────────────────────────────────────────────────
 Dokumentation/*.pdf
@@ -73,8 +69,6 @@ Dokumentation/*.html
 docs/Devin/
 
 # ── Build Artifacts and Temporary Files ─────────────────────────────────────
-brag-output-*/
-artifacts/*/improvement-workspace/
 
 # Codebuff/Freebuff local tool state
 .freebuff/
