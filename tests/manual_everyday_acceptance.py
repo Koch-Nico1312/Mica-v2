@@ -12,7 +12,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
-DEFAULT_OUTPUT = Path("artifacts/phase1-everyday-use.jsonl")
+DEFAULT_OUTPUT = Path(".mica-data/workspace/artifacts/phase1-everyday-use.jsonl")
 ALL_MODES = {"personal", "technical", "monitoring"}
 
 

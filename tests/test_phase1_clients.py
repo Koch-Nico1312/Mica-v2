@@ -44,11 +44,11 @@ class Phase1ClientTests(unittest.TestCase):
         self.assertEqual(session.conversation_mode, "technical")
         self.assertEqual(fallback.conversation_mode, "personal")
 
-        source = Path(ROOT / "core" / "local_voice.py").read_text(encoding="utf-8")
+        source = Path(ROOT / "desktop" / "core" / "local_voice.py").read_text(encoding="utf-8")
         self.assertIn('"conversation_mode": self.conversation_mode', source)
 
     def test_pwa_sends_the_same_selected_mode_for_text_and_voice(self) -> None:
-        source = Path(ROOT / "mica_core" / "web_ui" / "index.html").read_text(encoding="utf-8")
+        source = Path(ROOT / "backend" / "web_ui" / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="mode"', source)
         self.assertIn("conversation_mode:mode.value", source)
         self.assertIn('value="personal"', source)
@@ -56,7 +56,7 @@ class Phase1ClientTests(unittest.TestCase):
         self.assertIn('value="monitoring"', source)
 
     def test_pwa_profile_form_uses_only_allowlisted_profile_fields(self) -> None:
-        source = Path(ROOT / "mica_core" / "web_ui" / "index.html").read_text(encoding="utf-8")
+        source = Path(ROOT / "backend" / "web_ui" / "index.html").read_text(encoding="utf-8")
         self.assertIn('data-view="profile"', source)
         self.assertIn("fetch(endpoint('/v1/profile'))", source)
         self.assertIn("method:'PATCH'", source)

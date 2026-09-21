@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = ROOT / "mica_core"
+CORE = ROOT / "backend"
 if str(CORE) not in sys.path:
     sys.path.insert(0, str(CORE))
 
@@ -54,7 +54,7 @@ class SelectiveFailBrain(MarkdownBrain):
 class Phase3StoreTests(unittest.TestCase):
     def test_recovered_runtime_uses_normal_source_files(self) -> None:
         expected = [
-            ROOT / "local_main.py", ROOT / "install_and_start.ps1",
+            ROOT / "desktop" / "local_main.py", ROOT / "install_and_start.ps1",
             ROOT / "requirements-phase0.lock", CORE / "services" / "api" / "app.py",
             CORE / "services" / "scheduler.py", CORE / "web_ui" / "index.html",
             CORE / "backup_restore.py", ROOT / "docs" / "phase2-acceptance.md",

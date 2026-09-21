@@ -33,7 +33,7 @@ days. Phase 1 is not complete while an item below remains unchecked.
 ## Human and production evidence still required
 
 - [ ] Compare `kokoro-df_kerstin.wav`, `qwen3-serena-de.wav` and `dii_de-DE.wav`
-  in `artifacts/phase1-voice-samples` and confirm that Kokoro Kerstin should
+  in `.mica-data/workspace/artifacts/phase1-voice-samples` and confirm that Kokoro Kerstin should
   remain MICA's fixed voice.
 - [ ] Complete the still-open Phase 0 physical voice checks in
   `docs/phase0-acceptance.md`, especially 20/20 push-to-talk sentences and
@@ -55,7 +55,7 @@ prompts, replies, profile values or audio. Example for a fully exercised day:
 .\.venv-local\Scripts\python.exe tests\manual_everyday_acceptance.py --text --voice --restart --mode personal --mode technical --mode monitoring --persona-ok --profile-ok --profile-private --no-data-loss --no-unauthorized-action --no-critical-defect
 ```
 
-The authoritative log is `artifacts/phase1-everyday-use.jsonl`.
+The authoritative log is `.mica-data/workspace/artifacts/phase1-everyday-use.jsonl`.
 
 Optional OpenAI or Gemini use is not a Phase 1 completion requirement. A live
 provider smoke test requires an explicitly supplied key and must not contain

@@ -40,12 +40,12 @@ begründenden `reason` — der Loop kann sich so nicht selbst verschlechtern.
 
 | Modul | Aufgabe |
 |---|---|
-| `mica_core/services/common/dream_rsi.py` | Baum-Speicher, Replay-Simulator, Policy-Schema, Engine |
-| `mica_core/services/common/laya_scorer.py` | Optionales lokales Scoring mit [Laya](https://github.com/NandhaKishorM/laya) (~33 ms, CPU, deutsch); deterministischer Heuristik-Fallback |
-| `mica_core/services/common/learning.py` | Recherche/Monitoring jetzt mit [Scrapling](https://github.com/D4Vinci/Scrapling) (adaptive Elemente überleben Web-Redesigns). Der Scrapling-Fetch löst Redirects **selbst** auf und validiert jeden Hop über `SafeWebClient.validate_url` — Scraplings Default `follow_redirects="safe"` lehnt nur private/internale Ziele ab, nicht Allowlist-Abweichungen — und prüft Rohgröße (`MAX_BYTES`), Content-Type und die tatsächlich bedienende URL, bevor Text zurückgegeben wird. HTTPX-Fallback bleibt unverändert |
-| `mica_core/services/scheduler.py` | geplante Aktion `dream.rsi` (budgetiert) |
-| `actions/cua_driver.py` | [Cua Driver](https://github.com/trycua/cua): native Windows-Apps ohne Fokus-Klau; `close` hinter dem Bestätigungs-Gate; Fallback-Hinweis auf bestehende Steuerung |
-| `actions/seo_agent.py` | [OpenSEO](https://github.com/every-app/open-seo) via MCP: Key im OS-Keyring, Tagesbudget für bezahlte DataForSEO-Requests. Der Endpoint muss HTTPS sein (Klartext-HTTP nur für einen Loopback-MCP-Server), und die Budget-DB liegt fest in der Installationswurzel (`<Wurzel>/connectors.sqlite3`, überschreibbar per `MICA_OPENSEO_DB`) statt relativ zum aktuellen Arbeitsverzeichnis |
+| `backend/services/common/dream_rsi.py` | Baum-Speicher, Replay-Simulator, Policy-Schema, Engine |
+| `backend/services/common/laya_scorer.py` | Optionales lokales Scoring mit [Laya](https://github.com/NandhaKishorM/laya) (~33 ms, CPU, deutsch); deterministischer Heuristik-Fallback |
+| `backend/services/common/learning.py` | Recherche/Monitoring jetzt mit [Scrapling](https://github.com/D4Vinci/Scrapling) (adaptive Elemente überleben Web-Redesigns). Der Scrapling-Fetch löst Redirects **selbst** auf und validiert jeden Hop über `SafeWebClient.validate_url` — Scraplings Default `follow_redirects="safe"` lehnt nur private/internale Ziele ab, nicht Allowlist-Abweichungen — und prüft Rohgröße (`MAX_BYTES`), Content-Type und die tatsächlich bedienende URL, bevor Text zurückgegeben wird. HTTPX-Fallback bleibt unverändert |
+| `backend/services/scheduler.py` | geplante Aktion `dream.rsi` (budgetiert) |
+| `desktop/actions/cua_driver.py` | [Cua Driver](https://github.com/trycua/cua): native Windows-Apps ohne Fokus-Klau; `close` hinter dem Bestätigungs-Gate; Fallback-Hinweis auf bestehende Steuerung |
+| `desktop/actions/seo_agent.py` | [OpenSEO](https://github.com/every-app/open-seo) via MCP: Key im OS-Keyring, Tagesbudget für bezahlte DataForSEO-Requests. Der Endpoint muss HTTPS sein (Klartext-HTTP nur für einen Loopback-MCP-Server), und die Budget-DB liegt fest in der Installationswurzel (`<Wurzel>/connectors.sqlite3`, überschreibbar per `MICA_OPENSEO_DB`) statt relativ zum aktuellen Arbeitsverzeichnis |
 
 ## Env-Flags
 

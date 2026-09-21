@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = ROOT / "mica_core"
+CORE = ROOT / "backend"
 sys.path.insert(0, str(CORE))
 
 from services.common.brain import MarkdownBrain

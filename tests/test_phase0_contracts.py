@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "mica_core"))
+sys.path.insert(0, str(ROOT / "desktop"))
+sys.path.insert(0, str(ROOT / "backend"))
 
 from core.local_core_client import LocalCoreClient, LocalCoreError
 from core.local_voice import CoreVoiceSession
@@ -29,7 +30,7 @@ from services.common.capabilities import (
 )
 from services.common.idempotency import IdempotencyConflict, IdempotencyStore
 from services.common.policy import PolicyEngine
-from mica_core import windows_preflight
+from backend import windows_preflight
 
 
 class Phase0CapabilityTests(unittest.TestCase):
@@ -222,7 +223,7 @@ class Phase0ApiTests(unittest.TestCase):
             },
             clear=False,
         ):
-            module = importlib.reload(importlib.import_module("mica_core.services.api.app"))
+            module = importlib.reload(importlib.import_module("backend.services.api.app"))
 
             class Response:
                 def __init__(self, *, data=None, content=b""):
@@ -295,7 +296,7 @@ class Phase0ApiTests(unittest.TestCase):
             },
             clear=False,
         ):
-            module = importlib.import_module("mica_core.services.api.app")
+            module = importlib.import_module("backend.services.api.app")
             module = importlib.reload(module)
             capabilities = module.capabilities()
             self.assertEqual(capabilities["schema_version"], 1)

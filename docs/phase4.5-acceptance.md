@@ -57,4 +57,4 @@ Stand: 2026-09-19. Phase 4.5 schließt die Perzeptions- und Präsenzlücken gege
 
 - `python -m unittest discover -s tests -p "test_*.py"`: **204 Tests bestanden (0 Fehler, 0 Übersprungen)**.
 - `python -m unittest tests/test_phase45_perception.py`: **18 Phase-4.5-Spezifische Akzeptanztests bestanden**.
-- `python -m compileall -q actions config core memory mica_core tests local_main.py main.py ui.py`: **Vollständige Syntax- und Typenvalidierung bestanden**.
+- `python -m compileall -q desktop backend tests`: **Vollständige Syntax- und Typenvalidierung bestanden**.

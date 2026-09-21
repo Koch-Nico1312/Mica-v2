@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from core.action_adapters import ActionUnavailable, ENTRYPOINTS, execute, execution_availability
-from mica_core.services.common.capabilities import CAPABILITIES
+from backend.services.common.capabilities import CAPABILITIES
 
 
 class ActionAdapterContractTests(unittest.TestCase):
@@ -178,7 +178,7 @@ class WindowsHostAgentTests(unittest.TestCase):
         )
         self.env_patch = patch.dict(os.environ, self.environment, clear=False)
         self.env_patch.start()
-        import mica_core.windows_host_agent.app as module
+        import backend.windows_host_agent.app as module
         self.module = importlib.reload(module)
 
     def tearDown(self):

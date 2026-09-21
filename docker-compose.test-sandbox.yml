@@ -13,7 +13,7 @@ services:
     working_dir: /workspace
     environment:
       HOME: /home/codex-test
-      PYTHONPATH: /workspace:/workspace/mica_core
+      PYTHONPATH: /workspace:/workspace/backend:/workspace/desktop
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
       TMPDIR: /tmp

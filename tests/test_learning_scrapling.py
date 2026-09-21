@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = ROOT / "mica_core"
+CORE = ROOT / "backend"
 if str(CORE) not in sys.path:
     sys.path.insert(0, str(CORE))
 

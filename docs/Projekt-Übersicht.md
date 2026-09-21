@@ -27,43 +27,27 @@ MICA V2 ist ein fortschrittlicher KI-Assistent mit Multi-Agent-Fähigkeiten, lok
 
 ```
 Mica V2/
-├── actions/                    # Action-Module für verschiedene Aufgaben
-│   ├── advanced_agent.py     # Advanced Agent System Integration
-│   ├── dev_agent.py          # Legacy Code Builder
-│   ├── code_helper.py        # Code-Hilfe-Actions
-│   ├── browser_control.py    # Browser-Automatisierung
-│   ├── computer_control.py   # Direkte Computer-Steuerung
-│   ├── file_controller.py    # Datei-Management
-│   ├── web_search.py         # Web-Suche
-│   └── ...                   # Weitere Actions
-├── core/                      # Kern-Komponenten
-│   ├── code_agent.py         # Dedicated Code Agent
-│   ├── agent_coordinator.py  # Multi-Agent Coordinator
-│   ├── model_router.py       # Dynamic Model Router
-│   ├── isolated_plugin_loader.py  # Process-Isolated Plugins
-│   ├── agent_integration.py  # Unified Integration Interface
-│   ├── plugin_loader.py      # Legacy Plugin Loader
-│   ├── llm_client.py         # LLM Client (Multi-Provider)
-│   └── ...                   # Weitere Core-Module
-├── mica_core/                 # MICA Core Services
-│   ├── services/
-│   │   ├── common/
-│   │   │   ├── brain.py      # Markdown Brain (Knowledge Base)
-│   │   │   ├── orchestrator.py  # Task Orchestration
-│   │   │   ├── cloud_llm.py  # Cloud LLM Adapters
-│   │   │   └── ...           # Weitere Services
-│   ├── host_agent/           # Host Agent Services
-│   └── ...                   # Weitere MICA Core Komponenten
-├── memory/                    # Memory-Management
-│   ├── memory_manager.py      # Session Memory
-│   └── config_manager.py      # Konfigurations-Management
-├── plugins/                   # Plugin-Verzeichnis
-├── config/                    # Konfigurations-Dateien
+├── desktop/                   # Windows-Oberfläche, Aktionen, Kernmodule und Ressourcen
+│   ├── actions/                # Desktop-Aktionen
+│   ├── core/                   # Desktop-Core (Audio, LLM, Sicherheit)
+│   ├── dashboard/              # Desktop-Dashboard
+│   ├── memory/                 # Desktop-Gedächtnis
+│   ├── plugins/                # Desktop-Plugins
+│   ├── config/                 # Desktop-Konfiguration
+│   ├── assets/                 # UI- und Audio-Ressourcen
+│   ├── models/                 # Lokale Modelle
+│   ├── main.py                 # Gemini-Live-Einstiegspunkt
+│   ├── local_main.py           # Lokaler Einstiegspunkt
+│   └── ui.py                   # PyQt-Oberfläche
+├── backend/                    # Separater API-/Docker-Backenddienst
+│   ├── services/               # API und Hintergrunddienste
+│   ├── windows_host_agent/     # Sicherer Windows-Aktionsdienst
+│   └── docker-compose.yml
+├── .mica-data/                  # Versteckte lokale Daten und Laufzeit-Ausgaben
 ├── docs/                      # Dokumentation
-├── dashboard/                 # Dashboard Services
-├── main.py                    # Haupt-Einstiegspunkt
-├── local_main.py             # Local Main Entry
-└── requirements.txt          # Python Dependencies
+├── tests/                     # Projektprüfungen
+├── docker/                    # Test-Sandbox
+└── install_and_start.ps1      # Aktualisieren und Desktop-App starten
 ```
 
 ## Haupt-Features
@@ -112,7 +96,7 @@ Mica V2/
 ## Konfiguration
 
 ### API-Keys
-Konfiguriert in `config/api_keys.json`:
+Konfiguriert in `desktop/config/api_keys.json`:
 - `gemini_api_key` - Google Gemini API Key
 - `assistant_name` - Name des Assistenten
 - `user_name` - Name des Benutzers
@@ -135,7 +119,7 @@ Umgebungsvariablen oder Konfiguration:
 ### Starten des Systems
 ```bash
 # Local Start
-python local_main.py
+python desktop/local_main.py
 
 # Oder mit PowerShell Script
 .\install_and_start.ps1
@@ -205,7 +189,7 @@ Verwenden Sie die `advanced_agent` Action für erweiterte Funktionen:
 - Prüfen Sie Port 11434
 
 **API-Key Fehler:**
-- Prüfen Sie `config/api_keys.json`
+- Prüfen Sie `desktop/config/api_keys.json`
 - Setzen Sie Umgebungsvariablen für Cloud-Provider
 - Verifizieren Sie Key-Format und Berechtigungen
 
@@ -222,14 +206,14 @@ Verwenden Sie die `advanced_agent` Action für erweiterte Funktionen:
 ## Development
 
 ### Hinzufügen neuer Actions
-1. Erstellen Sie Datei in `actions/`
+1. Erstellen Sie Datei in `desktop/actions/`
 2. Implementieren Sie Action-Funktion mit Standard-Signatur
 3. Fügen Sie Tool-Deklaration in `main.py` hinzu
 4. Fügen Sie Execution-Logic in `_execute_tool` hinzu
 5. Testen Sie mit Voice/Text-Kommandos
 
 ### Hinzufügen neuer Plugins
-1. Erstellen Sie Datei in `plugins/`
+1. Erstellen Sie Datei in `desktop/plugins/`
 2. Implementieren Sie `PLUGIN` dict und `run()` Funktion
 3. Validieren Sie mit Plugin-Loader
 4. Testen Sie mit Isolated Plugin Loader

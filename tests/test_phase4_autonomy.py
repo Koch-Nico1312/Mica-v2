@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CORE = ROOT / "mica_core"
+CORE = ROOT / "backend"
 if str(CORE) not in sys.path:
     sys.path.insert(0, str(CORE))
 
@@ -431,7 +431,7 @@ class Phase4Tests(unittest.TestCase):
 
     def test_pyqt_and_pwa_share_the_canonical_avatar_states(self):
         expected = {"offline", "idle", "listening", "thinking", "approval_required", "executing", "speaking", "error"}
-        tree = ast.parse((ROOT / "ui.py").read_text(encoding="utf-8"))
+        tree = ast.parse((ROOT / "desktop" / "ui.py").read_text(encoding="utf-8"))
         assignments = [node for node in tree.body if isinstance(node, ast.Assign) and any(
             isinstance(target, ast.Name) and target.id == "PRESENCE_STATES" for target in node.targets
         )]

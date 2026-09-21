@@ -7,16 +7,16 @@ import unittest
 from unittest.mock import patch
 
 from core.action_adapters import execution_availability
-from mica_core.services.common.audit import AuditLog
-from mica_core.services.common.capabilities import (
+from backend.services.common.audit import AuditLog
+from backend.services.common.capabilities import (
     CAPABILITIES,
     RISK_DESTRUCTIVE,
     RISK_READ,
     RISK_REVERSIBLE,
     RISK_SENSITIVE_READ,
 )
-from mica_core.services.common.idempotency import IdempotencyStore
-from mica_core.services.common.policy import PolicyEngine
+from backend.services.common.idempotency import IdempotencyStore
+from backend.services.common.policy import PolicyEngine
 
 
 class Phase0CapabilityMatrixTests(unittest.TestCase):
