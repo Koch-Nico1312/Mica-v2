@@ -6,10 +6,7 @@ Für die folgenden Versionen des Projekts werden derzeit Sicherheitsupdates bere
 
 | Version | Unterstützt |
 | ------- | ----------- |
-| 5.1.x   | ✅           |
-| 5.0.x   | ❌           |
-| 4.0.x   | ✅           |
-| < 4.0   | ❌           |
+| 0.5.0   | ✅           |
 
 Es wird empfohlen, immer eine unterstützte Version zu verwenden. Für nicht mehr unterstützte Versionen werden keine Sicherheitsupdates oder Fehlerbehebungen garantiert.
 
