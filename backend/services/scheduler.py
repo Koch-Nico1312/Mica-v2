@@ -12,6 +12,7 @@ from services.common.health import reset, touch
 from services.common.learning import DomainRegistry, LearningService
 from services.common.improvements import ImprovementRegistry
 from services.common.dream_rsi import attach_dream_rsi
+from services.common.laya_scorer import build_scorer
 from services.common.policy import PolicyEngine
 from services.common.phase4 import Phase4Store, enabled, phase4_enabled
 from services.common.scheduler_store import ScheduleStore
@@ -157,6 +158,7 @@ if __name__ == "__main__":
     dream = attach_dream_rsi(
         improvements, brain,
         summarizer=None,
+        scorer=build_scorer(),
         emergency_stopped=policy.is_emergency_stopped,
     )
     reset("scheduler")

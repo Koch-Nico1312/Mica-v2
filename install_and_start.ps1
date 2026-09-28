@@ -25,7 +25,10 @@ $desktopDir       = Join-Path $projectDir "desktop"
 $venvDir          = Join-Path $projectDir ".venv-local"
 $pythonExe        = Join-Path $venvDir "Scripts\python.exe"
 $requirementsLock = Join-Path $projectDir "requirements-phase0.lock"
-$entryPoint       = Join-Path $desktopDir "local_main.py"
+$layaRequirementsLock = Join-Path $projectDir "requirements-laya.lock"
+$entryPointName   = "local_main.py"
+$entryPointRelative = "desktop\local_main.py"
+$entryPoint       = Join-Path $projectDir $entryPointRelative
 $newUiModule      = Join-Path $desktopDir "ui.py"
 $newUiAsset       = Join-Path $desktopDir "assets\mica-orb-v2.png"
 $uvInstallerUrl   = "https://astral.sh/uv/install.ps1"
@@ -76,6 +79,22 @@ function Resolve-Uv {
         if (Test-Path -LiteralPath $candidate) { return $candidate }
     }
     return $null
+}
+
+# Read an opt-in either from the current process or from the project's .env
+# without executing that file. This lets optional dependency sets survive the
+# launcher's exact `uv pip sync` while keeping the default install lightweight.
+function Test-FeatureEnabled {
+    param([string]$Name)
+
+    $value = [System.Environment]::GetEnvironmentVariable($Name, "Process")
+    if ($value -and $value.Trim().ToLowerInvariant() -in @("1", "true", "yes", "on")) {
+        return $true
+    }
+    $envFile = Join-Path $projectDir ".env"
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) { return $false }
+    $pattern = "^\s*" + [regex]::Escape($Name) + "\s*=\s*(1|true|yes|on)\s*(?:#.*)?$"
+    return [bool](Select-String -LiteralPath $envFile -Pattern $pattern -CaseSensitive:$false -Quiet)
 }
 
 # Fetch and fast-forward the checked-out branch when that can be done without
@@ -222,11 +241,20 @@ function Install-Dependencies {
                 Write-Host "✅ Local Python environment found." -ForegroundColor Green
             }
 
+            $selectedRequirements = $requirementsLock
+            if (Test-FeatureEnabled "MICA_LAYA_ENABLED") {
+                if (-not (Test-Path -LiteralPath $layaRequirementsLock -PathType Leaf)) {
+                    throw "Laya is enabled but the optional dependency lock is missing: $layaRequirementsLock"
+                }
+                $selectedRequirements = $layaRequirementsLock
+                Write-Host "🧠 Laya is enabled; including the pinned local decision runtime." -ForegroundColor Cyan
+            }
+
             Write-Host "📦 Synchronizing Python dependencies..." -ForegroundColor Cyan
             Show-Progress -Activity "Installing dependencies" -Status "Syncing packages from lock file..." -PercentComplete 80
             # --python pins the target environment explicitly, so an activated or
             # otherwise discovered venv cannot hijack the install.
-            & $uvPath pip sync --python $pythonExe $requirementsLock
+            & $uvPath pip sync --python $pythonExe $selectedRequirements
             if ($LASTEXITCODE -ne 0) { throw "uv pip sync failed with exit code $LASTEXITCODE." }
             Show-Progress -Activity "Installing dependencies" -Status "Dependencies installed successfully" -PercentComplete 100
             Write-Progress -Activity "Installing dependencies" -Completed -PercentComplete 100

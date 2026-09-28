@@ -10,6 +10,11 @@ from backend import windows_launcher
 
 
 class WindowsLauncherTests(unittest.TestCase):
+    def test_missing_credential_config_is_valid_for_local_backend(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            missing = Path(temporary) / "missing.json"
+            self.assertEqual(windows_launcher.credential_environment(missing), {})
+
     def test_loads_only_allowlisted_credential_names_without_writing_values(self):
         with tempfile.TemporaryDirectory() as temporary:
             config = Path(temporary) / "names.json"
@@ -53,6 +58,39 @@ class WindowsLauncherTests(unittest.TestCase):
             command[:8],
             ["docker", "compose", "--env-file", ".env", "--env-file", ".env.phase4", "config"],
         )
+
+    def test_unmapped_parent_secrets_are_removed_from_compose_environment(self):
+        completed = Mock(returncode=0)
+        with patch.dict(windows_launcher.os.environ, {
+            "OPENAI_API_KEY": "stale-openai",
+            "GEMINI_API_KEY": "stale-gemini",
+        }, clear=False), patch.object(
+            windows_launcher, "credential_environment", return_value={"GEMINI_API_KEY": "mapped-gemini"}
+        ), patch.object(
+            windows_launcher, "_docker_executable", return_value="docker"
+        ), patch.object(
+            windows_launcher.Path, "is_file", return_value=False
+        ), patch.object(
+            windows_launcher.subprocess, "run", return_value=completed
+        ) as run:
+            self.assertEqual(windows_launcher.run_compose(Path("names.json"), ["config"]), 0)
+
+        child_env = run.call_args.kwargs["env"]
+        self.assertNotIn("OPENAI_API_KEY", child_env)
+        self.assertEqual(child_env["GEMINI_API_KEY"], "mapped-gemini")
+
+    def test_stop_remains_available_after_credential_deletion(self):
+        completed = Mock(returncode=0)
+        with patch.object(windows_launcher, "credential_environment", side_effect=AssertionError("must not read secrets")), \
+             patch.object(windows_launcher, "_docker_executable", return_value="docker"), \
+             patch.object(windows_launcher.Path, "is_file", return_value=False), \
+             patch.object(windows_launcher.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(
+                windows_launcher.run_compose(Path("broken-or-missing.json"), ["stop", "mica-api", "tts"]),
+                0,
+            )
+
+        self.assertEqual(run.call_args.args[0][-3:], ["stop", "mica-api", "tts"])
 
 
 if __name__ == "__main__":

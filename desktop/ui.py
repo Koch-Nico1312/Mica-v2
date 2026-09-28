@@ -2121,6 +2121,477 @@ class _HudOverlay(QWidget):
         super().closeEvent(e)
 
 
+class FeatureSettingsOverlay(_HudOverlay):
+    """Scrollable feature switches backed by the real MICA environment flags."""
+
+    feature_changed = pyqtSignal(str, bool, bool)
+    _OW = 760
+    _OH = 640
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        from core.settings_store import FEATURES, SettingsStore
+
+        self._store = SettingsStore()
+        self._buttons: dict[str, QPushButton] = {}
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedSize(self._OW, self._OH)
+        self.setStyleSheet(f"""
+            FeatureSettingsOverlay {{ background: {C.PANEL}; border: 1px solid {C.BORDER}; border-radius: 20px; }}
+        """)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 20, 24, 20)
+        root.setSpacing(10)
+        title = QLabel("Funktionen")
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.DemiBold))
+        title.setStyleSheet(f"color: {C.TEXT}; background: transparent;")
+        root.addWidget(title)
+        note = QLabel("Aktiviere nur, was Mica verwenden darf. Backend-Funktionen werden automatisch aktualisiert.")
+        note.setWordWrap(True)
+        note.setFont(QFont("Segoe UI", 9))
+        note.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+        root.addWidget(note)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        rows = QVBoxLayout(content)
+        rows.setContentsMargins(0, 4, 8, 4)
+        rows.setSpacing(8)
+        category = ""
+        for feature in FEATURES:
+            if feature.category != category:
+                category = feature.category
+                heading = QLabel(category)
+                heading.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+                heading.setStyleSheet(f"color: {C.PRI}; background: transparent; padding-top: 7px;")
+                rows.addWidget(heading)
+            card = QFrame()
+            card.setObjectName("FeatureCard")
+            card.setStyleSheet(f"QFrame#FeatureCard {{ background: {C.BG}; border: 1px solid {C.BORDER}; border-radius: 12px; }}")
+            line = QHBoxLayout(card)
+            line.setContentsMargins(14, 10, 12, 10)
+            text_box = QVBoxLayout(); text_box.setSpacing(2)
+            name = QLabel(feature.title)
+            name.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
+            name.setStyleSheet(f"color: {C.TEXT}; background: transparent;")
+            detail = QLabel(feature.description)
+            detail.setWordWrap(True)
+            detail.setFont(QFont("Segoe UI", 8))
+            detail.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+            text_box.addWidget(name); text_box.addWidget(detail)
+            line.addLayout(text_box, stretch=1)
+            button = QPushButton()
+            button.setFixedSize(82, 34)
+            button.setFont(QFont("Segoe UI", 8, QFont.Weight.DemiBold))
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            enabled = self._store.feature_enabled(feature.key)
+            self._style_toggle(button, enabled)
+            button.clicked.connect(lambda _, key=feature.key, b=button: self._toggle(key, b))
+            self._buttons[feature.key] = button
+            line.addWidget(button)
+            rows.addWidget(card)
+        rows.addStretch()
+        scroll.setWidget(content)
+        root.addWidget(scroll, stretch=1)
+
+        self._status = QLabel("")
+        self._status.setWordWrap(True)
+        self._status.setFont(QFont("Segoe UI", 8))
+        self._status.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+        root.addWidget(self._status)
+        close = QPushButton("Schließen")
+        close.setFixedHeight(38)
+        close.setCursor(Qt.CursorShape.PointingHandCursor)
+        close.setStyleSheet(f"QPushButton {{ background: {C.PRI}; color: white; border: none; border-radius: 10px; }} QPushButton:hover {{ background: {C.PRI_DIM}; }}")
+        close.clicked.connect(self.hide)
+        root.addWidget(close)
+
+    @staticmethod
+    def _style_toggle(button: QPushButton, enabled: bool) -> None:
+        button.setText("AN" if enabled else "AUS")
+        if enabled:
+            button.setStyleSheet(f"QPushButton {{ background: {C.PRI_GHO}; color: {C.PRI}; border: 1px solid {C.PRI}; border-radius: 10px; }}")
+        else:
+            button.setStyleSheet(f"QPushButton {{ background: {C.PANEL}; color: {C.TEXT_MED}; border: 1px solid {C.BORDER}; border-radius: 10px; }} QPushButton:hover {{ border-color: {C.BORDER_B}; }}")
+
+    def _toggle(self, key: str, button: QPushButton) -> None:
+        try:
+            from core.settings_store import FEATURE_BY_KEY
+            enabled = not self._store.feature_enabled(key)
+            self._store.set_feature(key, enabled)
+            self._style_toggle(button, enabled)
+            self._status.setStyleSheet(f"color: {C.GREEN_D}; background: transparent;")
+            needs_backend = "backend" in FEATURE_BY_KEY[key].scopes
+            if needs_backend:
+                for toggle in self._buttons.values():
+                    toggle.setEnabled(False)
+                self._status.setText("Gespeichert. Das MICA-Backend wird neu gebaut und aktualisiert …")
+            else:
+                self._status.setText("Gespeichert und sofort angewendet.")
+            self.feature_changed.emit(key, enabled, needs_backend)
+        except Exception as error:
+            self._status.setStyleSheet(f"color: {C.RED}; background: transparent;")
+            self._status.setText(f"Konnte nicht gespeichert werden: {error}")
+
+    def backend_activation_finished(self, success: bool, message: str) -> None:
+        for toggle in self._buttons.values():
+            toggle.setEnabled(True)
+        self._status.setStyleSheet(f"color: {C.GREEN_D if success else C.RED}; background: transparent;")
+        self._status.setText(message)
+
+    def backend_activation_queued(self, message: str) -> None:
+        for toggle in self._buttons.values():
+            toggle.setEnabled(False)
+        self._status.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+        self._status.setText(message)
+
+
+class ProviderSettingsOverlay(_HudOverlay):
+    """Manage provider profiles, models and Credential-Manager secrets."""
+
+    activation_requested = pyqtSignal(str, str)
+    _OW = 720
+    _OH = 620
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        from core.settings_store import SettingsStore
+
+        self._store = SettingsStore()
+        self._profile_id: str | None = None
+        self._delete_armed = False
+        self._key_delete_armed = False
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedSize(self._OW, self._OH)
+        self.setStyleSheet(f"""
+            ProviderSettingsOverlay {{ background: {C.PANEL}; border: 1px solid {C.BORDER}; border-radius: 20px; }}
+            ProviderSettingsOverlay QLineEdit, ProviderSettingsOverlay QComboBox {{
+                background: {C.PANEL}; color: {C.TEXT}; border: 1px solid {C.BORDER};
+                border-radius: 9px; padding: 7px 10px;
+            }}
+            ProviderSettingsOverlay QLineEdit:focus, ProviderSettingsOverlay QComboBox:focus {{ border-color: {C.PRI}; }}
+            ProviderSettingsOverlay QPushButton {{
+                background: {C.PANEL}; color: {C.TEXT}; border: 1px solid {C.BORDER};
+                border-radius: 9px; padding: 6px 10px;
+            }}
+            ProviderSettingsOverlay QPushButton:hover {{ background: {C.PRI_GHO}; border-color: {C.BORDER_B}; }}
+            ProviderSettingsOverlay QPushButton:disabled {{ color: {C.TEXT_DIM}; background: {C.BG}; }}
+        """)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(26, 22, 26, 22)
+        root.setSpacing(10)
+        title = QLabel("KI-Anbieter & Modelle")
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.DemiBold))
+        title.setStyleSheet(f"color: {C.TEXT}; background: transparent;")
+        root.addWidget(title)
+        intro = QLabel("Profile hinzufügen, Modelle auswählen und API-Schlüssel sicher verwalten. Schlüssel werden nie in Projektdateien gespeichert.")
+        intro.setWordWrap(True)
+        intro.setFont(QFont("Segoe UI", 9))
+        intro.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+        root.addWidget(intro)
+
+        select_row = QHBoxLayout(); select_row.setSpacing(8)
+        self._profiles = QComboBox()
+        self._profiles.setMinimumHeight(38)
+        self._profiles.currentIndexChanged.connect(self._load_selected)
+        select_row.addWidget(self._profiles, stretch=1)
+        new_btn = QPushButton("+ Anbieter hinzufügen")
+        new_btn.setFixedHeight(38)
+        new_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        new_btn.clicked.connect(self._new_profile)
+        select_row.addWidget(new_btn)
+        root.addLayout(select_row)
+
+        self._active = QLabel("")
+        self._active.setFont(QFont("Segoe UI", 8, QFont.Weight.DemiBold))
+        self._active.setStyleSheet(f"color: {C.PRI}; background: transparent;")
+        root.addWidget(self._active)
+
+        form = QFrame()
+        form.setObjectName("ProviderForm")
+        form.setStyleSheet(f"QFrame#ProviderForm {{ background: {C.BG}; border: 1px solid {C.BORDER}; border-radius: 14px; }} QLabel {{ background: transparent; color: {C.TEXT_MED}; }}")
+        fields = QVBoxLayout(form)
+        fields.setContentsMargins(16, 14, 16, 14)
+        fields.setSpacing(7)
+        fields.addWidget(QLabel("Anzeigename"))
+        self._name = QLineEdit(); self._name.setPlaceholderText("z. B. Mein OpenAI-Profil")
+        fields.addWidget(self._name)
+        fields.addWidget(QLabel("Anbietertyp"))
+        self._type = QComboBox()
+        from core.settings_store import PROVIDER_LABELS
+        for value, label in PROVIDER_LABELS.items():
+            self._type.addItem(label, value)
+        self._type.currentIndexChanged.connect(self._provider_type_changed)
+        fields.addWidget(self._type)
+        fields.addWidget(QLabel("Modell"))
+        self._model = QComboBox(); self._model.setEditable(True)
+        self._model.lineEdit().setPlaceholderText("Modellname")
+        fields.addWidget(self._model)
+        fields.addWidget(QLabel("API-Schlüssel"))
+        key_row = QHBoxLayout(); key_row.setSpacing(8)
+        self._key = QLineEdit()
+        self._key.setEchoMode(QLineEdit.EchoMode.Password)
+        self._key.setPlaceholderText("Leer lassen, um den gespeicherten Schlüssel zu behalten")
+        key_row.addWidget(self._key, stretch=1)
+        self._remove_key = QPushButton("Schlüssel entfernen")
+        self._remove_key.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._remove_key.clicked.connect(self._delete_key)
+        key_row.addWidget(self._remove_key)
+        fields.addLayout(key_row)
+        self._key_status = QLabel("")
+        self._key_status.setWordWrap(True)
+        self._key_status.setFont(QFont("Segoe UI", 8))
+        fields.addWidget(self._key_status)
+        root.addWidget(form)
+
+        actions = QHBoxLayout(); actions.setSpacing(8)
+        self._save_btn = QPushButton("Speichern")
+        self._activate_btn = QPushButton("Speichern & aktivieren")
+        self._delete_btn = QPushButton("Anbieter löschen")
+        for button in (self._save_btn, self._activate_btn, self._delete_btn):
+            button.setFixedHeight(38); button.setCursor(Qt.CursorShape.PointingHandCursor)
+            actions.addWidget(button)
+        self._save_btn.clicked.connect(self._save)
+        self._activate_btn.clicked.connect(self._activate)
+        self._delete_btn.clicked.connect(self._delete_profile)
+        root.addLayout(actions)
+        self._status = QLabel("Änderungen am aktiven Backend werden nach einem Neustart wirksam.")
+        self._status.setWordWrap(True)
+        self._status.setFont(QFont("Segoe UI", 8))
+        self._status.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+        root.addWidget(self._status)
+        close = QPushButton("Schließen")
+        close.setFixedHeight(38); close.setCursor(Qt.CursorShape.PointingHandCursor)
+        close.setStyleSheet(f"QPushButton {{ background: {C.PRI}; color: white; border: none; border-radius: 10px; }} QPushButton:hover {{ background: {C.PRI_DIM}; }}")
+        close.clicked.connect(self.hide)
+        root.addWidget(close)
+        self._reload_profiles()
+
+    def _set_status(self, text: str, error: bool = False) -> None:
+        self._status.setStyleSheet(f"color: {C.RED if error else C.GREEN_D}; background: transparent;")
+        self._status.setText(text)
+
+    def _reload_profiles(self, select_id: str | None = None) -> None:
+        selected = select_id or self._profile_id or self._store.active_profile_id()
+        self._profiles.blockSignals(True)
+        self._profiles.clear()
+        for profile in self._store.profiles():
+            suffix = "  • aktiv" if profile.id == self._store.active_profile_id() else ""
+            self._profiles.addItem(profile.name + suffix, profile.id)
+        index = self._profiles.findData(selected)
+        self._profiles.setCurrentIndex(max(0, index))
+        self._profiles.blockSignals(False)
+        self._load_selected()
+
+    def _load_selected(self, *_args) -> None:
+        profile_id = self._profiles.currentData()
+        profile = next((item for item in self._store.profiles() if item.id == profile_id), None)
+        if profile is None:
+            return
+        self._profile_id = profile.id
+        self._name.setText(profile.name)
+        self._type.setCurrentIndex(self._type.findData(profile.provider))
+        self._type.setEnabled(False)
+        self._provider_type_changed(profile.model)
+        self._key.clear()
+        self._active.setText("Aktives Profil" if profile.id == self._store.active_profile_id() else "Nicht aktiv")
+        present, message = self._store.secret_status(profile)
+        self._key_status.setStyleSheet(f"color: {C.GREEN_D if present else C.TEXT_MED}; background: transparent;")
+        self._key_status.setText(message)
+        self._delete_armed = False; self._key_delete_armed = False
+        self._delete_btn.setText("Anbieter löschen")
+        self._delete_btn.setEnabled(True)
+        self._remove_key.setText("Schlüssel entfernen")
+
+    def _provider_type_changed(self, model: str | None = None) -> None:
+        from core.settings_store import MODEL_SUGGESTIONS
+        provider = self._type.currentData()
+        current = model if isinstance(model, str) else self._model.currentText()
+        self._model.blockSignals(True)
+        self._model.clear()
+        self._model.addItems(MODEL_SUGGESTIONS.get(provider, ()))
+        self._model.setEditText(current or (self._model.itemText(0) if self._model.count() else ""))
+        self._model.blockSignals(False)
+        cloud = provider != "local_llama"
+        self._key.setEnabled(cloud)
+        self._remove_key.setEnabled(cloud and self._profile_id is not None)
+        if not cloud:
+            self._key_status.setText("Für lokale Modelle ist kein API-Schlüssel nötig.")
+
+    def _new_profile(self) -> None:
+        self._profile_id = None
+        self._profiles.setCurrentIndex(-1)
+        self._name.clear()
+        self._type.setCurrentIndex(0)
+        self._type.setEnabled(True)
+        self._provider_type_changed()
+        self._key.clear()
+        self._active.setText("Neues Profil")
+        self._key_status.setText("Der Schlüssel wird erst beim Speichern sicher hinterlegt.")
+        self._delete_btn.setEnabled(False)
+        self._remove_key.setEnabled(False)
+
+    def _save_profile(self):
+        key_changed = bool(self._key.text().strip())
+        profile = self._store.save_profile(
+            profile_id=self._profile_id,
+            name=self._name.text().strip(),
+            provider=str(self._type.currentData()),
+            model=self._model.currentText().strip(),
+        )
+        if self._key.text().strip():
+            self._store.save_secret(profile, self._key.text())
+            self._key.clear()
+        self._profile_id = profile.id
+        return profile, key_changed
+
+    def _reload_profiles_after_commit(self, profile_id: str) -> None:
+        """Refresh presentation state without invalidating a committed backend change."""
+        try:
+            self._reload_profiles(profile_id)
+            self._delete_btn.setEnabled(True)
+        except Exception as error:
+            self._key_status.setStyleSheet(f"color: {C.RED}; background: transparent;")
+            self._key_status.setText(f"Gespeichert; Ansicht konnte nicht aktualisiert werden: {error}")
+
+    def _begin_backend_activation(self, action: str, profile_name: str, message: str) -> None:
+        self._save_btn.setEnabled(False)
+        self._activate_btn.setEnabled(False)
+        self._remove_key.setEnabled(False)
+        self._set_status(message)
+        self.activation_requested.emit(action, profile_name)
+
+    def _save(self, *_args) -> None:
+        try:
+            previous = next(
+                (item for item in self._store.profiles() if item.id == self._profile_id),
+                None,
+            )
+            previous_runtime = (
+                (previous.provider, previous.model) if previous is not None else None
+            )
+            key_value = self._key.text().strip()
+            key_changed = bool(key_value)
+            if self._profile_id and self._profile_id == self._store.active_profile_id():
+                profile = self._store.save_active_profile(
+                    profile_id=self._profile_id,
+                    name=self._name.text().strip(),
+                    provider=str(self._type.currentData()),
+                    model=self._model.currentText().strip(),
+                    secret_value=key_value or None,
+                )
+                self._key.clear()
+            else:
+                profile, key_changed = self._save_profile()
+            runtime_changed = previous_runtime is not None and previous_runtime != (
+                profile.provider,
+                profile.model,
+            )
+            if profile.id == self._store.active_profile_id() and (key_changed or runtime_changed):
+                action = "key_updated" if key_changed else "provider_updated"
+                self._begin_backend_activation(
+                    action, profile.name,
+                    "Aktives Anbieterprofil gespeichert. Cloud-Container werden sicher neu erstellt …",
+                )
+                self._reload_profiles_after_commit(profile.id)
+            else:
+                self._reload_profiles_after_commit(profile.id)
+                self._set_status("Anbieterprofil sicher gespeichert.")
+        except Exception as error:
+            self._set_status(f"Konnte nicht gespeichert werden: {error}", True)
+
+    def _activate(self, *_args) -> None:
+        try:
+            key_value = self._key.text().strip()
+            key_changed = bool(key_value)
+            if self._profile_id and self._profile_id == self._store.active_profile_id():
+                profile = self._store.save_active_profile(
+                    profile_id=self._profile_id,
+                    name=self._name.text().strip(),
+                    provider=str(self._type.currentData()),
+                    model=self._model.currentText().strip(),
+                    secret_value=key_value or None,
+                )
+                self._key.clear()
+            else:
+                profile, key_changed = self._save_profile()
+                self._store.activate_profile(profile.id)
+            self._begin_backend_activation(
+                "key_updated" if key_changed else "provider_activated", profile.name,
+                "Anbieter gespeichert. Das MICA-Backend wird sicher aktualisiert …",
+            )
+            self._reload_profiles_after_commit(profile.id)
+        except Exception as error:
+            self._set_status(f"Konnte nicht aktiviert werden: {error}", True)
+
+    def backend_activation_finished(self, success: bool, message: str) -> None:
+        self._save_btn.setEnabled(True)
+        self._activate_btn.setEnabled(True)
+        self._provider_type_changed()
+        self._set_status(message, not success)
+
+    def backend_activation_queued(self, message: str) -> None:
+        self._save_btn.setEnabled(False)
+        self._activate_btn.setEnabled(False)
+        self._remove_key.setEnabled(False)
+        self._set_status(message)
+
+    def _delete_profile(self, *_args) -> None:
+        if not self._profile_id:
+            return
+        if not self._delete_armed:
+            self._delete_armed = True
+            self._delete_btn.setText("Wirklich löschen?")
+            self._set_status("Nochmal auf „Wirklich löschen?“ klicken. Ein gespeicherter Schlüssel wird ebenfalls entfernt.")
+            return
+        try:
+            self._store.delete_profile(self._profile_id)
+            self._profile_id = None
+            self._reload_profiles()
+            self._set_status("Anbieterprofil und zugehöriger Schlüssel wurden entfernt.")
+        except Exception as error:
+            self._set_status(f"Konnte nicht gelöscht werden: {error}", True)
+
+    def _delete_key(self, *_args) -> None:
+        profile = next((item for item in self._store.profiles() if item.id == self._profile_id), None)
+        if profile is None:
+            return
+        if not self._key_delete_armed:
+            self._key_delete_armed = True
+            self._remove_key.setText("Wirklich entfernen?")
+            self._set_status("Nochmal klicken, um den API-Schlüssel aus dem sicheren Speicher zu entfernen.")
+            return
+        try:
+            self._store.delete_profile_secret(profile)
+            self._load_selected()
+            if profile.id == self._store.active_profile_id():
+                self._begin_backend_activation(
+                    "key_removed", profile.name,
+                    "Schlüssel entfernt. Cloud-Container werden ohne den alten Schlüssel neu erstellt …",
+                )
+            else:
+                self._set_status("API-Schlüssel aus dem Windows-Anmeldespeicher entfernt.")
+        except Exception as error:
+            if profile.id == self._store.active_profile_id():
+                self._save_btn.setEnabled(False)
+                self._activate_btn.setEnabled(False)
+                self._remove_key.setEnabled(False)
+                self._set_status(
+                    f"Konnte den Schlüssel nicht vollständig entfernen: {error} "
+                    "Cloud-Container werden vorsichtshalber gestoppt …",
+                    True,
+                )
+                self.activation_requested.emit("credential_failure", profile.name)
+            else:
+                self._set_status(f"Konnte den Schlüssel nicht entfernen: {error}", True)
+
+
 class ConfirmBanner(_HudOverlay):
     """The gate in front of an action that cannot be taken back.
 
@@ -2852,6 +3323,7 @@ class MainWindow(QMainWindow):
     _clipboard_sig  = pyqtSignal(str)        # clipboard text changed (thread-safe)
     _confirm_sig    = pyqtSignal(str, str)   # (title, detail) — irreversible-action gate
     _confirm_hide_sig = pyqtSignal()
+    _backend_update_sig = pyqtSignal(str, bool, str)
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -2884,6 +3356,7 @@ class MainWindow(QMainWindow):
         self.on_push_to_talk_start = None  # callable: () -> None — begin local PCM capture
         self.on_push_to_talk_stop = None   # callable: () -> None — finalize local PCM capture
         self.on_mute_change     = None   # callable: (bool) -> None — suspend local listeners
+        self.on_feature_change  = None   # callable: (str, bool) -> None — live desktop features
         self.on_voice_change   = None   # callable: () -> None — rebuild session with new voice
         self.on_audio_device_change = None  # callable: () -> None — reopen audio streams
         self._confirm_overlay  = None   # live ConfirmBanner, if one is on screen
@@ -2892,6 +3365,9 @@ class MainWindow(QMainWindow):
         self._current_file: str | None = None
         self._remote_overlay: RemoteKeyOverlay | None = None
         self._customize_overlay: CustomizeOverlay | None = None
+        self._provider_backend_busy = False
+        self._pending_backend_updates: list[tuple[str, str]] = []
+        self._backend_update_sig.connect(self._on_backend_update_result)
 
         central = QWidget()
         central.setStyleSheet(f"background: {C.BG};")
@@ -4033,7 +4509,7 @@ class MainWindow(QMainWindow):
         title.setFont(QFont("Segoe UI", 24, QFont.Weight.DemiBold))
         title.setStyleSheet(f"color: {C.TEXT}; background: transparent;")
         lay.addWidget(title)
-        sub = QLabel("Passe Mica, Audio, Gedächtnis und Fernzugriff an.")
+        sub = QLabel("Passe Mica, Funktionen, KI-Anbieter und Geräte an.")
         sub.setFont(QFont("Segoe UI", 10))
         sub.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
         lay.addWidget(sub)
@@ -4041,6 +4517,8 @@ class MainWindow(QMainWindow):
             ("Mica anpassen", "Name, weibliche Stimme und Akzentfarbe", self._open_customize),
             ("Audio-Geräte", "Mikrofon und Lautsprecher auswählen", self._open_audio_devices),
             ("Gedächtnis", "Lokal gespeicherte Informationen ansehen", self._open_memory_panel),
+            ("Funktionen", "Mica-Features einzeln aktivieren oder deaktivieren", self._open_feature_settings),
+            ("KI-Anbieter & Modelle", "Anbieter, Modelle und API-Schlüssel verwalten", self._open_provider_settings),
             ("Erweiterungen", "Installierte Plugins verwalten", self._open_plugin_manager),
             ("Fernzugriff", "Sichere Verbindung für dein Telefon öffnen", self._open_remote),
         ):
@@ -4779,6 +5257,140 @@ class MainWindow(QMainWindow):
         self._centre_overlay(ov)
         self._memory_overlay = ov
 
+    def _open_feature_settings(self):
+        ov = FeatureSettingsOverlay(parent=self.centralWidget())
+        ov.feature_changed.connect(self._on_feature_changed)
+        self._centre_overlay(ov)
+        self._feature_settings_overlay = ov
+
+    def _open_provider_settings(self):
+        ov = ProviderSettingsOverlay(parent=self.centralWidget())
+        ov.activation_requested.connect(self._apply_provider_backend)
+        self._centre_overlay(ov)
+        self._provider_settings_overlay = ov
+
+    def _on_feature_changed(self, key: str, enabled: bool, needs_backend: bool) -> None:
+        if self.on_feature_change:
+            self.on_feature_change(key, enabled)
+        if needs_backend:
+            self._start_backend_update("feature", key)
+
+    def _apply_provider_backend(self, action: str, profile_name: str) -> None:
+        self._start_backend_update("provider", f"{action}:{profile_name}")
+
+    def _start_backend_update(self, source: str, detail: str) -> None:
+        if self._provider_backend_busy:
+            self._pending_backend_updates.append((source, detail))
+            action = detail.split(":", 1)[0]
+            if source == "provider" and action in {"key_updated", "key_removed", "credential_failure"}:
+                self._stop_cloud_backend_urgent()
+            overlay = getattr(
+                self,
+                "_feature_settings_overlay" if source == "feature" else "_provider_settings_overlay",
+                None,
+            )
+            if overlay is not None:
+                overlay.backend_activation_queued(
+                    "Gespeichert. Wartet auf die laufende Backend-Aktualisierung …"
+                )
+            return
+        self._provider_backend_busy = True
+
+        def worker() -> None:
+            action = detail.split(":", 1)[0]
+            if source == "provider" and action == "credential_failure":
+                try:
+                    from core.settings_store import stop_cloud_backend
+                    stop_cloud_backend()
+                except Exception as error:
+                    message = (
+                        f"{error} Stoppe das MICA-Backend manuell, damit kein alter Schlüssel "
+                        "in einem laufenden Container verbleibt."
+                    )
+                else:
+                    message = (
+                        "Schlüsseländerung fehlgeschlagen; API- und Sprachcontainer wurden "
+                        "vorsichtshalber gestoppt."
+                    )
+                self._backend_update_sig.emit(source, False, message)
+                return
+            if source == "provider" and action in {"key_updated", "key_removed"}:
+                try:
+                    from core.settings_store import stop_cloud_backend
+                    stop_cloud_backend()
+                except Exception as error:
+                    self._backend_update_sig.emit(
+                        source,
+                        False,
+                        f"{error} Das MICA-Backend konnte vor der Schlüsseländerung nicht sicher gestoppt werden.",
+                    )
+                    return
+            try:
+                from core.settings_store import apply_backend_configuration
+                apply_backend_configuration()
+            except Exception as error:
+                if source == "provider" and action in {"key_updated", "key_removed"}:
+                    try:
+                        from core.settings_store import stop_cloud_backend
+                        stop_cloud_backend()
+                    except Exception:
+                        message = (
+                            f"{error} Der alte Schlüssel könnte noch in laufenden Containern liegen; "
+                            "stoppe das MICA-Backend bis der Neustart gelingt."
+                        )
+                    else:
+                        message = (
+                            f"{error} API- und Sprachcontainer wurden vorsichtshalber gestoppt, "
+                            "damit kein alter Schlüssel weiterverwendet wird."
+                        )
+                else:
+                    message = str(error)
+                self._backend_update_sig.emit(source, False, message)
+                return
+            if source == "feature":
+                message = "Funktion gespeichert und MICA-Backend erfolgreich aktualisiert."
+            else:
+                action = detail.split(":", 1)[0]
+                message = {
+                    "key_updated": "API-Schlüssel aktualisiert und Cloud-Container sicher neu erstellt.",
+                    "key_removed": "API-Schlüssel entfernt und Cloud-Container ohne alten Schlüssel neu erstellt.",
+                }.get(action, "Anbieter aktiviert und MICA-Backend erfolgreich neu gestartet.")
+            self._backend_update_sig.emit(source, True, message)
+
+        threading.Thread(target=worker, name="mica-backend-update", daemon=True).start()
+
+    def _stop_cloud_backend_urgent(self) -> None:
+        """Immediately revoke running cloud containers while an update is queued."""
+        def worker() -> None:
+            try:
+                from core.settings_store import stop_cloud_backend
+                stop_cloud_backend()
+            except Exception as error:
+                self._log_sig.emit(f"ERR: Cloud-Container konnten nicht sofort gestoppt werden: {error}")
+            else:
+                self._log_sig.emit("SYS: Cloud-Container wegen Schlüsseländerung sofort gestoppt.")
+
+        threading.Thread(target=worker, name="mica-credential-revoke", daemon=True).start()
+
+    def _on_backend_update_result(self, source: str, success: bool, message: str) -> None:
+        self._provider_backend_busy = False
+        overlay = getattr(
+            self,
+            "_feature_settings_overlay" if source == "feature" else "_provider_settings_overlay",
+            None,
+        )
+        source_still_queued = any(item_source == source for item_source, _ in self._pending_backend_updates)
+        if overlay is not None and source_still_queued:
+            overlay.backend_activation_queued(
+                "Eine weitere gespeicherte Änderung wartet auf die Backend-Aktualisierung …"
+            )
+        elif overlay is not None:
+            overlay.backend_activation_finished(success, message)
+        self._log.append_log(f"SYS: {message}" if success else f"ERR: {message}")
+        if self._pending_backend_updates:
+            next_source, next_detail = self._pending_backend_updates.pop(0)
+            self._start_backend_update(next_source, next_detail)
+
     # ── Irreversible-action confirmation ─────────────────────────────────────
 
     def _show_confirm_banner(self, title: str, detail: str):
@@ -5097,6 +5709,14 @@ class JarvisUI:
     @on_mute_change.setter
     def on_mute_change(self, cb):
         self._win.on_mute_change = cb
+
+    @property
+    def on_feature_change(self):
+        return self._win.on_feature_change
+
+    @on_feature_change.setter
+    def on_feature_change(self, cb):
+        self._win.on_feature_change = cb
 
     @property
     def on_voice_change(self):

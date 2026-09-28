@@ -13,6 +13,13 @@ for _path in (str(PROJECT_DIR), str(DESKTOP_DIR)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from core.settings_store import load_desktop_feature_environment
+
+# The settings UI persists a small allowlist of non-secret desktop switches in
+# the project .env. Load those switches before any optional desktop components
+# inspect their environment gates.
+load_desktop_feature_environment(PROJECT_DIR)
+
 from core.local_core_client import LocalCoreClient, LocalCoreError
 from core.local_voice import CoreVoiceSession, WakeWordListener
 from core.hardware_recommendation import current_provider_recommendation
@@ -50,12 +57,18 @@ class LocalMica:
         self.ui.on_push_to_talk_stop = self.voice.finish
         self.ui.on_interrupt = self.voice.cancel
         self.ui.on_mute_change = self._mute_changed
+        self.ui.on_feature_change = self._feature_changed
 
     def _push_to_talk_start(self) -> bool:
         self.wake_word.stop()
         return self.voice.start()
 
     def _wake_detected(self) -> None:
+        # A settings click may race the detector's final audio block. Re-check
+        # the live policy before opening a new recording session so switching
+        # the feature off cannot trigger one last capture.
+        if self.ui.muted or os.getenv("MICA_WAKE_WORD_ENABLED", "").strip().lower() not in {"1", "true", "yes", "on"}:
+            return
         self.ui.write_log("SYS: Hey Mica erkannt.")
         self.voice.start(auto_finalize=True)
 
@@ -69,6 +82,24 @@ class LocalMica:
             self.wake_word.stop()
         else:
             self._voice_completed()
+
+    def _feature_changed(self, key: str, enabled: bool) -> None:
+        if key != "MICA_WAKE_WORD_ENABLED":
+            return
+        if not enabled:
+            self.wake_word.stop()
+            self.ui.write_log("SYS: Aktivierungswort deaktiviert; Mikrofon-Listener gestoppt.")
+            return
+        if self.ui.muted:
+            self.ui.write_log("SYS: Aktivierungswort gespeichert; es startet nach dem Entstummen.")
+            return
+        if self.voice.active:
+            self.ui.write_log("SYS: Aktivierungswort gespeichert; es startet nach dem aktuellen Sprachvorgang.")
+            return
+        if self.wake_word.start():
+            self.ui.write_log("SYS: Wake-Word 'Hey Mica' ist lokal aktiv.")
+        else:
+            self.ui.write_log("WARN: Wake-Word-Modell fehlt oder Listener ist bereits aktiv.")
 
     def _voice_reply(self, text: str) -> None:
         self.ui.write_log(f"Mica: {text}")

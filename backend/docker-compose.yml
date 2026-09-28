@@ -22,6 +22,11 @@ x-mica-env: &mica-env
   MICA_SERVER_AGENT_ENABLED: ${MICA_SERVER_AGENT_ENABLED:-0}
   MICA_DIGITAL_TWIN_ENABLED: ${MICA_DIGITAL_TWIN_ENABLED:-0}
   MICA_SELF_IMPROVEMENT_ENABLED: ${MICA_SELF_IMPROVEMENT_ENABLED:-0}
+  MICA_PHASE45_ENABLED: ${MICA_PHASE45_ENABLED:-0}
+  MICA_DREAM_RSI_ENABLED: ${MICA_DREAM_RSI_ENABLED:-0}
+  MICA_LAYA_ENABLED: ${MICA_LAYA_ENABLED:-0}
+  MICA_LAYA_MODEL_DIR: /opt/mica/laya-model
+  MICA_SCRAPLING_ENABLED: ${MICA_SCRAPLING_ENABLED:-1}
   MICA_SERVER_AGENT_TARGETS: ${MICA_SERVER_AGENT_TARGETS:-zimaos-local}
 
 services:
@@ -29,6 +34,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.python
+      args:
+        MICA_INSTALL_LAYA: ${MICA_LAYA_ENABLED:-0}
     command: uvicorn services.api.app:app --host 0.0.0.0 --port 8000
     environment:
       <<: *mica-env
@@ -223,6 +230,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.python
+      args:
+        MICA_INSTALL_LAYA: ${MICA_LAYA_ENABLED:-0}
     command: python -m services.scheduler
     environment: *mica-env
     volumes:

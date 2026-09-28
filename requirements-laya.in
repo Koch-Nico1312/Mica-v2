@@ -1,0 +1,5 @@
+-r requirements-phase0.lock
+
+# Optional local System-1 runtime. Model weights are downloaded lazily only
+# after MICA makes its first enabled Laya decision.
+laya==0.3.20

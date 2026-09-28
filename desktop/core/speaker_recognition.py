@@ -50,22 +50,33 @@ class SpeakerRecognition:
         """Extrahiere einfache Audio-Features für Fingerprinting."""
         if len(audio_data) == 0:
             return {}
+        # Audio commonly arrives as int16. Squaring that dtype overflows before
+        # numpy computes the mean, producing negative values and NaN RMS. Use a
+        # finite float64 working copy for all statistics and spectral features.
+        samples = np.asarray(audio_data, dtype=np.float64).reshape(-1)
+        if samples.size == 0 or not np.all(np.isfinite(samples)):
+            return {}
         
         # Einfache statistische Features
         features = {
-            "mean": float(np.mean(audio_data)),
-            "std": float(np.std(audio_data)),
-            "min": float(np.min(audio_data)),
-            "max": float(np.max(audio_data)),
-            "rms": float(np.sqrt(np.mean(audio_data ** 2))),
-            "zero_crossings": int(np.sum(np.diff(np.sign(audio_data)) != 0)),
+            "mean": float(np.mean(samples)),
+            "std": float(np.std(samples)),
+            "min": float(np.min(samples)),
+            "max": float(np.max(samples)),
+            "rms": float(np.sqrt(np.mean(np.square(samples)))),
+            "zero_crossings": int(np.sum(np.diff(np.sign(samples)) != 0)),
         }
         
-        # Spectral centroid approximation
-        fft = np.fft.fft(audio_data)
+        # Spectral centroid over the non-negative real-signal spectrum. Silence
+        # has no spectral mass and receives a stable zero instead of NaN.
+        fft = np.fft.rfft(samples)
         magnitude = np.abs(fft)
-        freqs = np.fft.fftfreq(len(audio_data))
-        features["spectral_centroid"] = float(np.sum(freqs * magnitude) / np.sum(magnitude))
+        total_magnitude = float(np.sum(magnitude))
+        if total_magnitude > 0.0:
+            freqs = np.fft.rfftfreq(samples.size)
+            features["spectral_centroid"] = float(np.sum(freqs * magnitude) / total_magnitude)
+        else:
+            features["spectral_centroid"] = 0.0
         
         return features
     

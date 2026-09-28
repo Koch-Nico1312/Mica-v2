@@ -35,6 +35,6 @@ websocket-client>=1.8,<2.0
 # ── Optional: Dream-RSI & Integrations (activate via .env flags) ────────────
 # Adaptives Web-Scraping für Recherche/Monitoring (MICA_SCRAPLING_ENABLED)
 scrapling>=0.3,<1.0
-# Lokales System-1-Entscheidungsmodell für Dream-RSI-Scoring (MICA_LAYA_ENABLED)
-# laya
+# Lokales System-1-Entscheidungsmodell für Brain-Reranking und Dream-RSI-Scoring
+# bleibt bewusst optional. Aktivierung: MICA_LAYA_ENABLED=1
 # Cua Windows-Driver wird separat installiert: irm https://cua.ai/driver/install.ps1 | iex

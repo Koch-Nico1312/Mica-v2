@@ -1,23 +1,23 @@
-# MICA local core
+# MICA backend and deployment
 
-This is an additive Docker-Compose implementation of the new local MICA core;
-the existing desktop assistant remains untouched while offline behaviour is
-tested. It contains the eight planned services: API, llama.cpp, whisper.cpp,
-Kokoro/provider-matched cloud speech, Markdown brain indexer, tool broker,
-scheduler, and a microphone PWA.
-An optional second llama.cpp service can be enabled with the `fallback` Compose
-profile. Its URL is allowlisted as local-only by the API; hosted fallback URLs
-are rejected.
+The backend is a separate runtime used by the Windows PyQt desktop client and
+the browser PWA. Docker Compose provides the API, llama.cpp, whisper.cpp STT,
+the TTS service, Markdown Brain indexer, tool broker, scheduler, web UI, and
+Caddy HTTPS entry point. The optional fallback profile adds another local
+llama.cpp server. The native Windows host agent is deployed separately and
+communicates with the broker over mTLS when explicitly configured.
 
-## Supported Windows Phase-0 start
+## Windows start
 
 Keep real provider values out of `.env`. Copy
 `desktop/config/credential-names.example.json` to
 `desktop/config/credential-names.json`, store the named values with
 `desktop.core.secure_store`, and launch Compose through
-`python -m backend.windows_launcher`. This reads Windows Credential Manager
-and passes values only to the child process environment. Connector names not in
-the JSON remain unset.
+`python -m backend.windows_launcher`. This starts Docker Compose (by default
+`up -d --build`), reads Windows Credential Manager, and passes allowed values
+only to the child process environment. Connector names not in the JSON remain
+unset. The desktop UI is started separately with the repository-root
+`install_and_start.ps1`; it expects the backend HTTPS endpoint to be reachable.
 
 Run the native action service on loopback as described in
 `windows_host_agent/README.md`. Its Caddy mTLS listener uses port 9443. Set the

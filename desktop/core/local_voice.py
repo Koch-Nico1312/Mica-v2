@@ -279,6 +279,8 @@ class WakeWordListener:
         self.on_error = on_error or (lambda _text: None)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._lifecycle_lock = threading.RLock()
+        self._desired_running = False
         self._last_wake = 0.0
 
     @property
@@ -302,19 +304,37 @@ class WakeWordListener:
             return False
 
     def start(self) -> bool:
-        if not self.configured or (self._thread and self._thread.is_alive()):
+        if not self.configured:
             return False
-        self._stop.clear()
-        self._thread = threading.Thread(target=self._run, name="mica-wake-word", daemon=True)
-        self._thread.start()
+        with self._lifecycle_lock:
+            self._desired_running = True
+            if self._thread and self._thread.is_alive():
+                # A concurrent stop may still be tearing the previous stream
+                # down. Its finalizer will launch this requested generation.
+                return True
+            self._launch_locked()
         return True
 
     def stop(self) -> None:
-        self._stop.set()
-        if self._thread and self._thread.is_alive() and self._thread is not threading.current_thread():
-            self._thread.join(timeout=0.6)
+        with self._lifecycle_lock:
+            self._desired_running = False
+            self._stop.set()
+            thread = self._thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=0.6)
 
-    def _run(self) -> None:
+    def _launch_locked(self) -> None:
+        self._stop = threading.Event()
+        thread = threading.Thread(
+            target=self._run,
+            args=(self._stop,),
+            name="mica-wake-word",
+            daemon=True,
+        )
+        self._thread = thread
+        thread.start()
+
+    def _run(self, stop_event: threading.Event) -> None:
         blocks: queue.Queue[bytes] = queue.Queue(maxsize=8)
         detected = False
         try:
@@ -340,7 +360,7 @@ class WakeWordListener:
                 samplerate=16000, channels=1, dtype="int16", blocksize=1280,
                 callback=capture, device=self.device,
             ):
-                while not self._stop.is_set():
+                while not stop_event.is_set():
                     try:
                         payload = blocks.get(timeout=0.25)
                     except queue.Empty:
@@ -350,13 +370,27 @@ class WakeWordListener:
                     now = time.monotonic()
                     if score >= self.threshold and now - self._last_wake >= self.cooldown_seconds:
                         self._last_wake = now
-                        self._stop.set()
+                        stop_event.set()
                         detected = True
                         break
             if detected:
                 # The detector stream is closed before push-to-talk reopens the
                 # same physical microphone.
+                with self._lifecycle_lock:
+                    self._desired_running = False
                 self.on_wake()
         except Exception as error:
-            if not self._stop.is_set():
+            if not stop_event.is_set():
+                with self._lifecycle_lock:
+                    self._desired_running = False
                 self.on_error(f"Wake-Word nicht verfuegbar: {error}")
+        finally:
+            self._finish_generation(threading.current_thread())
+
+    def _finish_generation(self, current: threading.Thread) -> None:
+        """Retire one detector generation and honor a queued restart request."""
+        with self._lifecycle_lock:
+            if self._thread is current:
+                self._thread = None
+                if self._desired_running:
+                    self._launch_locked()

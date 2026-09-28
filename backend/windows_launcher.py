@@ -28,6 +28,8 @@ ALLOWED_SECRET_ENV = {
 
 
 def credential_environment(config_path: Path) -> dict[str, str]:
+    if not config_path.is_file():
+        return {}
     data = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(data, dict) or set(data) - ALLOWED_SECRET_ENV:
         raise ValueError("Credential-name configuration contains an unsupported environment variable")
@@ -55,7 +57,17 @@ def _docker_executable() -> str:
 
 def run_compose(config_path: Path, arguments: Sequence[str]) -> int:
     environment = dict(os.environ)
-    environment.update(credential_environment(config_path))
+    # The JSON mapping is the only authority for secrets passed to Compose.
+    # Never inherit stale provider or integration credentials from the desktop
+    # process that happened to launch MICA.
+    for env_name in ALLOWED_SECRET_ENV:
+        environment.pop(env_name, None)
+    # Stop/teardown must remain available even if a credential was just
+    # deleted or its mapping is damaged. These commands cannot send provider
+    # traffic and do not need secrets in their process environment.
+    command = arguments[0] if arguments else "up"
+    if command not in {"stop", "down", "kill", "rm"}:
+        environment.update(credential_environment(config_path))
     compose_root = Path(__file__).resolve().parent
     env_files = ["--env-file", ".env"]
     if (compose_root / ".env.phase4").is_file():

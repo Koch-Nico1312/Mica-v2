@@ -33,6 +33,7 @@ from services.common.connectors import ConnectorRegistry
 from services.common.contracts import ExecutionRequest, ExecutionResult, VoiceControl
 from services.common.improvements import ImprovementRegistry
 from services.common.dream_rsi import attach_dream_rsi
+from services.common.laya_scorer import build_scorer, rerank_retrieval
 from services.common.learning import DomainRegistry, LearningService, parse_research_command
 from services.common.migration import migrate_legacy_memory
 from services.common.orchestrator import Orchestrator
@@ -77,6 +78,7 @@ def _dream_summarizer(prompt: str) -> str:
 dream_engine = attach_dream_rsi(
     improvements, brain,
     summarizer=_dream_summarizer,
+    scorer=build_scorer(),
     emergency_stopped=policy.is_emergency_stopped,
 )
 connectors = ConnectorRegistry(os.getenv("CONNECTOR_DB", "/data/connectors.sqlite3"))
@@ -938,7 +940,10 @@ def chat(request: ChatRequest) -> dict[str, Any]:
             "research": research, "mode": response_mode, "conversation_mode": conversation_mode,
         }
     include_private_context = not cloud_provider or cloud_private_context_allowed()
-    evidence = brain.search(request.message, limit=5) if include_private_context else []
+    evidence = (
+        rerank_retrieval(request.message, brain.search(request.message, limit=5))
+        if include_private_context else []
+    )
     system_prompt, runtime_config, active_knowledge = _active_assistant_profile()
     if include_private_context:
         context = "\n".join(
@@ -1019,7 +1024,8 @@ def update_profile(request: PersonalProfileUpdate) -> dict[str, Any]:
 def search_brain(q: str, limit: int = 8, domain_id: str | None = None, kind: str | None = None) -> dict[str, Any]:
     if domain_id and not learning_domains.get(domain_id):
         raise HTTPException(422, "Unknown learning domain")
-    return {"results": brain.search(q, limit, domain_id=domain_id, kind=kind)}
+    results = brain.search(q, limit, domain_id=domain_id, kind=kind)
+    return {"results": rerank_retrieval(q, results)}
 
 
 @app.get("/v1/learning/domains")

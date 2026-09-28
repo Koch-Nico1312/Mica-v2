@@ -205,6 +205,57 @@ class LocalCoreClientTests(unittest.TestCase):
             listener = WakeWordListener(lambda: None)
         self.assertEqual(listener.device, 3)
 
+    def test_wake_word_restart_waits_for_slow_previous_generation(self):
+        from core.local_voice import WakeWordListener
+
+        with tempfile.TemporaryDirectory() as temporary:
+            model = Path(temporary) / "hey_mica.onnx"
+            payload = b"onnx-test-placeholder"
+            model.write_bytes(payload)
+            model.with_name(model.name + ".provenance.json").write_text(json.dumps({
+                "source": "local-consented-training",
+                "version": "test-v1",
+                "license": "private-use",
+                "test_dataset": "local-held-out-v1",
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "acceptance": {
+                    "utterances": 40,
+                    "detections": 38,
+                    "background_hours": 8,
+                    "false_activations": 1,
+                },
+            }), encoding="utf-8")
+            created = []
+
+            class SlowThread:
+                def __init__(self, *, target, args=(), **_kwargs):
+                    self.target = target
+                    self.args = args
+                    self.alive = False
+                    created.append(self)
+
+                def start(self):
+                    self.alive = True
+
+                def is_alive(self):
+                    return self.alive
+
+                def join(self, timeout=None):
+                    self.join_timeout = timeout
+
+            listener = WakeWordListener(lambda: None, model_path=model)
+            with patch("core.local_voice.threading.Thread", SlowThread):
+                self.assertTrue(listener.start())
+                first = created[0]
+                listener.stop()
+                self.assertTrue(listener.start())
+                self.assertEqual(len(created), 1)
+                first.alive = False
+                listener._finish_generation(first)
+
+            self.assertEqual(len(created), 2)
+            self.assertIs(listener._thread, created[1])
+
 
 class Phase0ApiTests(unittest.TestCase):
     def test_voice_uses_the_common_turn_pipeline_and_versioned_states(self):

@@ -7,6 +7,7 @@ import uuid
 
 from .audit import AuditLog
 from .brain import MarkdownBrain
+from .laya_scorer import rerank_retrieval
 from .policy import PolicyEngine
 
 
@@ -19,7 +20,7 @@ class Orchestrator:
         turn_id: str | None = None,
     ) -> dict[str, Any]:
         task_id = uuid.uuid4().hex
-        evidence = self.brain.search(message, limit=5)
+        evidence = rerank_retrieval(message, self.brain.search(message, limit=5))
         selected_action = action or "brain.search"
         decision = self.policy.decide(selected_action, params, dry_run=dry_run)
         plan = {"turn_id": turn_id, "task_id": task_id, "action": selected_action, "dry_run": dry_run, "retrieval": evidence, "permission": asdict(decision), "expected_change": "None" if dry_run else "Delegated only after policy approval"}

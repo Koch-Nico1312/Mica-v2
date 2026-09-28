@@ -73,6 +73,19 @@ class TestSpeakerRecognition(unittest.TestCase):
         speakers = self.sr.list_speakers()
         self.assertIsInstance(speakers, list)
 
+    def test_int16_feature_extraction_has_no_overflow_or_nan(self):
+        """RMS and silence features remain finite for the full PCM range."""
+        import numpy as np
+
+        loud = self.sr._extract_features(np.full(1600, -32768, dtype=np.int16))
+        silence = self.sr._extract_features(np.zeros(1600, dtype=np.int16))
+
+        self.assertAlmostEqual(loud["rms"], 32768.0)
+        self.assertTrue(all(np.isfinite(value) for value in loud.values()))
+        self.assertEqual(silence["rms"], 0.0)
+        self.assertEqual(silence["spectral_centroid"], 0.0)
+        self.assertTrue(all(np.isfinite(value) for value in silence.values()))
+
 
 class TestWhisperMode(unittest.TestCase):
     """Tests für Flüstermodus."""
