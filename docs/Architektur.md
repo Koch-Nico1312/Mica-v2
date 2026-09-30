@@ -1,6 +1,6 @@
 # MICA V2 – Architektur
 
-Stand: 2026-09-28. MICA hat zwei getrennte Laufzeitbereiche. Die Desktop-App
+Stand: 2026-09-30. MICA hat zwei getrennte Laufzeitbereiche. Die Desktop-App
 ist ein Windows-Client. Der Docker-Compose-Stack im Verzeichnis `backend/`
 stellt API und lokale Dienste bereit. Der native Windows Host Agent ist ein
 separater, optionaler Prozess und gehört nicht zu den Modellcontainern.
@@ -25,6 +25,8 @@ flowchart LR
         STT[whisper.cpp STT]
         TTS[TTS-Dienst]
         BRAIN[Markdown Brain und Indexer]
+        SYNC[Optionaler Hindsight-Sync-Worker]
+        MEMORY[Optionales Hindsight]
         BROKER[Tool Broker]
         SCHED[Scheduler]
         PROXY --> WEB
@@ -36,9 +38,15 @@ flowchart LR
         API --> BRAIN
         API --> BROKER
         SCHED --> BRAIN
+        BRAIN -->|ausgewählte Quellen| SYNC
+        SYNC -->|Aufbereitung und Löschung| MEMORY
+        BRAIN -->|begrenzter Recall| MEMORY
+        API -->|explizite Reflexion| MEMORY
+        MEMORY -->|lokale Modellaufrufe| LLM
     end
     HOST[Separater Windows Host Agent mit mTLS]
     STATE[(Persistentes MICA_DATA_DIR)]
+    MEMORYSTATE[(Separate Hindsight-Volumes)]
     USER --> UI
     CLIENT -->|lokales HTTPS| PROXY
     API -->|freigegebene Host-Aufrufe| BROKER
@@ -47,6 +55,8 @@ flowchart LR
     BRAIN --> STATE
     BROKER --> STATE
     SCHED --> STATE
+    SYNC --> STATE
+    MEMORY --> MEMORYSTATE
 ```
 
 ## Desktop
@@ -76,7 +86,7 @@ API als betriebsbereit gilt.
 
 Die API und gemeinsamen Regeln liegen in `backend/services/`. Der Brain hält
 Markdown als maßgebliche Daten; SQLite FTS- und lokale Vektorindizes lassen sich
-aus den Markdown-Dateien wiederherstellen. Persistente Backend-Daten liegen
+aus den Markdown-Dateien wiederherstellen. Die regulären Backend-Daten liegen
 unter dem gemounteten `MICA_DATA_DIR` (im Container `/data`). Desktop-Zustand
 unter `.mica-data/` ist davon getrennt.
 
@@ -85,6 +95,28 @@ Die Windows-Bereitstellung startet Compose über
 Credential Manager anhand einer kleinen Allowlist gelesen und nur an den
 Compose-Prozess weitergereicht. Auf Linux werden die Deploymentwerte über
 `backend/.env` konfiguriert. Geheimnisse gehören nicht in versionierte Dateien.
+
+### Optionales Hindsight-Gedächtnis
+
+`backend/docker-compose.hindsight.yml` ergänzt den Stack um Hindsight 0.10.2
+und einen eigenen Sync-Worker im Profil `hindsight`. Beide Freigaben
+`MICA_HINDSIGHT_ENABLED=1` und `MICA_HINDSIGHT_ALLOW_PRIVATE=1` sind erforderlich;
+die Beispielkonfiguration lässt sie ausgeschaltet. Hindsight nutzt den lokalen
+llama.cpp-Server sowie lokal heruntergeladene Embedding-/Reranker-Modelle.
+Die mitgelieferte Konfiguration veröffentlicht keine Hindsight-Ports am Host.
+
+Der Worker überträgt nur ausgewählte kurze Quellen und verwaltet bestätigte
+Versionen, Löschungen und Wiederholungen in einem SQLite-Ledger unter
+`/data/memory-sync/hindsight.sqlite3`. Recall akzeptiert ausschließlich aktuell
+bestätigte Quellen; der Antwortkontext stammt aus deren aktuellem Markdown.
+Exakte lokale Treffer haben Vorrang. Bei einem Dienst-Ausfall bleibt die lokale
+Suche verfügbar. Reflexion wird ausdrücklich angefordert, mit Quellen als
+Ableitung gekennzeichnet und nicht zurück in den Brain geschrieben.
+
+Die Hindsight-Datenbank und der Modellcache liegen in separaten Docker-Volumes.
+Der bestehende Backup-Drill sichert das Sync-Ledger am Standardpfad als JSON;
+die Hindsight-Volumes benötigen eine eigene Sicherung. Details, API-Endpunkte
+und die Grenzen des lokalen CPU-Piloten stehen in [hindsight.md](hindsight.md).
 
 ## Aktionspfad und Sicherheitsgrenzen
 

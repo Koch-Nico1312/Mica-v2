@@ -1,0 +1,40 @@
+# Isolated acceptance stack: no production data, provider keys or public ports.
+services:
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command: >-
+      -m /models/Qwen3-4B-Q4_K_M.gguf --host 0.0.0.0 --port 8080
+      --ctx-size 16384 --threads 4 --parallel 1 --jinja
+    volumes:
+      - ${MICA_HINDSIGHT_PILOT_MODELS:?Set the existing model directory}:/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    networks: [pilot]
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:0.10.2
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: openai
+      HINDSIGHT_API_LLM_BASE_URL: http://llama:8080/v1
+      HINDSIGHT_API_LLM_API_KEY: local-unused
+      HINDSIGHT_API_LLM_MODEL: Qwen3-4B-Q4_K_M.gguf
+      HINDSIGHT_API_LLM_EXTRA_BODY: '{"chat_template_kwargs":{"enable_thinking":false}}'
+      HINDSIGHT_API_RETAIN_CHUNK_SIZE: '1024'
+      HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS: '4096'
+      HINDSIGHT_API_REFLECT_MAX_COMPLETION_TOKENS: '4096'
+      HINDSIGHT_API_REFLECT_LLM_TIMEOUT: '180'
+    ports: ["127.0.0.1:8889:8888"]
+    volumes:
+      - pilot-data:/home/hindsight/.pg0
+      - pilot-models:/home/hindsight/.cache
+    depends_on:
+      llama:
+        condition: service_healthy
+    networks: [pilot]
+networks:
+  pilot: {}
+volumes:
+  pilot-data: {}
+  pilot-models: {}

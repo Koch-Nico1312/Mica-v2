@@ -55,7 +55,7 @@ def _docker_executable() -> str:
     raise FileNotFoundError("Docker CLI is not installed or is not on PATH")
 
 
-def run_compose(config_path: Path, arguments: Sequence[str]) -> int:
+def run_compose(config_path: Path, arguments: Sequence[str], *, hindsight: bool = False) -> int:
     environment = dict(os.environ)
     # The JSON mapping is the only authority for secrets passed to Compose.
     # Never inherit stale provider or integration credentials from the desktop
@@ -73,7 +73,9 @@ def run_compose(config_path: Path, arguments: Sequence[str]) -> int:
     if (compose_root / ".env.phase4").is_file():
         env_files.extend(["--env-file", ".env.phase4"])
     completed = subprocess.run(
-        [_docker_executable(), "compose", *env_files, *arguments],
+        [_docker_executable(), "compose", *env_files,
+         *(["-f", "docker-compose.yml", "-f", "docker-compose.hindsight.yml", "--profile", "hindsight"] if hindsight else []),
+         *arguments],
         cwd=compose_root, env=environment, shell=False, check=False,
     )
     return completed.returncode
@@ -81,6 +83,7 @@ def run_compose(config_path: Path, arguments: Sequence[str]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Start MICA without plaintext provider secrets")
+    parser.add_argument("--hindsight", action="store_true", help="Include the optional local memory service and sync worker")
     parser.add_argument(
         "--credentials", type=Path,
         default=Path(os.getenv(
@@ -95,7 +98,7 @@ def main() -> int:
         compose_args = compose_args[1:]
     if not compose_args:
         compose_args = ["up", "-d", "--build"]
-    return run_compose(args.credentials, compose_args)
+    return run_compose(args.credentials, compose_args, hindsight=args.hindsight)
 
 
 if __name__ == "__main__":

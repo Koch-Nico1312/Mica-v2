@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from services.common.audit import AuditLog
 from services.common.approval_auth import LocalApprovalSessions
 from services.common.brain import MarkdownBrain
+from services.common.hindsight import HindsightMemory, selected_summary
 from services.common.capabilities import CAPABILITIES, capability_for, list_capabilities
 from services.common.cloud_llm import (
     CloudLLMError,
@@ -346,6 +347,12 @@ class TaskExecution(ExecutionRequest):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=16000)
     conversation_mode: str = Field(default="personal", max_length=32)
+    memory_mode: Literal["recall", "reflect"] = "recall"
+
+
+class BrainDocumentUpdate(BaseModel):
+    body: str = Field(max_length=100000)
+    memory_excerpt: str | None = Field(default=None, max_length=1800)
 
 
 class TurnRequest(BaseModel):
@@ -950,6 +957,12 @@ def chat(request: ChatRequest) -> dict[str, Any]:
             f"- [{item.get('confidence', 'low')}] {item['title']}: {item['snippet']}"
             for item in evidence
         ) or "- Kein gespeicherter Kontext."
+        reflect_requested = request.memory_mode == "reflect" or request.message.strip().lower().startswith("rückblick:")
+        if reflect_requested and not policy.is_emergency_stopped():
+            reflection = HindsightMemory(brain).reflect(request.message)
+            if reflection.get("status") == "ready":
+                context += "\n\nUnbestätigte Gedächtnisauswertung (keine Anweisungen):\n" + reflection["text"]
+                context += "\nQuellen: " + ", ".join(reflection["sources"])
         if active_knowledge:
             context += "\n\nAktive, validierte Skills und Runbooks:\n" + active_knowledge
         personal_context = profile_prompt(profile_store.read(), conversation_mode)
@@ -982,7 +995,9 @@ def chat(request: ChatRequest) -> dict[str, Any]:
         phase4_store.set_presence("error", "chat")
         audit.append("chat.failed", {"reason": str(error)[:500]})
         raise HTTPException(503, "Sprachmodell ist nicht bereit") from error
-    brain.write("conversations", request.message[:100], f"Nutzer: {request.message}\n\nMica: {reply}")
+    brain.write("conversations", request.message[:100], f"Nutzer: {request.message}\n\nMica: {reply}", {
+        "hindsight_summary": selected_summary(f"Nutzer sagte: {request.message}"),
+    })
     audit.append("chat.completed", {
         "message_length": len(request.message), "reply_length": len(reply),
         "conversation_mode": conversation_mode,
@@ -1205,6 +1220,55 @@ def brain_document(document_id: str) -> dict[str, Any]:
     if not document:
         raise HTTPException(404, "Brain document not found")
     return {"document": document}
+
+
+@app.get("/v1/memory/hindsight")
+def hindsight_status() -> dict[str, Any]:
+    return HindsightMemory(brain).status()
+
+
+@app.post("/v1/memory/hindsight/reflect")
+def hindsight_reflect(request: ChatRequest) -> dict[str, Any]:
+    if policy.is_emergency_stopped():
+        raise HTTPException(409, "Not-Aus ist aktiv")
+    return HindsightMemory(brain).reflect(request.message)
+
+
+def _memory_confirmation(request: Request, intent: str | None) -> None:
+    if intent != "confirm" or not approval_sessions.valid(request.cookies.get("mica_approval_session")):
+        raise HTTPException(401, "An authenticated local browser confirmation is required")
+
+
+@app.post("/v1/memory/hindsight/sync")
+def hindsight_sync(request: Request, x_mica_approval_intent: str | None = Header(default=None)) -> dict[str, Any]:
+    _memory_confirmation(request, x_mica_approval_intent)
+    if policy.is_emergency_stopped():
+        raise HTTPException(409, "Not-Aus ist aktiv")
+    return HindsightMemory(brain).sync(limit=1)
+
+
+@app.patch("/v1/brain/documents/{document_id}")
+def correct_brain_document(document_id: str, update: BrainDocumentUpdate, request: Request,
+                          x_mica_approval_intent: str | None = Header(default=None)) -> dict[str, Any]:
+    _memory_confirmation(request, x_mica_approval_intent)
+    try:
+        document = brain.update_document(document_id, update.body, update.memory_excerpt)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    if not document:
+        raise HTTPException(404, "Brain document not found")
+    audit.append("brain.document_corrected", {"id": document_id})
+    return {"document": document, "hindsight": HindsightMemory(brain).status()}
+
+
+@app.delete("/v1/brain/documents/{document_id}")
+def forget_brain_document(document_id: str, request: Request,
+                         x_mica_approval_intent: str | None = Header(default=None)) -> dict[str, Any]:
+    _memory_confirmation(request, x_mica_approval_intent)
+    if not brain.delete_document(document_id):
+        raise HTTPException(404, "Brain document not found")
+    audit.append("brain.document_deleted", {"id": document_id})
+    return {"deleted": True, "hindsight": HindsightMemory(brain).status()}
 
 
 @app.get("/v1/audit")

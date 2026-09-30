@@ -5,6 +5,7 @@ import os
 import re
 import sqlite3
 import uuid
+import hashlib
 from datetime import UTC, datetime
 from hashlib import blake2b
 from math import sqrt
@@ -24,6 +25,13 @@ class MarkdownBrain:
     CHUNK_SIZE = 1400
     CHUNK_OVERLAP = 180
 
+    @staticmethod
+    def source_hash(body: str) -> str:
+        # Text readers normalize line endings. Hash the same logical content
+        # while preserving original evidence bytes in the source file.
+        normalized = str(body).replace("\r\n", "\n").replace("\r", "\n").strip()
+        return hashlib.sha256(normalized.encode()).hexdigest()
+
     def __init__(self, root: str | Path | None = None, index_path: str | Path | None = None):
         self.root = Path(root or os.getenv("BRAIN_DIR", "/data/brain"))
         self.index_path = Path(index_path or os.getenv("INDEX_PATH", "/data/index/brain.sqlite3"))
@@ -38,10 +46,12 @@ class MarkdownBrain:
         doc_dir.mkdir(parents=True, exist_ok=True)
         path = doc_dir / f"{created[:10]}-{document_id[:10]}.md"
         frontmatter = {"id": document_id, "kind": kind, "title": title.strip()[:160], "created_at": created, **(metadata or {})}
+        if frontmatter.get("hindsight_summary"):
+            frontmatter["hindsight_body_sha256"] = self.source_hash(body)
         # Keep supplied evidence bytes intact in the Markdown source.  Callers
         # that want presentation trimming do that themselves; a captured
         # Docker/host-agent error must not be silently rewritten on disk.
-        path.write_text("---\n" + json.dumps(frontmatter, ensure_ascii=False) + "\n---\n\n" + str(body), encoding="utf-8")
+        path.write_text("---\n" + json.dumps(frontmatter, ensure_ascii=False) + "\n---\n\n" + str(body), encoding="utf-8", newline="\n")
         self.reindex()
         return {"id": document_id, "path": str(path), "created_at": created}
 
@@ -204,7 +214,45 @@ class MarkdownBrain:
                 seen.add(document_id)
         except sqlite3.OperationalError:
             pass
+        # Derived memory can improve ranking; a timeout always leaves local
+        # search usable. Filtered research queries stay in the local index.
+        if not domain_id and not kind:
+            from .hindsight import HindsightMemory
+            remote = HindsightMemory(self).recall(query, bounded_limit)
+            # The live pilot found exact local matches at least as accurate as
+            # remote ranking. Preserve those and augment weaker vector matches.
+            exact = [item for item in results if item.get("confidence") == "high"]
+            seen = {item["id"] for item in exact}
+            extra = [item for item in remote if item["id"] not in seen]
+            seen.update(item["id"] for item in extra)
+            results = exact + extra + [item for item in results if item["id"] not in seen]
         return results[:bounded_limit]
+
+    def update_document(self, document_id: str, body: str, memory_excerpt: str | None = None) -> dict[str, Any] | None:
+        """Correct the source; derived summaries must be selected again."""
+        for doc in self.documents():
+            if doc.get("id") != document_id:
+                continue
+            metadata = {key: value for key, value in doc.items() if key not in {"body", "path", "hindsight_summary", "hindsight_body_sha256"}}
+            metadata["updated_at"] = datetime.now(UTC).isoformat()
+            if memory_excerpt:
+                from .hindsight import selected_summary
+                if memory_excerpt not in body or not selected_summary(memory_excerpt):
+                    raise ValueError("Memory excerpt must be a short, non-sensitive part of the corrected source")
+                metadata["hindsight_summary"] = memory_excerpt
+                metadata["hindsight_body_sha256"] = self.source_hash(body)
+            Path(doc["path"]).write_text("---\n" + json.dumps(metadata, ensure_ascii=False) + "\n---\n\n" + body, encoding="utf-8", newline="\n")
+            self.reindex()
+            return self._read(Path(doc["path"]))
+        return None
+
+    def delete_document(self, document_id: str) -> bool:
+        for doc in self.documents():
+            if doc.get("id") == document_id:
+                Path(doc["path"]).unlink()
+                self.reindex()
+                return True
+        return False
 
     def update_metadata(self, document_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
         """Update frontmatter without changing the authoritative Markdown body."""

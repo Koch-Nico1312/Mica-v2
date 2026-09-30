@@ -10,6 +10,17 @@ from backend import windows_launcher
 
 
 class WindowsLauncherTests(unittest.TestCase):
+    def test_optional_hindsight_profile_includes_worker_configuration(self):
+        with patch.object(windows_launcher, "credential_environment", return_value={}), \
+             patch.object(windows_launcher, "_docker_executable", return_value="docker"), \
+             patch.object(windows_launcher.Path, "is_file", return_value=False), \
+             patch.object(windows_launcher.subprocess, "run", return_value=Mock(returncode=0)) as run:
+            windows_launcher.run_compose(Path("names.json"), ["up", "-d"], hindsight=True)
+        self.assertEqual(run.call_args.args[0], [
+            "docker", "compose", "--env-file", ".env", "-f", "docker-compose.yml",
+            "-f", "docker-compose.hindsight.yml", "--profile", "hindsight", "up", "-d",
+        ])
+
     def test_missing_credential_config_is_valid_for_local_backend(self):
         with tempfile.TemporaryDirectory() as temporary:
             missing = Path(temporary) / "missing.json"

@@ -71,6 +71,19 @@ optional local semantic scorer; it advises ranking and signal triage and does
 not grant permissions or execute actions. See
 [`docs/dream-rsi.md`](docs/dream-rsi.md).
 
+Hindsight optionally adds long-term memory for selected short conversation
+excerpts and task reports. Markdown remains authoritative; exact local search
+matches keep priority, and the local search remains available during outages.
+Explicit reflection is marked as an unconfirmed inference with sources.
+Enable it separately using the [Hindsight guide](docs/hindsight.md).
+
+The [local CPU pilot on 2026-09-30](artifacts/hindsight-pilot/acceptance.md)
+verified storage, retrieval, reflection, outage recovery, restart, correction,
+and deletion with a real server. Its three examples showed no retrieval quality
+gain over local search; reflection took about 131 seconds. Hindsight remains
+disabled by default. This pilot does not establish general quality or
+production readiness.
+
 Provider secrets must not be placed in committed files. The backend Windows
 launcher reads only configured secret names from Windows Credential Manager
 and passes their values to the Compose process environment. Cloud use and
@@ -86,6 +99,8 @@ private-context transfer require explicit configuration.
 - [Self-source access](docs/self-source-access.md)
 - [Voice policy](docs/phase1-voice.md)
 - [Research and learning](docs/phase2-learning.md)
+- [Optional Hindsight memory: setup, API, and backup boundaries](docs/hindsight.md)
+- [Hindsight pilot results and measurements](artifacts/hindsight-pilot/acceptance.md)
 - [Phase 0–4.5 acceptance documents](docs/README.md#phasen-und-abnahme)
 
 For development checks, use the commands documented by the relevant project

@@ -1,6 +1,6 @@
 # MICA documentation
 
-Documentation index for the repository as of 2026-09-28. The root
+Documentation index for the repository as of 2026-09-30. The root
 [`readme.md`](../readme.md) gives the short introduction; this page points to
 the operational and acceptance detail.
 
@@ -11,6 +11,7 @@ the operational and acceptance detail.
 - [Backend deployment](../backend/README.md): Windows, ZimaOS, Proxmox VM, preflight, backup, and deployment checks.
 - [Backend implementation audit](../backend/IMPLEMENTATION_STATUS.md): dated evidence snapshot and target-host work that remains. Treat its results as historical evidence for the date shown, not as proof of a currently running deployment.
 - [Dream-RSI and Laya](dream-rsi.md): optional self-improvement evaluation and local semantic scoring.
+- [Hindsight memory](hindsight.md): optional backend memory, source selection, explicit reflection, setup, API, and backup boundaries.
 - [Self-source access](self-source-access.md): MICA's constrained access to its own source.
 - [Advanced agents](ADVANCED_AGENTS.md): legacy desktop agent components where still applicable; the current runtime boundaries are described in [Architecture](Architektur.md).
 
@@ -26,6 +27,7 @@ service. A feature flag being present or enabled is not deployment proof.
 - [Phase 3A: automation](phase3a-acceptance.md)
 - [Phase 4: bounded planning and server operations](phase4-acceptance.md)
 - [Phase 4.5: perception and presence](phase4.5-acceptance.md)
+- [Hindsight CPU pilot, 2026-09-30](../artifacts/hindsight-pilot/acceptance.md): real-server storage, retrieval, reflection, outage, restart, correction, and deletion checks; three-example quality and latency comparison. Default activation remains off.
 
 The acceptance pages are snapshots and may describe work performed on a
 particular machine. Re-run their stated checks against the intended deployment

@@ -49,6 +49,19 @@ def _state_export(data_dir: Path) -> bytes:
         finally:
             connection.close()
     configuration: dict[str, Any] = {}
+    memory_sync: dict[str, list[dict[str, Any]]] = {}
+    ledger = data_dir / "memory-sync" / "hindsight.sqlite3"
+    if ledger.is_file() and not ledger.is_symlink():
+        connection = sqlite3.connect(ledger)
+        connection.row_factory = sqlite3.Row
+        try:
+            connection.execute("BEGIN")
+            existing = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            for table in ("sources", "retries"):
+                if table in existing:
+                    memory_sync[table] = [dict(row) for row in connection.execute(f"SELECT * FROM {table}")]
+        finally:
+            connection.close()
     for name in ("profile.json", "domains.json"):
         path = data_dir / name
         if path.is_file() and not path.is_symlink():
@@ -58,7 +71,7 @@ def _state_export(data_dir: Path) -> bytes:
                 continue
     return (json.dumps({
         "schema_version": 1, "created_at": datetime.now(UTC).isoformat(),
-        "tables": exported, "configuration": configuration,
+        "tables": exported, "configuration": configuration, "hindsight_sync": memory_sync,
     }, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
@@ -256,6 +269,28 @@ def _rebuild_state_export(destination: Path) -> dict[str, int]:
         (destination / "state" / name).write_text(
             json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8",
         )
+    memory_sync = payload.get("hindsight_sync", {})
+    if not isinstance(memory_sync, dict) or set(memory_sync) - {"sources", "retries"}:
+        raise BackupDrillError("Hindsight sync export is invalid")
+    if memory_sync:
+        ledger = destination / "memory-sync" / "hindsight.sqlite3"
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(ledger)
+        try:
+            connection.execute("CREATE TABLE sources (scope TEXT, id TEXT, fingerprint TEXT NOT NULL, PRIMARY KEY(scope,id))")
+            connection.execute("CREATE TABLE retries (scope TEXT, id TEXT, target TEXT, attempts INTEGER, retry_after REAL, PRIMARY KEY(scope,id))")
+            for table, columns in {"sources": ("scope", "id", "fingerprint"), "retries": ("scope", "id", "target", "attempts", "retry_after")}.items():
+                rows = memory_sync.get(table, [])
+                if not isinstance(rows, list):
+                    raise BackupDrillError("Hindsight sync rows are invalid")
+                for row in rows:
+                    if not isinstance(row, dict) or set(row) != set(columns):
+                        raise BackupDrillError("Hindsight sync row is invalid")
+                    connection.execute(f"INSERT INTO {table} VALUES ({','.join('?' for _ in columns)})", tuple(row[column] for column in columns))
+                restored_counts[f"hindsight_{table}"] = len(rows)
+            connection.commit()
+        finally:
+            connection.close()
     return restored_counts
 
 

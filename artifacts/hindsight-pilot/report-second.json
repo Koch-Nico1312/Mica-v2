@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "started_at": "2026-09-30T16:52:40.265378+00:00",
+  "passed": false,
+  "source": "isolated representative MICA test excerpts",
+  "live_server_requested": true,
+  "checks": {
+    "retain": true,
+    "restart_idempotent": true,
+    "recall": true,
+    "outage_fallback": true,
+    "server_restart": true,
+    "reflect": false,
+    "stale_source_rejected": true,
+    "correction": true,
+    "deletion": true,
+    "remote_empty": true
+  },
+  "comparison": [
+    {
+      "query": "Welche Sprachausgabe bevorzugt der Nutzer?",
+      "expected_source": "56f94a4698df4573968808a8347633df",
+      "local_rank": 1,
+      "hindsight_rank": 2,
+      "local_seconds": 0.024,
+      "hindsight_seconds": 0.498
+    },
+    {
+      "query": "Wie wurde das Problem beim Start des Containerdienstes gelöst?",
+      "expected_source": "bc6b1331fbde48a2a2b53f5501d9dbda",
+      "local_rank": 1,
+      "hindsight_rank": 1,
+      "local_seconds": 0.024,
+      "hindsight_seconds": 0.376
+    },
+    {
+      "query": "Welcher Speicher ist für die Assistenz verbindlich?",
+      "expected_source": "b799518ac8744d69af443871f01e3a71",
+      "local_rank": 1,
+      "hindsight_rank": 3,
+      "local_seconds": 0.023,
+      "hindsight_seconds": 0.395
+    }
+  ],
+  "bank": "mica-pilot-27e758ae60e4",
+  "state_directory": "artifacts\\hindsight-pilot\\state-5e718c512751",
+  "retain_seconds": 119.207,
+  "outage_fallback_seconds": 2.305,
+  "reflect_seconds": 180.277,
+  "reflection": {
+    "status": "unavailable"
+  }
+}

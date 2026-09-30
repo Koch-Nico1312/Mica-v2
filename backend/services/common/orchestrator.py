@@ -9,6 +9,7 @@ from .audit import AuditLog
 from .brain import MarkdownBrain
 from .laya_scorer import rerank_retrieval
 from .policy import PolicyEngine
+from .hindsight import selected_summary
 
 
 class Orchestrator:
@@ -60,6 +61,9 @@ class Orchestrator:
         document = self.brain.write(kind, title, body, {
             "task_id": task_id, "success": success, "action": action,
             "evidence_document": evidence_document["id"], "evidence_sha256": evidence_hash,
+            "hindsight_summary": selected_summary(
+                f"Werkzeugbericht zu {action}; Erfolg: {success}.\n{evidence}"
+            ),
         })
         self.audit.append("task.completed" if success else "task.failed", {
             "task_id": task_id, "action": action, "brain_document": document["id"],

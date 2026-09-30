@@ -20,6 +20,34 @@ from services.common.brain import MarkdownBrain
 
 
 class BackupRestoreDrillTests(unittest.TestCase):
+    def test_hindsight_pending_deletion_survives_backup_restore(self):
+        from services.common.hindsight import HindsightMemory
+        from backup_restore import _safe_extract, _rebuild_state_export
+        import sqlite3
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            brain = MarkdownBrain(root / "data" / "brain", root / "data" / "index" / "brain.sqlite3")
+            with patch.dict("os.environ", {"MICA_HINDSIGHT_DB": str(root / "data" / "memory-sync" / "hindsight.sqlite3")}):
+                memory = HindsightMemory(brain)
+                connection = memory._connect()
+                try:
+                    connection.execute("INSERT INTO sources VALUES (?,?,?)", (memory.scope, "a" * 32, "pending"))
+                    connection.execute("INSERT INTO retries VALUES (?,?,?,?,?)", (memory.scope, "a" * 32, "deleted", 2, 9999999999))
+                    connection.commit()
+                finally:
+                    connection.close()
+            archive, _ = create_backup(root / "data", root / "backup")
+            _safe_extract(archive, root / "restore")
+            counts = _rebuild_state_export(root / "restore")
+            self.assertEqual(counts["hindsight_sources"], 1)
+            connection = sqlite3.connect(root / "restore" / "memory-sync" / "hindsight.sqlite3")
+            try:
+                self.assertEqual(connection.execute("SELECT id,fingerprint FROM sources").fetchone(), ("a" * 32, "pending"))
+                self.assertEqual(connection.execute("SELECT target,attempts FROM retries").fetchone(), ("deleted", 2))
+            finally:
+                connection.close()
+            self.assertTrue(verify_restore(archive)["passed"])
+
     def test_drill_preserves_truth_and_rebuilds_disposable_sqlite(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

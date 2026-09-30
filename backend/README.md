@@ -31,6 +31,49 @@ and external calls. The bundled price table is versioned; providers without a
 currently verified source show quantities and a null cost rather than an
 estimate.
 
+## Optional Hindsight memory
+
+Hindsight adds memory for selected short user excerpts and completed tool
+reports. Markdown remains authoritative, exact local matches keep priority,
+and outages fall back to local search. Reflection requires an explicit request
+and returns an unconfirmed inference with sources. It affects the backend;
+the separate desktop JSON memory is unchanged.
+
+Set both options in `backend/.env` to enable private source transfer:
+
+```env
+MICA_HINDSIGHT_ENABLED=1
+MICA_HINDSIGHT_ALLOW_PRIVATE=1
+```
+
+On Windows, start from the repository root through the existing launcher:
+
+```powershell
+python -m backend.windows_launcher --hindsight -- up -d --build
+```
+
+On Linux, start from `backend/` with the optional Compose override:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.hindsight.yml --profile hindsight up -d --build
+```
+
+The override runs Hindsight 0.10.2 and a dedicated sync worker, using the local
+LLM with tool support and a 16384-token context. Hindsight downloads embedding
+and reranking models on first start; the production override exposes no host
+ports. The source sync ledger lives under `MICA_DATA_DIR/memory-sync/`, while
+Hindsight's database and model cache use separate named volumes.
+
+`GET /v1/memory/hindsight` reports local synchronization state, not live service
+health. Use `Rückblick: …` in backend chat for explicit reflection. See the
+[full guide](../docs/hindsight.md) for selection rules, API access, timeouts,
+correction/deletion, disabling, and backup boundaries.
+
+The [2026-09-30 CPU pilot](../artifacts/hindsight-pilot/acceptance.md) verified
+real-server retention, recall, reflection, outage recovery, restart, correction,
+and deletion. Three examples showed no search quality gain over the local Brain;
+reflection took about 131 seconds. Hindsight stays disabled by default.
+
 ## Start on ZimaOS
 
 1. Copy `.env.example` to `.env` and set the persistent ZimaOS volume path and
@@ -126,11 +169,14 @@ layers. Do not enable the `fallback` profile or add
 requested LXC GPU deployment incompatible even if a locally mapped device
 happens to be visible. Move GPU workloads to the VM path above.
 
-All persistent state is below `MICA_DATA_DIR`. The Docker socket is never
+Regular backend state is below `MICA_DATA_DIR`; optional Hindsight database and
+model-cache state lives in separate named volumes. The Docker socket is never
 mounted into a model container or the tool broker. Markdown files under
 `brain/` are authoritative; `index/brain.sqlite3` can be rebuilt at any time.
 The rebuild creates SQLite FTS5 plus a deterministic local token/trigram
-vector index, so notes are never sent to an embedding API.
+vector index without sending notes to an embedding API. If Hindsight is enabled,
+only selected short sources are transferred to that configured service, which
+uses its own embedding and reranking models.
 
 ## Backup and restore acceptance
 
@@ -142,6 +188,12 @@ configured persistent backup target (not a temporary container path):
 ```sh
 python3 backup_restore.py --data-dir /your/mica-volume --backup-dir /your/backup-target
 ```
+
+The drill also exports the Hindsight sync ledger at its standard
+`memory-sync/hindsight.sqlite3` path as JSON in `state/phase4.json` and
+reconstructs it during restore. It does not back up Hindsight's separate
+PostgreSQL or model-cache volumes. Back those up separately when using the
+extension; a custom ledger path also needs its own backup arrangement.
 
 This creates a timestamped `mica-truth-*.tar.gz` and a sibling JSON report. It
 restores only into a fresh temporary directory, verifies every archived

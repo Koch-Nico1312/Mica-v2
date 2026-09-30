@@ -1,6 +1,6 @@
 # MICA V2 – Projektübersicht
 
-Stand: 2026-09-28. MICA V2 besteht aus einer lokalen Windows-Desktop-App und
+Stand: 2026-09-30. MICA V2 besteht aus einer lokalen Windows-Desktop-App und
 einem separat gestarteten Backend. Der Desktop ist eine PyQt-Oberfläche mit
 Chat- und Spracheingabe. Das Backend stellt die lokale API und die Dienste für
 Sprachverarbeitung, LLM-Inferenz, Brain-Suche, Aufgabenplanung und kontrollierte
@@ -51,6 +51,11 @@ erforderliche lokale Modelle, Volumes, Preflight, HTTPS und Backup-Drill:
   Compose-Profil optional. Cloud-Provider sind gesondert zu konfigurieren.
 - **Wissensspeicher:** Markdown-Dateien sind die maßgeblichen Brain-Daten;
   Suchindizes werden lokal aufgebaut und können neu erstellt werden.
+- **Optionales Langzeitgedächtnis:** Hindsight übernimmt ausgewählte kurze
+  Nutzeraussagen und Werkzeugberichte. Exakte lokale Treffer behalten Vorrang;
+  explizite Reflexionen bleiben gekennzeichnete Ableitungen mit Quellen.
+  Die Erweiterung betrifft das Backend und ist standardmäßig ausgeschaltet.
+  Einrichtung und Grenzen stehen in [hindsight.md](hindsight.md).
 - **Aktionen und Freigaben:** Capability-Regeln, Broker, Audit, begrenzte
   Freigaben und Not-Aus schützen externe oder native Aktionen.
 - **Sprachdienste:** Whisper für STT; die TTS-Auswahl ist providerbezogen und
@@ -77,6 +82,13 @@ Testnachweise und externe Zielhost-Prüfungen getrennt.
   wurde.
 
 ## Aktueller Abnahmestatus
+
+Der [Hindsight-Pilot vom 30. September 2026](../artifacts/hindsight-pilot/acceptance.md)
+hat Speicherung, Suche, Reflexion, Ausfall, Neustart, Korrektur und Löschung
+mit einem echten lokalen Server geprüft. Die drei Testbeispiele zeigen keinen
+Suchvorteil gegenüber dem lokalen Brain; CPU-Reflexion dauerte rund 131 Sekunden.
+Das belegt die geprüften Funktionen, keine allgemeine Qualitätssteigerung oder
+Produktionsabnahme. Die produktive Konfiguration wurde nicht aktiviert.
 
 Implementierung und automatisierte Tests belegen nur ihre geprüften Pfade. Die
 konkreten Betriebsnachweise hängen vom Zielsystem ab: Dazu zählen physische

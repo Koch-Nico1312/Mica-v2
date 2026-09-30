@@ -73,3 +73,6 @@ docs/Devin/
 
 # Codebuff/Freebuff local tool state
 .freebuff/
+
+# Preserve pilot measurement reports, exclude temporary derived databases.
+artifacts/hindsight-pilot/state-*/
