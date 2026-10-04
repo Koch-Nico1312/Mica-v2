@@ -1,0 +1,15 @@
+# Default deny: Python service builds include only their runtime inputs.
+**
+!backend/
+!backend/requirements.txt
+!backend/docker/
+!backend/docker/Dockerfile.python
+!backend/services/
+!backend/services/**
+!backend/backup_restore.py
+!backend/web_ui/
+!backend/web_ui/**
+!mica_shared/
+!mica_shared/**
+**/__pycache__/
+**/*.pyc

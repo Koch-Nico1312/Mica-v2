@@ -1,0 +1,1 @@
+# MICA validated improvement artifacts

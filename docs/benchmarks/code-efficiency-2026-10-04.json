@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-04",
+  "baseline_commit": "6d048bcdd21a1fa00c49d85987b1032a1322fcd0",
+  "system": "Windows",
+  "python": "3.13.14",
+  "runs": 3,
+  "summary_statistic": "median",
+  "before": {
+    "brain_80_docs_search_ms": 162.169,
+    "brain_unchanged_chunker_calls": 80,
+    "list_80_plans_connections": 241,
+    "list_80_plans_ms": 175.206,
+    "audit_read_6000_peak_bytes": 6697902,
+    "audit_read_6000_ms": 37.535,
+    "trim_1200_entries_ms": 486.771
+  },
+  "after": {
+    "brain_80_docs_search_ms": 19.011,
+    "brain_unchanged_chunker_calls": 0,
+    "list_80_plans_connections": 1,
+    "list_80_plans_ms": 1.819,
+    "audit_read_6000_peak_bytes": 46427,
+    "audit_read_6000_ms": 42.277,
+    "trim_1200_entries_ms": 6.931
+  }
+}

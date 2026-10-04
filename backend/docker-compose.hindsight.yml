@@ -1,0 +1,58 @@
+# Optional local memory service. Add this file and --profile hindsight.
+services:
+  llama-server:
+    # Reflection uses native tools; reserve enough context for the extraction
+    # prompt and bounded completion while keeping the existing GPU setting.
+    command: >-
+      -m /models/${LLAMA_MODEL:?Set LLAMA_MODEL in .env}
+      --host 0.0.0.0 --port 8080 --n-gpu-layers ${LLAMA_GPU_LAYERS:-12}
+      --ctx-size ${MICA_HINDSIGHT_LLM_CONTEXT:-16384} --jinja
+  hindsight-sync:
+    profiles: [hindsight]
+    build:
+      context: ..
+      dockerfile: backend/docker/Dockerfile.python
+    command: python -m backend.services.hindsight_sync
+    restart: unless-stopped
+    environment:
+      BRAIN_DIR: /data/brain
+      INDEX_PATH: /data/index/brain.sqlite3
+      APPROVAL_DB: /data/approvals.sqlite3
+      MICA_HINDSIGHT_DB: /data/memory-sync/hindsight.sqlite3
+      MICA_HINDSIGHT_ENABLED: ${MICA_HINDSIGHT_ENABLED:-0}
+      MICA_HINDSIGHT_ALLOW_PRIVATE: ${MICA_HINDSIGHT_ALLOW_PRIVATE:-0}
+      MICA_HINDSIGHT_URL: http://hindsight:8888
+      MICA_HINDSIGHT_BANK: mica-local
+    volumes:
+      - ${MICA_DATA_DIR:?Set MICA_DATA_DIR in .env}:/data
+    networks: [mica-internal]
+    depends_on:
+      hindsight:
+        condition: service_started
+  hindsight:
+    profiles: [hindsight]
+    image: ghcr.io/vectorize-io/hindsight:0.10.2
+    restart: unless-stopped
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: openai
+      HINDSIGHT_API_LLM_BASE_URL: http://llama-server:8080/v1
+      HINDSIGHT_API_LLM_API_KEY: local-unused
+      HINDSIGHT_API_LLM_MODEL: ${LLAMA_MODEL:?Set LLAMA_MODEL in .env}
+      HINDSIGHT_API_LLM_EXTRA_BODY: '{"chat_template_kwargs":{"enable_thinking":false}}'
+      HINDSIGHT_API_RETAIN_CHUNK_SIZE: '1024'
+      HINDSIGHT_API_RETAIN_MAX_COMPLETION_TOKENS: '4096'
+      HINDSIGHT_API_REFLECT_MAX_COMPLETION_TOKENS: '4096'
+      HINDSIGHT_API_REFLECT_LLM_TIMEOUT: '180'
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+      - hindsight-models:/home/hindsight/.cache
+    # Edge access permits initial embedding/reranker model downloads. LLM
+    # inference is fixed to the local llama-server; no cloud keys are passed.
+    networks: [mica-internal, mica-edge]
+    depends_on:
+      llama-server:
+        condition: service_healthy
+
+volumes:
+  hindsight-data: {}
+  hindsight-models: {}

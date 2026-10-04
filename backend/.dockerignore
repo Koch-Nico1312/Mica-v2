@@ -1,0 +1,8 @@
+# STT/TTS builds use this context; never send deployment secrets or state.
+**
+!docker/
+!docker/Dockerfile.stt
+!docker/Dockerfile.tts
+!services/
+!services/stt_service.py
+!services/tts_service.py

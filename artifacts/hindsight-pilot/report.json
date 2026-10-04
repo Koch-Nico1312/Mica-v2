@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "started_at": "2026-09-30T19:03:08.81672+02:00",
+  "passed": true,
+  "source": "isolated representative MICA test excerpts",
+  "live_server_requested": true,
+  "checks": {
+    "retain": true,
+    "restart_idempotent": true,
+    "recall": true,
+    "outage_fallback": true,
+    "server_restart": true,
+    "reflect": true,
+    "reflect_content": true,
+    "stale_source_rejected": true,
+    "correction": true,
+    "deletion": true,
+    "remote_empty": true,
+    "post_cleanup_recheck": true
+  },
+  "comparison": [
+    {
+      "query": "Welche Sprachausgabe bevorzugt der Nutzer?",
+      "expected_source": "5863bff945844c01a718a5963b6b8573",
+      "local_rank": 1,
+      "hindsight_rank": 3,
+      "hybrid_rank": 1,
+      "local_seconds": 0.029,
+      "hindsight_seconds": 0.639,
+      "hybrid_seconds": 0.474
+    },
+    {
+      "query": "Wie wurde das Problem beim Start des Containerdienstes gelöst?",
+      "expected_source": "e4c83c39a7514b3f822576996297fb2b",
+      "local_rank": 1,
+      "hindsight_rank": 1,
+      "hybrid_rank": 1,
+      "local_seconds": 0.026,
+      "hindsight_seconds": 0.46,
+      "hybrid_seconds": 0.479
+    },
+    {
+      "query": "Welcher Speicher ist für die Assistenz verbindlich?",
+      "expected_source": "1e1898aac50e493598ff0fe27d4ea813",
+      "local_rank": 1,
+      "hindsight_rank": 2,
+      "hybrid_rank": 1,
+      "local_seconds": 0.026,
+      "hindsight_seconds": 0.459,
+      "hybrid_seconds": 0.494
+    }
+  ],
+  "bank": "mica-pilot-25b191d96a1c",
+  "state_directory": "artifacts\\hindsight-pilot\\state-26fc1a3485af",
+  "retain_seconds": 172.606,
+  "outage_fallback_seconds": 2.352,
+  "reflect_seconds": 131.166,
+  "reflection": {
+    "status": "ready",
+    "text": "### Speicherentscheidung und Sprachpräferenz für MICA\n\n#### Speicherentscheidung\n- **Markdown-Dateien**: Die primäre Knowledge-Source für MICA sind Markdown-Dateien.\n- **Hindsight**: Hindsight ist eine optionale Ergänzung für MICA.\n- **Images und Volumes**: Beim Neustart von Docker blieben Images und Volumes intakt.\n- **Docker**: Es gab ein Problem mit Docker, da die engine.sock veraltet war. Das temporäre Socket-Verzeichnis wurde gesichert und Docker wurde neu gestartet.\n\n#### Sprachpräferenz\n- **Weibliche Stimme**: Der Nutzer wünscht eine weibliche Stimme unabhängig vom API-Anbieter.\n\n#### Zusätzliche Information\n- **Docker-Startproblem**: Docker startete nicht wegen einer veralteten engine.sock. Das temporäre Socket-Verzeichnis wurde gesichert und Docker neu gestartet.",
+    "inferred": true,
+    "sources": [
+      "1e1898aac50e493598ff0fe27d4ea813",
+      "5863bff945844c01a718a5963b6b8573",
+      "e4c83c39a7514b3f822576996297fb2b"
+    ]
+  }
+}

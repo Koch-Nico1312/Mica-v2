@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "started_at": "2026-09-30T16:44:45.307979+00:00",
+  "passed": false,
+  "source": "isolated representative MICA test excerpts",
+  "live_server_requested": true,
+  "checks": {
+    "retain": true,
+    "restart_idempotent": true,
+    "recall": true,
+    "reflect": false,
+    "stale_source_rejected": true,
+    "correction": true,
+    "deletion": true,
+    "remote_empty": true
+  },
+  "comparison": [
+    {
+      "query": "Welche Sprachausgabe bevorzugt der Nutzer?",
+      "expected_source": "a794dc1094694769a9c97cf3734d26bc",
+      "local_rank": 1,
+      "hindsight_rank": 2,
+      "local_seconds": 0.026,
+      "hindsight_seconds": 0.755
+    },
+    {
+      "query": "Wie wurde das Problem beim Start des Containerdienstes gelöst?",
+      "expected_source": "135f0602a89d4cdb900f3d0f69c85b6d",
+      "local_rank": 1,
+      "hindsight_rank": 1,
+      "local_seconds": 0.023,
+      "hindsight_seconds": 0.436
+    },
+    {
+      "query": "Welcher Speicher ist für die Assistenz verbindlich?",
+      "expected_source": "7e7a1f7af86547598718d97c46510760",
+      "local_rank": 1,
+      "hindsight_rank": 3,
+      "local_seconds": 0.024,
+      "hindsight_seconds": 0.473
+    }
+  ],
+  "bank": "mica-pilot-4ae0c2c58859",
+  "state_directory": "artifacts\\hindsight-pilot\\state-27e97fd30374",
+  "retain_seconds": 223.736,
+  "reflect_seconds": 45.303,
+  "reflection": {
+    "status": "unavailable"
+  }
+}

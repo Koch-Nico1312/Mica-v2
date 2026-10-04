@@ -1,0 +1,92 @@
+# ── Secrets — never commit ───────────────────────────────────────────────
+desktop/config/api_keys.json
+desktop/config/credential-names.json
+desktop/config/provider_profiles.json
+desktop/config/certs/
+desktop/config/smart_home.json
+desktop/config/server_agent.json
+desktop/config/automation.json
+desktop/config/dashboard.json
+desktop/config/mica_3d.json
+desktop/config/autonomous_mode.json
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+!*.env.example
+!.env.*.example
+.env.test-sandbox
+backend/.env
+.sandbox/
+
+# ── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv-local/
+.venv-*/
+.uv-cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+dependency-audit.json
+venv/
+env/
+
+# ── Runtime state ────────────────────────────────────────────────────────
+desktop/memory/*.json
+desktop/memory/organization.json
+desktop/memory/learning.json
+desktop/memory/self-edits/
+*.log
+/approvals.sqlite3
+/connectors.sqlite3
+/idempotency.sqlite3
+/improvements.sqlite3
+/scheduler.sqlite3
+/.mica-data/
+# Explorer copies can contain private runtime data or tool configuration.
+/.mica-data - Kopie*/
+/skills-lock - Kopie*.json
+/*.sqlite3-wal
+/*.sqlite3-shm
+/* - Kopie*.sqlite3
+desktop/mica_3d_scenes/
+
+# ── Editor / OS ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.bak
+
+# ── AI Tool Configurations ────────────────────────────────────────────────
+.agents/
+.claude/
+agent/
+skills-lock.json
+
+# Local model payloads are verified downloads, not repository content.
+desktop/models/*
+!desktop/models/README.md
+!desktop/models/provenance.json
+
+# ── Documentation Builds ───────────────────────────────────────────────────
+Dokumentation/*.pdf
+Dokumentation/*.html
+
+# ── Documentation Working Directories ──────────────────────────────────────
+docs/Devin/
+
+# ── Build Artifacts and Temporary Files ─────────────────────────────────────
+
+# Codebuff/Freebuff local tool state
+.freebuff/
+
+# Preserve pilot measurement reports, exclude temporary derived databases.
+artifacts/hindsight-pilot/state-*/
+artifacts/test-results.xml

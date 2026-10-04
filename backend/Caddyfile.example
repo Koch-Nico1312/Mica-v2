@@ -1,0 +1,51 @@
+# Serve MICA through HTTPS on the LAN. Both Compose ports bind only to
+# loopback; do not publish them directly. Replace the hostname and choose a
+# certificate strategy appropriate for the LAN (Caddy's `tls internal` needs
+# its local CA trusted by each client).
+http://localhost {
+	# This host is used solely by Caddy's in-container healthcheck. It proves
+	# that Caddy can reach the API on the private network without requiring the
+	# BusyBox wget in the stock image to trust Caddy's internal CA. Public LAN
+	# traffic uses MICA_PUBLIC_HOST below and is still HTTPS-only.
+	handle /health {
+		reverse_proxy mica-api:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
+{$MICA_PUBLIC_HOST} {
+	tls internal
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Permissions-Policy "microphone=(self), camera=()"
+		Content-Security-Policy "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+	}
+
+	@native {
+		path /v1/* /health /openapi.json /docs* /redoc
+		header X-Mica-API-Token {$MICA_API_TOKEN}
+	}
+	@provider path /v1/connectors/telegram/webhook /v1/connectors/whatsapp/webhook
+	route {
+		handle @native {
+			reverse_proxy mica-api:8000
+		}
+		# Exact provider ingress still requires the API's signature/secret checks.
+		handle @provider {
+			reverse_proxy mica-api:8000
+		}
+		handle {
+			basic_auth {
+				{$MICA_LAN_USER} {$MICA_LAN_PASSWORD_HASH}
+			}
+			@api path /v1/* /health /openapi.json /docs* /redoc
+			reverse_proxy @api mica-api:8000 {
+				header_up X-Mica-API-Token {$MICA_API_TOKEN}
+			}
+			reverse_proxy web-ui:8088
+		}
+	}
+}

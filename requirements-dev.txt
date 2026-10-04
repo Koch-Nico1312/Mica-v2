@@ -1,0 +1,7 @@
+# Tools for local development checks.
+pytest>=8,<10
+pytest-timeout>=2.3,<3
+pytest-cov>=6,<8
+ruff>=0.11,<1
+pip-audit>=2.9,<3
+pip>=26.2,<27

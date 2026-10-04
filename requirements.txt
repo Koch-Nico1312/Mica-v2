@@ -1,0 +1,41 @@
+PyQt6
+sounddevice
+google-genai>=2.8.0
+google-generativeai
+pillow
+requests
+urllib3>=2.8,<3
+pypdf>=5.0,<7.0
+beautifulsoup4
+ddgs>=9.0.0
+playwright
+pyautogui
+pyperclip
+pygetwindow
+opencv-python
+numpy
+mss
+psutil
+send2trash
+youtube-transcript-api
+python-pptx
+fastapi
+uvicorn[standard]
+cryptography
+python-multipart
+comtypes; sys_platform == "win32"
+pycaw; sys_platform == "win32"
+win10toast; sys_platform == "win32"
+pywinauto; sys_platform == "win32"
+pywin32; sys_platform == "win32"
+qrcode[pil]
+keyring>=25.7,<26; sys_platform == "win32"
+openwakeword>=0.6,<0.7; sys_platform == "win32"
+websocket-client>=1.8,<2.0
+
+# ── Optional: Dream-RSI & Integrations (activate via .env flags) ────────────
+# Adaptives Web-Scraping für Recherche/Monitoring (MICA_SCRAPLING_ENABLED)
+scrapling>=0.3,<1.0
+# Lokales System-1-Entscheidungsmodell für Brain-Reranking und Dream-RSI-Scoring
+# bleibt bewusst optional. Aktivierung: MICA_LAYA_ENABLED=1
+# Cua Windows-Driver wird separat installiert: irm https://cua.ai/driver/install.ps1 | iex
