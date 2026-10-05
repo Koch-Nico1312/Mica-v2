@@ -11,6 +11,7 @@ the operational and acceptance detail.
 - [API and LAN access](api-access.md): API tokens, browser login, credentials and verification boundaries.
 - [Architecture remediation results](architecture-remediation.md): the seven October findings, verified changes and remaining deployment acceptance.
 - [Backend deployment](../backend/README.md): Windows, ZimaOS, Proxmox VM, preflight, backup, and deployment checks.
+- [Parakeet Redux STT](parakeet-redux.md): local CPU recognition, Docker setup, explicit Whisper alternative and Windows runtime limits.
 - [Backend implementation audit](../backend/IMPLEMENTATION_STATUS.md): dated evidence snapshot and target-host work that remains. Treat its results as historical evidence for the date shown, not as proof of a currently running deployment.
 - [Dream-RSI and Laya](dream-rsi.md): optional self-improvement evaluation and local semantic scoring.
 - [Hindsight memory](hindsight.md): optional backend memory, source selection, explicit reflection, setup, API, and backup boundaries.
@@ -51,3 +52,8 @@ before treating a gate as passed.
 
 Older dated change records are retained as history. For current behavior, prefer
 the source files and the operational guides linked above.
+
+
+## Lernen und Weiterentwicklung
+
+Der lokale Bereich **Weiterentwicklung** verbindet bestätigte Vorlieben, erkannte Fähigkeitslücken, eine Skill-Werkstatt mit unabhängigen Qualitätsvergleichen und begrenzte Reparaturen versionierter Code-Artefakte. Nutzung, Grenzen und API stehen in [Lernen und Weiterentwicklung](evolution.md).

@@ -297,7 +297,12 @@ def check(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MICA ZimaOS/Proxmox Linux preflight (read-only except explicit --backup-drill)")
     parser.add_argument("--data-dir", default=os.getenv("MICA_DATA_DIR", "/DATA/AppData/mica"))
-    parser.add_argument("--models", nargs="*", default=[os.getenv("LLAMA_MODEL", ""), os.getenv("WHISPER_MODEL", ""), os.getenv("PIPER_MODEL", "")])
+    parser.add_argument("--models", nargs="*", default=[
+        os.getenv("LLAMA_MODEL", ""),
+        os.getenv("WHISPER_MODEL", "")
+        if os.getenv("MICA_STT_ENGINE", "parakeet-redux") == "whisper.cpp" else "",
+        os.getenv("PIPER_MODEL", ""),
+    ])
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--gpu-probe", action="store_true", help="Run nvidia-smi in a temporary CUDA container")
     parser.add_argument("--public-url", default="", help="HTTPS URL whose certificate and response should be checked")

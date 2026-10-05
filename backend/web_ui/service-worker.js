@@ -1,4 +1,4 @@
-const CACHE='mica-shell-v1',SHELL=['/','/manifest.webmanifest','/icon.svg'];
+const CACHE='mica-shell-v2',SHELL=['/','/manifest.webmanifest','/icon.svg','/evolution.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
 self.addEventListener('fetch',event=>{

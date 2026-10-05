@@ -211,6 +211,15 @@ def _shadow_improvement(improvement_id: str) -> dict[str, Any]:
         raise HTTPException(422, "Candidate artifact is outside the worktree or unreadable") from error
     if digest != manifest.get("artifact_sha256"):
         raise HTTPException(422, "Candidate artifact checksum does not match its manifest")
+    quality_requested = "quality_sha256" in manifest
+    if quality_requested:
+        for filename, key in [("quality.json", "quality_sha256"), ("quality_runner.py", "quality_runner_sha256")]:
+            try:
+                file_digest = hashlib.sha256((candidate / filename).read_bytes()).hexdigest()
+            except OSError as error:
+                raise HTTPException(422, "Quality suite is missing") from error
+            if file_digest != manifest.get(key):
+                raise HTTPException(422, "Quality suite checksum mismatch")
     tag = f"mica-shadow-{improvement_id[:12]}"
     container = f"{tag}-health"
     _docker([
@@ -240,6 +249,30 @@ def _shadow_improvement(improvement_id: str) -> dict[str, Any]:
             pass
     if health != "healthy":
         raise HTTPException(422, f"Shadow healthcheck did not pass: {health}")
+    if quality_requested:
+        # The API cannot run generated code or access Docker. Evaluation stays
+        # on this separately authorized host, with no host mounts or network.
+        quality_container = f"{tag}-quality"
+        try:
+            output = _docker([
+                "run", "--rm", "--name", quality_container, "--network=none", "--read-only", "--user=65534:65534",
+                "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m", "--cap-drop=ALL",
+                "--security-opt=no-new-privileges", "--memory=256m", "--cpus=1", "--pids-limit=64",
+                tag, "python", "/shadow/quality_runner.py",
+            ])
+        finally:
+            try:
+                _docker(["rm", "-f", quality_container])
+            except HTTPException:
+                pass
+        try:
+            quality = json.loads(output)
+            if not isinstance(quality, dict) or not isinstance(quality.get("passed"), bool):
+                raise ValueError("Invalid quality report")
+        except ValueError as error:
+            raise HTTPException(422, "Shadow quality evaluation produced invalid evidence") from error
+        return {"tests_passed": quality["passed"], "health_passed": True, "image": tag,
+                "isolated": True, "quality": quality}
     return {"tests_passed": True, "health_passed": True, "image": tag, "isolated": True}
 
 

@@ -21,6 +21,8 @@ from backend.services.common.cloud_llm import (
 from backend.services.common.connectors import ConnectorRegistry
 from backend.services.common.contracts import ExecutionRequest, ExecutionResult, VoiceControl
 from backend.services.common.improvements import ImprovementRegistry
+from backend.services.common.evolution import EvolutionStore
+from backend.services.common.workshop import SkillWorkshop
 from backend.services.common.dream_rsi import attach_dream_rsi
 from backend.services.common.laya_scorer import build_scorer, rerank_retrieval
 from backend.services.common.learning import (
@@ -122,6 +124,7 @@ from backend.services.api.routers.learning import LearningRoutes
 from backend.services.api.routers.connectors import ConnectorsRoutes
 from backend.services.api.routers.schedules import SchedulesRoutes
 from backend.services.api.routers.improvements import ImprovementsRoutes
+from backend.services.api.routers.evolution import EvolutionRoutes
 from backend.services.api.routers.voice import VoiceRoutes
 from backend.services.api.routers.perception import PerceptionRoutes
 from backend.services.api.routers.emergency import EmergencyRoutes
@@ -140,6 +143,7 @@ class ApiRuntime(
     ConnectorsRoutes,
     SchedulesRoutes,
     ImprovementsRoutes,
+    EvolutionRoutes,
     VoiceRoutes,
     PerceptionRoutes,
     EmergencyRoutes,
@@ -165,6 +169,7 @@ class ApiRuntime(
                 "MICA_PROFILE_PATH": "profile.json",
                 "LEARNING_DOMAINS_PATH": "learning/domains.json",
                 "MICA_DREAM_DB": "dream.sqlite3",
+                "MICA_EVOLUTION_DB": "evolution.sqlite3",
             }
             environment.update({key: str(root / value) for key, value in paths.items()})
         self.environment = environment
@@ -303,6 +308,10 @@ class ApiRuntime(
         self.improvements = self.ImprovementRegistry(
             environment.get("IMPROVEMENT_DB", "/data/improvements.sqlite3"), self.brain
         )
+        self.evolution = EvolutionStore(environment.get(
+            "MICA_EVOLUTION_DB", str(Path(environment.get("IMPROVEMENT_DB", "/data/improvements.sqlite3")).with_name("evolution.sqlite3"))
+        ))
+        self.workshop = SkillWorkshop(self.evolution, self.improvements)
         self.dream_engine = self.attach_dream_rsi(
             self.improvements,
             self.brain,

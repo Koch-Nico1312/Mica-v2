@@ -1,12 +1,12 @@
-FROM ghcr.io/ggerganov/whisper.cpp:main
+FROM python:3.12-slim
 WORKDIR /app
+COPY requirements-stt.txt /app/requirements-stt.txt
+RUN pip install --no-cache-dir torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements-stt.txt
 COPY services/stt_service.py /app/stt_service.py
-RUN apt-get update && apt-get install -y --no-install-recommends python3-venv \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/mica-venv \
-    && /opt/mica-venv/bin/pip install --no-cache-dir fastapi "uvicorn[standard]"
-ENV PATH=/opt/mica-venv/bin:$PATH \
-    WHISPER_BIN=/app/build/bin/whisper-cli
+ENV MICA_STT_ENGINE=parakeet-redux HF_HOME=/opt/mica-models/huggingface
+# Download during build: the runtime lives on the isolated Compose network.
+RUN python -c "import moondream as md; from huggingface_hub import snapshot_download; snapshot_download('moondream/parakeet-redux')"
+ENV HF_HUB_OFFLINE=1
 EXPOSE 8091
-ENTRYPOINT []
 CMD ["python", "-m", "uvicorn", "stt_service:app", "--host", "0.0.0.0", "--port", "8091"]

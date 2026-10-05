@@ -9,6 +9,7 @@ x-mica-env: &mica-env
   SCHEDULE_DB: /data/scheduler.sqlite3
   IMPROVEMENT_DB: /data/improvements.sqlite3
   IMPROVEMENT_WORKSPACE: /data/improvement-workspace
+  MICA_EVOLUTION_DB: /data/evolution.sqlite3
   CONNECTOR_DB: /data/connectors.sqlite3
   IDEMPOTENCY_DB: /data/idempotency.sqlite3
   MICA_HEALTH_DIR: /data/health
@@ -142,9 +143,10 @@ services:
   stt:
     build:
       context: .
-      dockerfile: docker/Dockerfile.stt
+      dockerfile: ${MICA_STT_DOCKERFILE:-docker/Dockerfile.stt}
     environment:
-      WHISPER_MODEL: /models/${WHISPER_MODEL:?Set WHISPER_MODEL in .env}
+      MICA_STT_ENGINE: ${MICA_STT_ENGINE:-parakeet-redux}
+      WHISPER_MODEL: /models/${WHISPER_MODEL:-ggml-small.bin}
       WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-de}
     volumes:
       - ${MICA_MODELS_DIR:-${MICA_DATA_DIR}/models}:/models:ro
@@ -154,6 +156,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 180s
 
   tts:
     build:

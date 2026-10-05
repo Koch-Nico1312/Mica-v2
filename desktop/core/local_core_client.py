@@ -12,7 +12,9 @@ from .response_timing import RESPONSE_TIMINGS
 
 
 class LocalCoreError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, status_code: int | None = None, detail: Any = None):
+        super().__init__(message)
+        self.status_code, self.detail = status_code, detail
 
 
 class LocalCoreClient:
@@ -59,7 +61,7 @@ class LocalCoreClient:
             raise LocalCoreError(f"Ungueltige Core-Antwort ({response.status_code})") from error
         if not response.ok:
             detail = payload.get("detail", payload) if isinstance(payload, dict) else payload
-            raise LocalCoreError(f"Core-Anfrage fehlgeschlagen ({response.status_code}): {detail}")
+            raise LocalCoreError(f"Core-Anfrage fehlgeschlagen ({response.status_code}): {detail}", status_code=response.status_code, detail=detail)
         if not isinstance(payload, dict):
             raise LocalCoreError("Core-Antwort ist kein Objekt")
         return payload
@@ -134,6 +136,17 @@ class LocalCoreClient:
 
     def memory_items(self) -> dict[str, Any]:
         return self._request("GET", "/v1/memory/items")
+
+    def evolution_state(self) -> dict[str, Any]:
+        return {name: self._request('GET', f'/v1/evolution/{name}')[key]
+                for name, key in [('preferences', 'preferences'), ('gaps', 'gaps'),
+                                  ('suites', 'suites'), ('workshop', 'jobs')]}
+
+    def evolution_change(self, method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        if not path.startswith('/v1/evolution/') and not path.startswith('/v1/improvements/') and path != '/v1/tasks/execute':
+            raise LocalCoreError('Unbekannter Weiterentwicklungs-Endpunkt')
+        return self._request(method, path, headers={'X-Mica-Approval-Intent': 'confirm'},
+                             **({'json': body} if body is not None else {}))
 
     def remember_item(self, title: str, body: str) -> dict[str, Any]:
         return self._request("POST", "/v1/memory/items", json={"title": title, "body": body},

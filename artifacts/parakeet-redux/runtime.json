@@ -1,0 +1,21 @@
+{
+  "health": {
+    "status": "ok",
+    "engine": "parakeet-redux"
+  },
+  "http_status": 200,
+  "response": {
+    "text": "Hallo Maika. Öffne meine Notizen und erinnere mich morgen um 8 Uhr."
+  },
+  "load_seconds": 6.0113129540000045,
+  "transcribe_seconds": 0.18203158699998312,
+  "audio_seconds": 5.82,
+  "source": "Windows Hedda synthetic German speech",
+  "platform": "Ubuntu WSL2, Ryzen 7 7800X3D, CPU",
+  "expected": "Hallo Mica. Öffne meine Notizen und erinnere mich morgen um acht Uhr.",
+  "date": "2026-10-05",
+  "moondream_version": "2.6.1",
+  "torch_version": "2.14.1+cpu",
+  "model_revision": "2bf128600aac4b16946f7ed8372e56117fe5e23b",
+  "offline": true
+}

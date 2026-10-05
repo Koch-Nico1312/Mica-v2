@@ -49,7 +49,7 @@ class ImprovementsRoutes:
 
     def evaluate_improvement(
         self, improvement_id: str, request: ImprovementEvaluation
-    ) -> dict[str, bool]:
+    ) -> dict[str, Any]:
         if request.auto_promote:
             raise HTTPException(
                 422,
@@ -92,6 +92,8 @@ class ImprovementsRoutes:
                 503, "Isolated shadow evaluation failed; active revision was preserved"
             ) from error
         result = broker_result.get("result", {})
+        if isinstance(result.get("quality"), dict):
+            self.workshop.record_report(improvement_id, result["quality"])
         evidence = __import__("json").dumps(result, ensure_ascii=False, sort_keys=True)
         evaluated = self.improvements.evaluate(
             improvement_id,
@@ -110,14 +112,14 @@ class ImprovementsRoutes:
                     "status": "restored" if restored else "quarantined",
                 },
             )
-            return {"validated": False, "promoted": False, "restored": restored}
+            return {"validated": False, "promoted": False, "restored": restored, "quality": result.get("quality")}
         promoted = False
         if evaluated:
             self.audit.append(
                 "improvement.validated",
                 {"improvement_id": improvement_id, "status": "validated"},
             )
-        return {"validated": evaluated, "promoted": promoted}
+        return {"validated": evaluated, "promoted": promoted, "quality": result.get("quality")}
 
     def dream_state(self) -> dict[str, Any]:
         """Dream-RSI overview: pool, active policy and recent cycles."""

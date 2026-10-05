@@ -1,7 +1,7 @@
 # MICA backend and deployment
 
 The backend is a separate runtime used by the Windows PyQt desktop client and
-the browser PWA. Docker Compose provides the API, llama.cpp, whisper.cpp STT,
+the browser PWA. Docker Compose provides the API, llama.cpp, Parakeet Redux CPU STT,
 the TTS service, Markdown Brain indexer, tool broker, scheduler, web UI, and
 Caddy HTTPS entry point. The optional fallback profile adds another local
 llama.cpp server. The native Windows host agent is deployed separately and
@@ -87,8 +87,12 @@ reflection took about 131 seconds. Hindsight stays disabled by default.
 
 ## Start on ZimaOS
 
+Local speech recognition defaults to [Parakeet Redux on CPU](../docs/parakeet-redux.md).
+Its weights are downloaded when building the STT image; no Whisper model is
+required unless the explicit Whisper alternative is selected.
+
 1. Copy `.env.example` to `.env` and set the persistent ZimaOS volume path and
-   model filenames. Put Qwen3 GGUF, whisper.cpp `small`, and Piper Thorsten
+   model filenames. Put Qwen3 GGUF and Piper Thorsten
    medium models below `${MICA_DATA_DIR}/models`.
 2. Before starting services, run `python3 preflight.py --data-dir /your/mica-volume
    --gpu-probe --llama-load-test --backup-dir /your/backup-target --backup-drill --strict`
@@ -237,7 +241,7 @@ python3 -m unittest tests.test_deployment_acceptance -v
 
 The first runnable vertical slice is text planning, local Markdown retrieval,
 hash-chained audit events, approval-gated tool dispatch, and browser audio
-transport. STT uses local whisper.cpp. With `MICA_TTS_ENGINE=auto`, local LLMs
+transport. STT uses local Parakeet Redux on the CPU. With `MICA_TTS_ENGINE=auto`, local LLMs
 use Kokoro while an explicitly selected Gemini/OpenAI cloud LLM uses the same
 provider's speech API. Missing models or matching keys fail closed; there is no
 automatic cloud fallback or provider switch.
@@ -355,3 +359,8 @@ Tests use `create_app(data_dir=temporary_directory)` and may inject dependencies
 with `dependencies={"_local_completion": fake_completion}`. The runtime is
 available as `app.state.runtime`; the default production paths still come from
 the Compose environment. There is no exported process-global `app` instance.
+
+
+## Lernen und Weiterentwicklung
+
+Der lokale Bereich **Weiterentwicklung** verbindet bestätigte Vorlieben, erkannte Fähigkeitslücken, eine Skill-Werkstatt mit unabhängigen Qualitätsvergleichen und begrenzte Reparaturen versionierter Code-Artefakte. Nutzung, Grenzen und API stehen in [Lernen und Weiterentwicklung](../docs/evolution.md).

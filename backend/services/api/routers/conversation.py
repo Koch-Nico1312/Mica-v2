@@ -107,6 +107,7 @@ class ConversationRoutes:
                     409, "Im Modus ohne Speicherung sind nur Gesprächsanfragen erlaubt."
                 )
             if self.capability_for(request.action) is None:
+                self.evolution.record_gap(request.action, registered=False, source="requested_action")
                 raise HTTPException(422, "Action is not registered")
             plan = self.orchestrator.plan(
                 request.message,
@@ -252,6 +253,12 @@ class ConversationRoutes:
             )
             if personal_context:
                 context += "\n\n" + personal_context
+            learned_context = self.evolution.context(conversation_mode)
+            if learned_context:
+                context += "\n\n" + learned_context
+            developed_tools = self.workshop.descriptions()
+            if developed_tools:
+                context += "\n\nGeprüfte lokale Werkzeuge (Metadaten; Nutzung verlangt eine separate Freigabe):\n" + __import__("json").dumps(developed_tools, ensure_ascii=False)
             twin_settings = self.phase4_store.twin_settings()
             twin_context = (
                 self.phase4_store.twin_prompt()

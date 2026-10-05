@@ -6,6 +6,10 @@ the HUD; the backend provides the API, local model services, Brain, guarded tool
 broker, scheduler, and browser interface. Cloud providers and external
 connectors are opt-in.
 
+Local speech recognition defaults to [Parakeet Redux on CPU](docs/parakeet-redux.md).
+The model is included when building the STT image; Whisper remains an explicit
+alternative. Native Windows CPU support is currently unverified for this model.
+
 > Deployment status: code and local acceptance checks do not prove that a
 > particular Windows, ZimaOS, or Proxmox installation is ready. Target-host,
 > hardware, certificate, model, and provider checks are listed in the
@@ -154,3 +158,8 @@ local benchmarks.
 ## License
 
 See [LICENSE](LICENSE).
+
+
+## Lernen und Weiterentwicklung
+
+Der lokale Bereich **Weiterentwicklung** verbindet bestätigte Vorlieben, erkannte Fähigkeitslücken, eine Skill-Werkstatt mit unabhängigen Qualitätsvergleichen und begrenzte Reparaturen versionierter Code-Artefakte. Nutzung, Grenzen und API stehen in [Lernen und Weiterentwicklung](docs/evolution.md).

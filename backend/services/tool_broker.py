@@ -120,7 +120,7 @@ class HostAgentClient:
             with httpx.Client(
                 verify=self._ssl_context(),
                 trust_env=False,
-                timeout=httpx.Timeout(15.0, connect=5.0),
+                timeout=httpx.Timeout(85.0 if action == "improvement.shadow" else 15.0, connect=5.0),
             ) as client:
                 response = client.post(self.base_url + "/v1/execute", json=payload)
                 response.raise_for_status()

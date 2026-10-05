@@ -13,6 +13,7 @@ from backend.services.api.schemas import (
     TaskItemUpdate,
     TaskRequest,
 )
+from mica_shared.capabilities import capability_for
 
 
 class TasksRoutes:
@@ -55,13 +56,20 @@ class TasksRoutes:
         except HTTPException as error:
             status = "approval_required" if error.status_code == 403 else "uncertain"
             self.execution_history.finish(key, status, detail=str(error.detail))
+            self.evolution.record_gap(request.action, registered=capability_for(request.action) is not None,
+                                      status_code=error.status_code, error_type=type(error).__name__)
             raise
-        except Exception:
+        except Exception as error:
             self.execution_history.finish(
                 key, "uncertain", detail="Ausgang unbekannt; vor Fortsetzung prüfen."
             )
+            self.evolution.record_gap(request.action, registered=capability_for(request.action) is not None,
+                                      error_type=type(error).__name__)
             raise
         self.execution_history.finish(key, result["status"], result)
+        if result["status"] not in {"succeeded", "completed", "dry_run"}:
+            self.evolution.record_gap(request.action, registered=capability_for(request.action) is not None,
+                                      error_class=result.get("error_class") or "")
         return result
 
     def task_activity(self) -> dict[str, Any]:
@@ -158,6 +166,9 @@ class TasksRoutes:
         }
 
     def record_outcome(self, request: OutcomeRequest) -> dict[str, str]:
+        if not request.success:
+            self.evolution.record_gap(request.action, registered=capability_for(request.action) is not None,
+                                      source="reported_outcome")
         return self.orchestrator.record_outcome(
             request.task_id,
             request.action,
@@ -301,17 +312,23 @@ class TasksRoutes:
             if isinstance(host_response.get("result"), dict)
             else host_response
         )
+        failed = bool(result.get("dispatched")) and (
+            action_result.get("success") is False
+            or action_result.get("status") in ("failed", "error")
+            or bool(action_result.get("error_class"))
+        )
         return self.ExecutionResult(
             **{
                 "schema_version": 1,
                 "turn_id": request.turn_id,
                 "task_id": result.get("task_id", payload["task_id"]),
-                "status": "succeeded" if result.get("dispatched") else "not_dispatched",
+                "status": "failed" if failed else "succeeded" if result.get("dispatched") else "not_dispatched",
                 "action": request.action,
                 "output": action_result.get("output", action_result),
                 "undo": action_result.get("undo", host_response.get("undo")),
                 "audit_id": audit_event.get("hash"),
-                "error_class": None,
+                "error_class": (str(action_result.get("error_class") or "tool_failed") if failed
+                                else None if result.get("dispatched") else "unavailable"),
                 "evidence": result.get("retrieval", []),
             }
         ).model_dump()

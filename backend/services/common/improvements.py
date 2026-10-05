@@ -260,7 +260,7 @@ class ImprovementRegistry:
                 if not isinstance(statement, ast.FunctionDef):
                     raise ValueError("code improvements may contain only function definitions at module scope")
 
-    def _create_candidate(self, improvement_id: str, name: str, kind: str, content: str) -> tuple[str, str, str, str, str]:
+    def _create_candidate(self, improvement_id: str, name: str, kind: str, content: str, quality: dict[str, Any] | None = None) -> tuple[str, str, str, str, str]:
         branch = f"mica/improvement-{improvement_id[:12]}"
         candidate = self.worktrees / improvement_id
         self._git(self.repository, "worktree", "add", "-b", branch, str(candidate), "main")
@@ -269,7 +269,7 @@ class ImprovementRegistry:
         artifact = candidate.joinpath(*artifact_relative.parts)
         artifact.parent.mkdir(parents=True, exist_ok=True)
         normalized_content = content.strip() + "\n"
-        artifact.write_text(normalized_content, encoding="utf-8")
+        artifact.write_text(normalized_content, encoding="utf-8", newline="\n")
         artifact_sha256 = self._sha256(normalized_content)
         validator = candidate / "validate.py"
         validator.write_text(
@@ -304,6 +304,8 @@ class ImprovementRegistry:
             )
             docker_command = '["python", "/shadow/runner.py", "{\\"healthcheck\\":true}"]'
             health_command = "python /shadow/runner.py '{\"healthcheck\":true}'"
+        if quality is not None:
+            health_command = "python /shadow/validate.py"
         (candidate / "Dockerfile").write_text(
             "FROM python:3.12-alpine\nWORKDIR /shadow\nCOPY . /shadow\n"
             f"HEALTHCHECK --interval=2s --timeout=2s --retries=3 CMD {health_command} || exit 1\n"
@@ -314,20 +316,33 @@ class ImprovementRegistry:
             "id": improvement_id, "kind": kind, "artifact": artifact_relative.as_posix(),
             "artifact_sha256": artifact_sha256, "branch": branch, "activation": "data-only",
         }
+        if quality is not None:
+            quality_text = json.dumps(quality, ensure_ascii=False, sort_keys=True, allow_nan=False)
+            runner_text = Path(__file__).with_name("quality_runner.py").read_text(encoding="utf-8")
+            (candidate / "quality.json").write_text(quality_text, encoding="utf-8", newline="\n")
+            (candidate / "quality_runner.py").write_text(runner_text, encoding="utf-8", newline="\n")
+            manifest["quality_sha256"] = self._sha256(quality_text)
+            manifest["quality_runner_sha256"] = self._sha256(runner_text)
         (candidate / "shadow.json").write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
         add_paths = ["artifacts", "validate.py", "Dockerfile", "shadow.json"]
         if kind == "code":
             add_paths.append("runner.py")
+        if quality is not None:
+            add_paths.extend(["quality.json", "quality_runner.py"])
         self._git(candidate, "add", *add_paths)
         self._git(candidate, "commit", "-m", f"Propose {kind}: {name[:80]}")
         return branch, self._git(candidate, "rev-parse", "HEAD"), str(candidate), artifact_relative.as_posix(), artifact_sha256
 
-    def propose(self, name: str, kind: str, content: str, evidence: str) -> dict[str, str]:
+    def propose(self, name: str, kind: str, content: str, evidence: str, *, quality: dict[str, Any] | None = None) -> dict[str, str]:
         if kind not in self._ALLOWED_KINDS:
             raise ValueError("kind must be prompt, skill, code, config or runbook")
         if not name.strip() or not content.strip() or not evidence.strip():
             raise ValueError("name, content and evidence are required")
         self._validate_candidate(name, kind, content)
+        if quality is not None:
+            if kind != "code" or quality.get("candidate") != content:
+                raise ValueError("Quality suite must refer to this exact code candidate")
+            self._validate_candidate(name, "code", str(quality.get("baseline", "")))
         entry = {
             "id": uuid.uuid4().hex, "name": name.strip()[:160], "kind": kind,
             "content": content.strip(), "status": "proposed", "created_at": self._now(),
@@ -339,8 +354,12 @@ class ImprovementRegistry:
                         "SELECT id FROM improvements WHERE name = ? AND status = 'active'", (entry["name"],)
                     ).fetchone()
                 entry["parent_id"] = parent[0] if parent else None
-                branch, commit_sha, candidate_path, artifact_path, artifact_sha256 = self._create_candidate(
-                    entry["id"], entry["name"], kind, entry["content"],
+                if quality is not None and quality.get("baseline_id") != entry["parent_id"]:
+                    raise ValueError("Active baseline changed; recreate the candidate")
+                arguments = (entry["id"], entry["name"], kind, entry["content"])
+                branch, commit_sha, candidate_path, artifact_path, artifact_sha256 = (
+                    self._create_candidate(*arguments) if quality is None
+                    else self._create_candidate(*arguments, quality=quality)
                 )
                 with self._connect() as conn:
                     conn.execute("BEGIN IMMEDIATE")
@@ -371,6 +390,17 @@ class ImprovementRegistry:
         return row[0] if row else None
 
     def evaluate(self, improvement_id: str, tests_passed: bool, health_passed: bool, test_evidence: str, health_evidence: str) -> bool:
+        candidate_path = self.candidate_path(improvement_id)
+        if candidate_path and (candidate_path / "quality.json").exists():
+            try:
+                bundle = json.loads((candidate_path / "quality.json").read_text(encoding="utf-8"))
+                result = json.loads(test_evidence)["quality"]
+                tests_passed = tests_passed and result["passed"] is True and result["suite_id"] == bundle["suite_id"]
+                tests_passed = tests_passed and result["candidate"]["correct"] == len(bundle["cases"]) and not result["regressions"]
+                if bundle["intent"] == "repair":
+                    tests_passed = tests_passed and result["reproduced"] is True
+            except (OSError, ValueError, KeyError, TypeError):
+                tests_passed = False
         if not (tests_passed and health_passed and test_evidence.strip() and health_evidence.strip()):
             self._emit("evaluate", {
                 "improvement_id": improvement_id, "tests_passed": bool(tests_passed),
@@ -503,6 +533,15 @@ class ImprovementRegistry:
             if not candidate:
                 return False
             existing = conn.execute("SELECT id FROM improvements WHERE name = ? AND status = 'active'", (candidate[1],)).fetchone()
+            path_row = conn.execute("SELECT candidate_path FROM improvements WHERE id=?", (improvement_id,)).fetchone()
+            candidate_path = Path(path_row[0]) if path_row and path_row[0] else None
+            if candidate_path and (candidate_path / "quality.json").exists():
+                try:
+                    bundle = json.loads((candidate_path / "quality.json").read_text(encoding="utf-8"))
+                    if bundle.get("baseline_id") != (existing[0] if existing else None):
+                        return False
+                except (OSError, ValueError):
+                    return False
             try:
                 self._git(self.repository, "merge", "--ff-only", str(candidate[7]))
                 state = self._build_runtime_state(self._active_rows(conn, candidate[:7]))

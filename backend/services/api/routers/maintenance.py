@@ -135,6 +135,7 @@ class MaintenanceRoutes:
             (self.profile_store.path, root / "profile.json"),
             (self.learning_domains.path, root / "learning" / "domains.json"),
             (self.policy.db_path, root / "approvals.sqlite3"),
+            (self.evolution.path, root / "evolution.sqlite3"),
         ]
         if any((actual.resolve() != target for actual, target in expected)):
             raise HTTPException(

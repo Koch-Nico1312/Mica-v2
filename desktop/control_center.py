@@ -348,6 +348,10 @@ class ControlCenter(ApiPage):
         clear_stop.clicked.connect(self.clear_stop)
         approval_layout.addWidget(clear_stop)
         self.tabs.addTab(approval_page, 'Freigaben')
+        from desktop.evolution_page import EvolutionPage
+        self.evolution_page = EvolutionPage(client_factory=client_factory)
+        self.tabs.addTab(self.evolution_page, 'Weiterentwicklung')
+        self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self._refresh_visible)

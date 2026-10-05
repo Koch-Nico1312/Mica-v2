@@ -22,7 +22,7 @@ flowchart LR
         WEB[PWA / Web UI]
         API[FastAPI]
         LLM[llama.cpp]
-        STT[whisper.cpp STT]
+        STT[Parakeet Redux CPU STT]
         TTS[TTS-Dienst]
         BRAIN[Markdown Brain und Indexer]
         SYNC[Optionaler Hindsight-Sync-Worker]

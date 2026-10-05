@@ -2,7 +2,9 @@
 **
 !docker/
 !docker/Dockerfile.stt
+!docker/Dockerfile.stt-whisper
 !docker/Dockerfile.tts
+!requirements-stt.txt
 !services/
 !services/stt_service.py
 !services/tts_service.py

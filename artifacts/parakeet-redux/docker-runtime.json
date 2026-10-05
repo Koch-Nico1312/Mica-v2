@@ -1,0 +1,25 @@
+{
+  "health": {
+    "status": "ok",
+    "engine": "parakeet-redux"
+  },
+  "http_status": 200,
+  "response": {
+    "text": "Hallo Maika. Öffne meine Notizen und erinnere mich morgen um 8 Uhr."
+  },
+  "transcribe_seconds": 0.2288358970000104,
+  "audio_seconds": 5.82,
+  "invalid_audio_checked": true,
+  "date": "2026-10-05",
+  "source": "Windows Hedda synthetic German speech",
+  "platform": "Docker Compose Linux container, Ryzen 7 7800X3D, CPU",
+  "offline": true,
+  "hf_offline": "1",
+  "cuda_available": false,
+  "torch_version": "2.14.1+cpu",
+  "model_revision": "2bf128600aac4b16946f7ed8372e56117fe5e23b",
+  "container": "mica-stt-1",
+  "docker_network_internal": true,
+  "gpu_device_requests": null,
+  "moondream_version": "2.6.1"
+}

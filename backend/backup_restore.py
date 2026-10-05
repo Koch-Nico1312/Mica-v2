@@ -31,6 +31,7 @@ from backend.services.common.brain import MarkdownBrain
 SCHEMA_VERSION = 2
 ARCHIVE_PREFIX = "mica-truth"
 ARCHIVE_MEMBERS = {"manifest.json", "state/phase4.json"}
+EVOLUTION_TABLES = {"learned_preferences", "capability_gaps", "quality_suites", "workshop_jobs", "revision_observations", "quality_reports"}
 
 
 def _state_export(data_dir: Path) -> bytes:
@@ -78,14 +79,50 @@ def _state_export(data_dir: Path) -> bytes:
                 configuration[name] = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 continue
+    evolution = {}
+    evolution_path = data_dir / "evolution.sqlite3"
+    if evolution_path.is_file() and not evolution_path.is_symlink():
+        with sqlite3.connect(evolution_path) as connection:
+            connection.row_factory = sqlite3.Row
+            connection.execute("BEGIN")
+            existing = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            for table in sorted(EVOLUTION_TABLES & existing):
+                evolution[table] = [dict(row) for row in connection.execute(f'SELECT * FROM "{table}"')]
     return (json.dumps({
         "schema_version": 1, "created_at": datetime.now(UTC).isoformat(),
-        "tables": exported, "configuration": configuration, "hindsight_sync": memory_sync,
+        "tables": exported, "configuration": configuration, "hindsight_sync": memory_sync, "evolution": evolution,
     }, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
 class BackupDrillError(RuntimeError):
     """The backup was not created or could not prove a clean restore."""
+
+
+def _restore_evolution(payload: Any, path: Path) -> dict[str, int]:
+    from backend.services.common.evolution import EvolutionStore
+    from backend.services.common.workshop import SkillWorkshop
+    if not isinstance(payload, dict) or set(payload) - EVOLUTION_TABLES:
+        raise BackupDrillError("Unsupported evolution state")
+    if path.is_symlink():
+        raise BackupDrillError("Evolution database must not be a symlink")
+    store = EvolutionStore(path)
+    SkillWorkshop.initialize_store(store)
+    counts = {}
+    with store.connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        for table in sorted(EVOLUTION_TABLES):
+            columns = [row[1] for row in conn.execute(f'PRAGMA table_info("{table}")')]
+            rows = payload.get(table, [])
+            if not isinstance(rows, list):
+                raise BackupDrillError("Invalid evolution rows")
+            conn.execute(f'DELETE FROM "{table}"')
+            for row in rows:
+                if not isinstance(row, dict) or set(row) != set(columns):
+                    raise BackupDrillError("Invalid evolution row columns")
+                values = [row[column] for column in columns]
+                conn.execute(f'INSERT INTO "{table}" VALUES({",".join("?" for _ in columns)})', values)
+            counts["evolution_" + table] = len(rows)
+    return counts
 
 
 def _sha256(path: Path) -> str:
@@ -336,6 +373,8 @@ def _rebuild_state_export(destination: Path) -> dict[str, int]:
             connection.commit()
         finally:
             connection.close()
+    if "evolution" in payload:
+        restored_counts.update(_restore_evolution(payload["evolution"], destination / "state" / "evolution.sqlite3"))
     return restored_counts
 
 
@@ -454,6 +493,8 @@ def restore_live(archive: Path, data_dir: Path) -> dict[str, Any]:
 def _apply_live_state(staged: Path, data_dir: Path) -> None:
     """Replace exported logical tables without forgetting irreversible outcomes."""
     export = json.loads((staged / 'state' / 'phase4.json').read_text(encoding='utf-8'))
+    if "evolution" in export:
+        _restore_evolution(export["evolution"], data_dir / "evolution.sqlite3")
     database = data_dir / 'scheduler.sqlite3'
     from backend.services.common.scheduler_store import ScheduleStore
     from backend.services.common.task_automation import TaskAutomationStore
