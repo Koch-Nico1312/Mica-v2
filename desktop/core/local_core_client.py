@@ -18,6 +18,10 @@ class LocalCoreError(RuntimeError):
         self.status_code, self.detail = status_code, detail
 
 
+class LocalCoreUnavailable(LocalCoreError):
+    """A transport failure, distinct from authentication or request rejection."""
+
+
 class LocalCoreClient:
     def __init__(self, base_url: str | None = None, ca_file: str | Path | None = None,
                  api_token: str | None = None):
@@ -55,8 +59,12 @@ class LocalCoreClient:
             response = self.session.request(
                 method, self.base_url + path, timeout=kwargs.pop('timeout', (5, 180)), verify=self.verify, **kwargs,
             )
+        except requests.exceptions.SSLError as error:
+            raise LocalCoreError('Die HTTPS-Verbindung zum Core konnte nicht sicher geprüft werden.') from error
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as error:
+            raise LocalCoreUnavailable(f"Lokaler MICA-Core nicht erreichbar: {error}") from error
         except requests.RequestException as error:
-            raise LocalCoreError(f"Lokaler MICA-Core nicht erreichbar: {error}") from error
+            raise LocalCoreError('Core-Anfrage konnte nicht gesendet werden.') from error
         try:
             payload = response.json()
         except ValueError as error:
@@ -152,6 +160,23 @@ class LocalCoreClient:
 
     def workspace_context(self):
         return self._request('GET', f'/v1/dialog/{self.dialog_id}/workspace')
+
+    def document_drafts(self, documents, operation, instruction=''):
+        return self._request('POST', '/v1/documents/draft', json={'session_id': self.dialog_id,
+            'documents': [{key: doc[key] for key in ('id', 'title', 'body', 'source')} for doc in documents],
+            'operation': operation, 'instruction': instruction})
+
+    def dictate(self, audio):
+        return self._request('POST', '/v1/voice/dictate', data=audio, headers={'Content-Type': 'application/octet-stream'})
+
+    def create_task_item(self, title, description='', due_at=None, *, idempotency_key=None):
+        return self._request('POST', '/v1/task-items', json={'title': title, 'description': description, 'due_at': due_at, 'idempotency_key': idempotency_key})
+
+    def task_items(self):
+        return self._request('GET', '/v1/task-items')
+
+    def decompose_task(self, title, description=''):
+        return self._request('POST', '/v1/task-items/decompose', json={'title': title, 'description': description})
 
     def day_overview(self):
         return self._request('GET', '/v1/day-overview')

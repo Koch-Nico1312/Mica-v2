@@ -9,7 +9,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / '.mica-data'
 
 class FileLease:
     """Process lifetime ownership, released by the OS even after a crash."""
-    def __init__(self, path):
+    def __init__(self, path, *, label='Die gespeicherten Timer'):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self.handle = path.open('a+b')
@@ -26,7 +26,13 @@ class FileLease:
                 fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             self.handle.close()
-            raise ValueError('Die gespeicherten Timer werden bereits von einer anderen Mica-Instanz verwaltet.')
+            raise ValueError(label + ' werden bereits von einer anderen Mica-Instanz verwaltet.')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     def close(self):
         self.handle.close()

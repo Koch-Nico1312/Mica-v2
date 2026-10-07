@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import uuid
 import zipfile
 
@@ -69,6 +70,22 @@ def _checkpoint_root(root):
     return directory
 
 
+def _publish_checkpoint(stage, published):
+    """Retry transient Windows sharing/access failures without replacing a target."""
+    stage, published = Path(stage), Path(published)
+    if (stage.parent.resolve() != published.parent.resolve() or stage.is_symlink()
+            or stage.is_junction() or published.exists()):
+        raise ValueError('Ungültiges Update-Sicherungsziel.')
+    for attempt in range(6):
+        try:
+            stage.rename(published)
+            return
+        except PermissionError as error:
+            if getattr(error, 'winerror', None) not in {5, 32} or attempt == 5 or published.exists():
+                raise
+            time.sleep(.05 * 2 ** attempt)
+
+
 def prepare_checkpoint(root, client):
     root = Path(root).resolve()
     before = source_state(root)
@@ -92,7 +109,7 @@ def prepare_checkpoint(root, client):
                     'sha256': {name: _digest(stage / name) for name in ('data.zip', 'source.bundle')}}
         (stage / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
         published = destination / identifier
-        stage.rename(published)
+        _publish_checkpoint(stage, published)
     return {'path': str(published), 'head': before['head'], **inspection}
 
 

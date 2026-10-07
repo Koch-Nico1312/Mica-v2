@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import uuid
+from datetime import datetime, UTC
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_TEXT = 32000
@@ -69,7 +70,8 @@ def extract_attachment(path: str) -> dict:
     if hashlib.sha256(_bounded_bytes(source)).hexdigest() != fingerprint:
         raise ValueError("Die Datei wurde während des Lesens geändert. Bitte erneut einlesen.")
     return {"id": uuid.uuid4().hex, "title": source.name[:160], "body": body[:MAX_TEXT],
-            "source": kind, "truncated": truncated, "local_path": str(source), "fingerprint": fingerprint}
+            "source": kind, "truncated": truncated, "local_path": str(source), "fingerprint": fingerprint,
+            "loaded_at": datetime.now(UTC).isoformat()}
 
 
 def attachment_changed(document):

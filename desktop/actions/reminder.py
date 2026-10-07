@@ -3,8 +3,10 @@ import platform
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 _CNW: dict = (
     {"creationflags": subprocess.CREATE_NO_WINDOW}
@@ -101,37 +103,14 @@ def _write_notify_script(task_name: str, message: str, os_name: str) -> Path:
     if os_name == "windows":
         notify_block = f"""
 message = {msg_literal}
-notified = False
-
+sys.path.insert(0, {json.dumps(str(_base_dir().parent))})
+from desktop.reminder_notification import show_standalone
 try:
-    from plyer import notification
-    notification.notify(title="J.A.R.V.I.S Reminder", message=message, timeout=15)
-    notified = True
-except Exception:
-    pass
-
-if not notified:
-    try:
-        from win10toast import ToastNotifier
-        ToastNotifier().show_toast("J.A.R.V.I.S Reminder", message, duration=15, threaded=False)
-        notified = True
-    except Exception:
-        pass
-
-if not notified:
-    try:
-        import subprocess
-        subprocess.run(["msg", "*", "/TIME:30", message], check=False)
-    except Exception:
-        pass
-
-try:
-    import winsound
-    for freq in [800, 1000, 1200]:
-        winsound.Beep(freq, 180)
-        import time; time.sleep(0.08)
-except Exception:
-    pass
+    show_standalone({{"label": message, "kind": "reminder"}})
+finally:
+    import subprocess
+    subprocess.run(['schtasks.exe', '/Delete', '/TN', {json.dumps(task_name)}, '/F'], capture_output=True,
+                   timeout=8, creationflags=subprocess.CREATE_NO_WINDOW)
 """
 
     elif os_name == "mac":
@@ -211,8 +190,8 @@ def _schedule_windows(target_dt: datetime, task_name: str,
         '    <Enabled>true</Enabled>\n'
         '  </TimeTrigger></Triggers>\n'
         '  <Actions><Exec>\n'
-        f'    <Command>{python_exe}</Command>\n'
-        f'    <Arguments>"{script_path}"</Arguments>\n'
+        f'    <Command>{escape(str(python_exe))}</Command>\n'
+        f'    <Arguments>{escape(chr(34) + str(script_path) + chr(34))}</Arguments>\n'
         '  </Exec></Actions>\n'
         '  <Settings>\n'
         '    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>\n'
@@ -359,7 +338,7 @@ def reminder(
 
     os_name    = _get_os()
     safe_msg   = _sanitise(message)
-    task_name  = f"JARVISReminder_{target_dt.strftime('%Y%m%d_%H%M%S')}"
+    task_name  = f"JARVISReminder_{target_dt.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
     try:
         script_path = _write_notify_script(task_name, safe_msg, os_name)
@@ -393,3 +372,27 @@ def reminder(
 
     friendly_time = target_dt.strftime("%B %d at %I:%M %p")
     return f"Reminder set for {friendly_time}."
+
+
+def snooze_reminder(message, seconds=600):
+    """Internal notification action, retaining seconds rather than minute rounding."""
+    if type(seconds) is not int or not 1 <= seconds <= 86400 or not isinstance(message, str):
+        raise ValueError('Ungültiger Erinnerungsaufschub.')
+    target = datetime.now() + timedelta(seconds=seconds)
+    if target.microsecond:
+        target = target.replace(microsecond=0) + timedelta(seconds=1)
+    name = f"JARVISReminder_{target.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    text = _sanitise(message)
+    path = _write_notify_script(name, text, 'windows')
+    try:
+        job = _schedule_windows(target, name, path, text)
+        if not job:
+            raise OSError('Windows konnte den Erinnerungsaufschub nicht registrieren.')
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    try:
+        _record_reminder(target, text, job)
+    except (OSError, ValueError):
+        pass  # The registered OS task remains authoritative.
+    return job

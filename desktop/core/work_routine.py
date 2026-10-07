@@ -16,8 +16,11 @@ class WorkRoutine:
     focus_minutes: int = 25
     quiet_minutes: int = 25
     documents: list[str] = field(default_factory=list)
+    pause_minutes: int = 0
 
     def validate(self):
+        if type(self.pause_minutes) is not int or not 0 <= self.pause_minutes <= 1440:
+            raise ValueError('Die anschließende Pause muss zwischen 0 und 1440 Minuten liegen.')
         if type(self.enabled) is not bool or not isinstance(self.apps, list) or len(self.apps) > 8:
             raise ValueError("Ungültiger Arbeitsmodus.")
         if any(not isinstance(app, str) or app not in APP_NAMES for app in self.apps) or len(set(self.apps)) != len(self.apps):
@@ -145,11 +148,11 @@ class RoutineRunner:
                 if not self.apply_documents:
                     return 'Ablauf angehalten: Dokumentauswahl konnte nicht übernommen werden.'
                 self.apply_documents(documents)
-            timer = self.commands.timers.start(routine.focus_minutes * 60)
+            timer = self.commands.timers.start(routine.focus_minutes * 60, followup_seconds=routine.pause_minutes * 60) if routine.pause_minutes else self.commands.timers.start(routine.focus_minutes * 60)
             if "gestartet" not in timer:
                 return "Arbeitsmodus angehalten: " + timer
             self.quiet.begin(routine.quiet_minutes)
             self.on_quiet_change()
-            return "Arbeitsmodus gestartet. " + " ".join(results) + f" {timer} Mica-Ruhezeit für {routine.quiet_minutes} Minuten aktiv."
+            return "Arbeitsmodus gestartet. " + " ".join(results) + f" {timer} Mica-Ruhezeit für {routine.quiet_minutes} Minuten aktiv." + (f' Danach beginnt eine Pause von {routine.pause_minutes} Minuten.' if routine.pause_minutes else '')
         finally:
             self._lock.release()

@@ -57,7 +57,13 @@ class ForegroundTracker(QObject):
         self.busy = True
         def worker():
             try:
-                self.captured.emit(target, self.capture_function(target))
+                image = self.capture_function(target)
+                from desktop.core.window_controls import read_window_controls
+                controls = read_window_controls(target)
+                current = self.observer.info(target['hwnd'])
+                if not current or current['pid'] != target['pid'] or current['title'] != target['title']:
+                    raise ValueError('Das ausgewählte Fenster hat sich geändert. Bitte erneut erfassen.')
+                self.captured.emit({**target, 'controls': controls}, image)
             except (OSError, ValueError, subprocess.TimeoutExpired) as error:
                 self.failed.emit("Fensteraufnahme nicht möglich: " + str(error))
             finally:

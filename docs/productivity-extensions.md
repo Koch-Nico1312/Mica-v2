@@ -2,6 +2,8 @@
 
 Die sechs Erweiterungen verwenden die vorhandene Windows-Oberfläche
 `desktop/local_main.py`. Desktop und API müssen auf demselben Stand sein.
+Die [Projektassistenz](project-assistance.md) erweitert diese Funktionen um
+mehrere benannte Arbeitsstände und unabhängige Windows-Timerzustellung.
 
 ## Arbeitsstand gezielt speichern und laden
 
@@ -19,7 +21,9 @@ Eine gelöschte Aufgabe wird nicht neu erzeugt. Änderungen an Originaldateien
 werden angezeigt; Laden verwendet die gespeicherte Fassung, **Dateien → Neu
 einlesen** übernimmt ausdrücklich die neue Fassung.
 
-Es gibt einen bewusst gespeicherten Arbeitsstand unter `.mica-data/workspace.json`.
+Der bisherige Einzelstand unter `.mica-data/workspace.json` wird als `standard`
+in der neuen Projektauswahl angeboten. Neue Stände und bis zu drei gespeicherte
+Fassungen je Projekt liegen unter `.mica-data/project-workspaces.json`.
 Ersetzen und Löschen erfordern eine sichtbare Bestätigung. Grenzen: acht
 Dokumente, insgesamt 64.000 Textzeichen und 2.000 Zeichen für den nächsten Schritt.
 Die Datei enthält private Inhalte im Klartext. Ohne Gesprächsspeicherung sind
@@ -61,7 +65,10 @@ Timer werden beim Start, Ändern, Stoppen und Ablaufen atomar unter
 `.mica-data/timers.json` gespeichert. UTC-Endzeiten erhalten die verbleibende
 Dauer über App- und Rechnerneustarts hinweg. Schließen hält nur die lokalen
 Callbacks an. Beim nächsten Start werden bereits abgelaufene Timer nachgemeldet.
-Während die App geschlossen ist, erscheint keine Mica-Timerbenachrichtigung.
+Die Windows-Oberfläche registriert Timer zusätzlich in der Aufgabenplanung;
+dadurch werden Timer auch bei geschlossener Oberfläche zugestellt. Die
+[Projektassistenz](project-assistance.md#timer-bei-geschlossener-oberfläche)
+beschreibt Zustellbedingungen und Fehlerfälle.
 
 Es gelten weiterhin acht gleichzeitige Timer, eine Sekunde bis 24 Stunden und
 die Korrektur „Nein, zehn Minuten statt fünf“. Korrigieren beginnt die neue

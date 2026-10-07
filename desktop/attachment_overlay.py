@@ -18,7 +18,11 @@ class AttachmentOverlay(_HudOverlay):
     _changes_checked = pyqtSignal(list, int)
     modified = pyqtSignal(list)
     capture_ready = pyqtSignal(str)
-    _OW, _OH = 620, 450
+    compare_requested = pyqtSignal()
+    tasks_requested = pyqtSignal()
+    cards_requested = pyqtSignal()
+    review_requested = pyqtSignal()
+    _OW, _OH = 620, 500
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -56,7 +60,16 @@ class AttachmentOverlay(_HudOverlay):
         self.status = QLabel("Ziehe eine Datei auf das Eingabefeld.")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+        actions = QHBoxLayout()
+        for title, signal in [('Aufgaben erstellen', self.tasks_requested), ('Lernkarten erstellen', self.cards_requested), ('Karten wiederholen', self.review_requested)]:
+            button = QPushButton(title)
+            button.clicked.connect(signal.emit)
+            actions.addWidget(button)
+        layout.addLayout(actions)
         buttons = QHBoxLayout()
+        compare = QPushButton('Änderungen')
+        compare.clicked.connect(self.compare_requested.emit)
+        buttons.addWidget(compare)
         reset = QPushButton("Neues Gespräch")
         reset.clicked.connect(self.new_conversation.emit)
         buttons.addWidget(reset)
@@ -156,7 +169,7 @@ class AttachmentOverlay(_HudOverlay):
             self._extracted.emit(doc, error, generation)
         threading.Thread(target=worker, name="mica-document-reader", daemon=True).start()
 
-    def add_capture(self, image, title):
+    def add_capture(self, image, title, controls=''):
         if self._loading or len(self._documents) >= 8:
             self.status.setText("Bitte die laufende Datei abwarten oder zuerst eine Datei entfernen.")
             return
@@ -169,7 +182,15 @@ class AttachmentOverlay(_HudOverlay):
                     path = Path(directory) / "window.png"
                     if not image.save(str(path), "PNG"):
                         raise ValueError("Fensteraufnahme konnte nicht gelesen werden.")
-                    doc = extract_attachment(str(path))
+                    try:
+                        doc = extract_attachment(str(path))
+                    except ValueError:
+                        if not controls:
+                            raise
+                        import uuid
+                        doc = {'id': uuid.uuid4().hex, 'body': '', 'source': 'screenshot'}
+                if controls:
+                    doc['body'] = ('Bedienelemente (sichtbare Beschriftungen):\n' + controls + '\n\nFenstertext (OCR):\n' + doc['body'])[:32000]
                 doc.pop("local_path", None)
                 doc.pop("fingerprint", None)
                 doc["title"] = ("Fenster: " + title)[:160]

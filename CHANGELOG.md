@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-10-07 – Tagesplanung, Offline und Ergebnisprüfung
+
+- Geprüfte Tagespläne aus Dauer, Fristen, freien Zeitfenstern, Voraussetzungen
+  und Pausen; Restarbeit bleibt sichtbar, Übernahme speichert nur den Plan.
+- Bearbeitbare Modellvorschläge für geordnete Teilaufgaben, mit atomarer lokaler
+  Vormerkung und ausdrücklich bestätigtem Backend-Abgleich.
+- Lesende Datei-/Fensterprüfungen mit Ausgangshash, erwarteten Textstellen und
+  klarer Unterscheidung zwischen bestätigt, nicht bestätigt und unklar.
+- Lokal nutzbare Projektstände, Karten und Aufgaben bei Core-Ausfällen; persistente
+  Änderungsvorschau, Konfliktschutz und beständige Anfragekennungen beim Abgleich.
+- Projekt-Export als Markdown mit ausgewählten Aufgaben, Quellen, Lernkarten und
+  letztem/nächstem Schritt; Vorschau und ausdrücklich gewählter Speicherort.
+
+
+## 2026-10-07 – Aufgaben, Diktieren und Weiterarbeiten
+
+- Erinnerungen mit Erledigt, zehn Minuten Aufschub und aktueller Aufgabenansicht,
+  einschließlich unabhängiger Windows-Zustellung.
+- Dokumentaufgaben und Lernkarten mit überprüften Originalzitaten, bearbeitbarer
+  Vorschau und ausdrücklichem Speichern; Aufgabe-Wiederholungen sind idempotent.
+- Routinen per Gespräch vorschlagen, prüfen und speichern; nach dem Fokus läuft
+  die konfigurierte Pause, auch über Desktopneustarts.
+- Eigener Diktiermodus mit Satzkorrekturen, Stichpunkten, Rückgängig und Kopieren;
+  Aufnahmen und Entwurf bleiben ungespeichert.
+- Dauerhafte Lernkarten-Wiederholungen nach Schwierigkeitsbewertung und optional
+  gemerkte letzte Gesprächsschritte im jeweiligen Projektstand.
+
+## 2026-10-07 – Projektassistenz
+
+- Ergänzt bis zu 20 benannte Projektstände mit drei gespeicherten Fassungen,
+  Migration des bisherigen Einzelstands und dem Befehl „Wechsle zu MICA“.
+- Zeigt echte Dokumenttextstellen mit Dateinamen, Zeilen und PDF-Seiten bei
+  Antworten; kennzeichnet fehlende oder erfundene Quellmarkierungen.
+- Vergleicht bekannte Dokumentfassungen mit aktuellen Originaldateien und
+  bietet eine ausdrücklich angeforderte Erklärung der Änderungen.
+- Erweitert die Fensterhilfe um bestätigte, sichtbare UI-Automation-Beschriftungen
+  ohne Passwortwerte oder automatisches Betätigen von Bedienelementen.
+- Registriert Windows-Timer für unabhängige Zustellung bei geschlossener
+  Oberfläche; schützt Korrektur, Abbruch und Zustellung gegen doppelte Meldungen.
+- Öffnet die vorhandene Gedächtnisübersicht mit einer Projektsuche auf Zuruf.
+- Dokumentiert Nutzung und Grenzen in `docs/project-assistance.md`; ergänzt
+  Funktionstests und reproduzierbare Windows-/Core-Laufzeitprüfungen.
+- Wiederholt vorübergehende Windows-Dateisperren beim Veröffentlichen einer
+  geprüften Update-Sicherung begrenzt; dauerhafte Fehler und bestehende Ziele
+  werden weiterhin abgelehnt.
+
 ## 2026-10-04 – Code efficiency refactor
 
 - Incrementally synchronize the derived Brain index, read sources once per

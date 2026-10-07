@@ -1,7 +1,7 @@
 """Explicit window snapshot preview before its OCR text enters a conversation."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout, QPlainTextEdit, QCheckBox
 from desktop.ui_theme import C
 
 
@@ -19,6 +19,16 @@ class ScreenHelpDialog(QDialog):
         preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         preview.setPixmap(QPixmap.fromImage(image).scaled(700, 380, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         layout.addWidget(preview)
+        controls = target.get('controls', {})
+        self.use_controls = QCheckBox('Erkannte Bedienelemente ebenfalls als Kontext verwenden')
+        self.use_controls.setChecked(bool(controls.get('text')))
+        self.use_controls.setEnabled(bool(controls.get('text')))
+        layout.addWidget(self.use_controls)
+        self.controls = QPlainTextEdit()
+        self.controls.setReadOnly(True)
+        self.controls.setMaximumHeight(140)
+        self.controls.setPlainText(controls.get('text') or 'Diese Anwendung stellt keine lesbaren Bedienelemente bereit. Die Fensteraufnahme kann weiterhin per OCR gelesen werden.')
+        layout.addWidget(self.controls)
         note = QLabel("Als Kontext verwenden liest den Text lokal aus dieser einzelnen Aufnahme. Nur der erkannte Text gelangt ins Gespräch. Prüfe die Vorschau auf private Inhalte. Die Frage kannst du anschließend bearbeiten und senden.")
         note.setWordWrap(True)
         layout.addWidget(note)

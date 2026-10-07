@@ -195,7 +195,7 @@ class TasksRoutes:
         self._require_phase3()
         try:
             task = self.task_store.create_task(
-                request.title, request.description, request.priority, request.due_at
+                request.title, request.description, request.priority, request.due_at, idempotency_key=request.idempotency_key
             )
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
@@ -217,10 +217,13 @@ class TasksRoutes:
         return task
 
     def update_task_item(self, task_id: str, request: TaskItemUpdate) -> dict[str, Any]:
+        from backend.services.common.task_automation import TaskConflict
         self._require_phase3()
         changes = request.model_dump(exclude_unset=True)
         try:
             task = self.task_store.update_task(task_id, changes)
+        except TaskConflict as error:
+            raise HTTPException(409, str(error)) from error
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
         if not task:

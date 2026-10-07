@@ -6,7 +6,7 @@ from desktop.ui_theme import C
 
 
 class WorkRoutineDialog(QDialog):
-    def __init__(self, parent=None, *, store=None):
+    def __init__(self, parent=None, *, store=None, draft=None, documents=None):
         super().__init__(parent)
         self.store = store or WorkRoutineStore()
         self.setWindowTitle("Benannte Abläufe")
@@ -47,14 +47,18 @@ class WorkRoutineDialog(QDialog):
             self.apps[label] = checkbox
             layout.addWidget(checkbox)
         form = QFormLayout()
-        self.focus, self.quiet = QSpinBox(), QSpinBox()
+        self.focus, self.quiet, self.pause = QSpinBox(), QSpinBox(), QSpinBox()
         for field in (self.focus, self.quiet):
             field.setRange(1, 1440)
             field.setSuffix(" Minuten")
         self.focus.setValue(current.focus_minutes)
         self.quiet.setValue(current.quiet_minutes)
+        self.pause.setRange(0, 1440)
+        self.pause.setSuffix(' Minuten')
+        self.pause.setValue(current.pause_minutes)
         form.addRow("Fokus-Timer", self.focus)
         form.addRow("Mica-Ruhezeit", self.quiet)
+        form.addRow('Pause nach Fokus (0 = keine)', self.pause)
         layout.addLayout(form)
         self.documents = QListWidget()
         self.documents.addItems(current.documents)
@@ -83,11 +87,25 @@ class WorkRoutineDialog(QDialog):
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)
+        if draft:
+            self.name.setCurrentText(draft['name'])
+            self.enabled.setChecked(True)
+            self.focus.setValue(draft['focus_minutes'])
+            self.quiet.setValue(draft['focus_minutes'])
+            self.pause.setValue(draft['pause_minutes'])
+            import re
+            for label, checkbox in self.apps.items():
+                if re.search(r'\b' + re.escape(label) + r' öffnen\b', draft['request'], re.I):
+                    checkbox.setChecked(True)
+            if draft['selected_documents']:
+                self.documents.clear()
+                self.documents.addItems([doc['local_path'] for doc in documents or [] if doc.get('local_path')])
+            self.status.setText('Deine Anfrage: ' + draft['request'] + '\nBitte alle Schritte prüfen. Programme kannst du unten auswählen. Speichern startet den Ablauf noch nicht.' + ('\nOhne genannte Pausendauer sind 5 Minuten vorgeschlagen.' if draft['pause_minutes'] == 5 else ''))
 
     def save(self):
         try:
             self.store.save(WorkRoutine(self.enabled.isChecked(), [label for label, checkbox in self.apps.items() if checkbox.isChecked()], self.focus.value(), self.quiet.value(),
-                [self.documents.item(index).text() for index in range(self.documents.count())]), self.name.currentText())
+                [self.documents.item(index).text() for index in range(self.documents.count())], self.pause.value()), self.name.currentText())
         except (ValueError, OSError) as error:
             self.status.setText(str(error))
             return
@@ -100,6 +118,7 @@ class WorkRoutineDialog(QDialog):
             checkbox.setChecked(any(APP_NAMES[item] == APP_NAMES[label] for item in current.apps))
         self.focus.setValue(current.focus_minutes)
         self.quiet.setValue(current.quiet_minutes)
+        self.pause.setValue(current.pause_minutes)
         self.documents.clear()
         self.documents.addItems(current.documents)
 

@@ -23,6 +23,31 @@ def parse_quick_command(message: str) -> dict | None:
     text = re.sub(r"^(?:(?:hallo|hey)\s+)?mica[,\s]+", "", message.strip(), flags=re.I)
     original = re.sub(r"^bitte\s+", "", text, flags=re.I).rstrip(".!?")
     text = original.casefold()
+    if text in {'tagesplanung', 'plane meinen tag', 'tagesplan erstellen'}:
+        return {'kind': 'task_planning', 'page': 'plan', 'title': ''}
+    if text in {'aufgaben verwalten', 'aufgaben offline bearbeiten'}:
+        return {'kind': 'task_planning', 'page': 'tasks', 'title': ''}
+    if text == 'aufgaben abgleichen':
+        return {'kind': 'task_planning', 'page': 'sync', 'title': ''}
+    steps = re.fullmatch(r'zerlege (.{1,160}) in (?:teilaufgaben|schritte)', original, flags=re.I)
+    if steps:
+        return {'kind': 'task_planning', 'page': 'tasks', 'title': steps[1]}
+    if text in {'ergebnis prüfen', 'prüfe mein ergebnis', 'prüfe ob die datei gespeichert wurde'}:
+        return {'kind': 'outcome_check'}
+    if text in {'projekt exportieren', 'markdown exportieren'}:
+        return {'kind': 'workspace_save'}
+    from mica_shared.routine_drafts import routine_draft
+    draft = routine_draft(original)
+    if draft:
+        return draft
+    if re.fullmatch(r'(?:mach|mache) aus (?:diesem arbeitsblatt|diesen dokumenten|meinen unterlagen) (?:meine |die )?aufgaben(?: für diese woche)?', text) or text == 'aufgaben aus dokumenten':
+        return {'kind': 'document_tasks', 'instruction': original}
+    if text in {'lernkarten erstellen', 'erstelle lernkarten aus meinen unterlagen', 'lernkarten aus dokumenten'}:
+        return {'kind': 'document_cards', 'instruction': original}
+    if text in {'lernkarten wiederholen', 'lernkarten lernen'}:
+        return {'kind': 'review_cards'}
+    if text in {'diktiermodus starten', 'diktieren', 'diktat starten'}:
+        return {'kind': 'dictation'}
     if text in {'was steht heute an', 'tagesübersicht', 'zeige meine tagesübersicht', 'was muss ich heute machen'}:
         return {'kind': 'day_overview'}
     if text in {"arbeitsmodus starten", "starte arbeitsmodus", "starte den arbeitsmodus"}:
@@ -37,8 +62,18 @@ def parse_quick_command(message: str) -> dict | None:
         return {'kind': 'routine', 'name': text.removesuffix(' starten')}
     if text in {'arbeitsstand speichern', 'speichere meinen arbeitsstand'}:
         return {'kind': 'workspace_save'}
-    if text in {'arbeitsstand laden', 'mach dort weiter, wo wir aufgehört haben', 'mach dort weiter wo wir aufgehört haben', 'weiterarbeiten'}:
+    if text in {'arbeitsstand laden', 'mach dort weiter, wo wir aufgehört haben', 'mach dort weiter wo wir aufgehört haben', 'weiterarbeiten', 'offline weiterarbeiten'}:
         return {'kind': 'workspace_resume'}
+    project = re.fullmatch(r'wechsle zu (?:projekt )?([\w][\w .-]{0,49})', text)
+    if project:
+        return {'kind': 'project_switch', 'name': project[1]}
+    memory = re.fullmatch(r'was weisst du über (?:projekt )?([\w][\w .-]{0,79})', text)
+    if memory:
+        return {'kind': 'memory_project', 'query': memory[1]}
+    if text in {'was hat sich seit gestern geändert', 'was hat sich in meinen dokumenten geändert', 'dokumentänderungen zeigen', 'vergleiche meine dokumente'}:
+        return {'kind': 'document_changes'}
+    if text in {'erklär mir diese fehlermeldung', 'erkläre mir diese fehlermeldung', 'wo ändere ich diese einstellung'}:
+        return {'kind': 'window_help', 'question': original}
     preference = re.fullmatch(r'antworte(?: bei (technischen|persönlichen) fragen)? (kürzer|ausführlicher|in stichpunkten|auf deutsch)', text)
     if preference:
         scope = {None: 'global', 'technischen': 'technical', 'persönlichen': 'personal'}[preference[1]]

@@ -105,8 +105,19 @@ class MainWindow(LocalPagesMixin, QMainWindow):
     _confirm_hide_sig = pyqtSignal()
     _backend_update_sig = pyqtSignal(str, bool, str)
     _workspace_sig = pyqtSignal(str)
+    _project_sig = pyqtSignal(str)
+    _memory_project_sig = pyqtSignal(str)
+    _document_changes_sig = pyqtSignal()
+    _window_help_sig = pyqtSignal(str)
     _preference_offer_sig = pyqtSignal(dict)
     _routine_documents_sig = pyqtSignal(list)
+    _routine_draft_sig = pyqtSignal(dict)
+    _document_drafts_sig = pyqtSignal(str, str)
+    _review_cards_sig = pyqtSignal()
+    _dictation_sig = pyqtSignal()
+    _reminder_sig = pyqtSignal(dict)
+    _task_planning_sig = pyqtSignal(str, str)
+    _outcome_sig = pyqtSignal()
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -152,9 +163,20 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         self.on_new_conversation = None
         self.on_workspace_operation = None
         self._workspace_sig.connect(self._open_workspace)
+        self._project_sig.connect(lambda name: self._open_workspace('workspace_resume', project=name))
+        self._memory_project_sig.connect(self._open_project_memory)
+        self._document_changes_sig.connect(self._open_document_changes)
+        self._window_help_sig.connect(self._request_window_help)
         self.on_preference_confirmation = None
         self._preference_offer_sig.connect(self._offer_preference)
         self._routine_documents_sig.connect(self._set_routine_documents)
+        self._routine_draft_sig.connect(self._open_routine_draft)
+        self._document_drafts_sig.connect(self._open_document_drafts)
+        self._review_cards_sig.connect(self._open_flashcards)
+        self._dictation_sig.connect(self._open_dictation)
+        self._reminder_sig.connect(self._show_reminder_notification)
+        self._task_planning_sig.connect(self._open_task_planning)
+        self._outcome_sig.connect(self._open_outcome_check)
         self._remote_overlay: RemoteKeyOverlay | None = None
         self._customize_overlay: CustomizeOverlay | None = None
         self._provider_backend_busy = False
@@ -807,7 +829,8 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         center_x = _SHELL_MARGIN + _LEFT_W + _SHELL_GAP
         width = max(280, cw.width() - center_x - _RIGHT_W - _SHELL_MARGIN - _SHELL_GAP)
         columns = 5 if width >= 850 else 3 if width >= 680 else 2
-        self._footer.setFixedHeight(152 + (math.ceil(5 / columns) - 1) * 28)
+        tool_count = len(getattr(self, '_composer_tool_buttons', (None,) * 5))
+        self._footer.setFixedHeight(152 + (math.ceil(tool_count / columns) - 1) * 28)
         if hasattr(self, '_composer_tools') and columns != getattr(self, '_composer_tool_columns', None):
             while self._composer_tools.count():
                 self._composer_tools.takeAt(0)
@@ -1504,6 +1527,8 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         menu = QMenu(self._selection_button)
         preview = menu.addAction('Kopierten Text prüfen und bearbeiten')
         preview.triggered.connect(lambda: self._preview_selection(QApplication.clipboard().text()))
+        dictate = menu.addAction('Diktieren und korrigieren')
+        dictate.triggered.connect(self._open_dictation)
         shortcut = menu.addAction('Globales Tastenkürzel Strg+Alt+M')
         shortcut.setCheckable(True)
         from desktop.core.local_state import DATA_DIR, read_json
@@ -1519,7 +1544,11 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             self._selection_button.setToolTip('Strg+Alt+M konnte nicht registriert werden. Das Kürzel ist möglicherweise schon belegt; kopierten Text über das Menü verwenden.')
         shortcut.toggled.connect(self._toggle_selection_shortcut)
         self._selection_button.setMenu(menu)
-        self._composer_tool_buttons = (self._attachments_button, self._routine_button, self._screen_help_button, self._workspace_button, self._selection_button)
+        self._planning_button = QPushButton('Tagesplanung')
+        self._planning_button.clicked.connect(lambda: self._open_task_planning('plan'))
+        self._outcome_button = QPushButton('Ergebnis prüfen')
+        self._outcome_button.clicked.connect(self._open_outcome_check)
+        self._composer_tool_buttons = (self._attachments_button, self._routine_button, self._screen_help_button, self._workspace_button, self._selection_button, self._planning_button, self._outcome_button)
         for index, button in enumerate(self._composer_tool_buttons):
             button.setFont(QFont("Segoe UI", 8))
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1541,7 +1570,69 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         from desktop.work_routine_dialog import WorkRoutineDialog
         WorkRoutineDialog(self).exec()
 
-    def _open_workspace(self, kind):
+    def _open_routine_draft(self, draft):
+        from desktop.work_routine_dialog import WorkRoutineDialog
+        documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
+        WorkRoutineDialog(self, draft=draft, documents=documents).exec()
+
+    def _open_document_drafts(self, kind='tasks', instruction=''):
+        from desktop.document_drafts_dialog import DocumentDraftsDialog
+        documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
+        DocumentDraftsDialog(self, documents, getattr(self, 'on_document_drafts', None), kind=kind, instruction=instruction).exec()
+
+    def _open_flashcards(self):
+        if not self.remember_conversations:
+            self._log.append_log('SYS: Lernkarten benötigen den Modus mit Speicherung.')
+            return
+        from desktop.flashcards_dialog import FlashcardsDialog
+        FlashcardsDialog(self).exec()
+
+    def _open_task_planning(self, page='tasks', title=''):
+        if not self.remember_conversations:
+            self._log.append_log('SYS: Lokale Aufgaben und Tagesplanung benötigen den Modus mit Speicherung.')
+            return
+        operation = getattr(self, 'on_task_planning', None)
+        if not operation:
+            return
+        try:
+            from desktop.task_planning_dialog import TaskPlanningDialog
+            dialog = TaskPlanningDialog(self, operation, page=page)
+            if title:
+                dialog.title.setText(title)
+            dialog.exec()
+        except (OSError, ValueError) as error:
+            self._log.append_log('ERR: Aufgabenstand nicht lesbar: ' + str(error))
+
+    def _open_outcome_check(self):
+        from desktop.outcome_dialog import OutcomeDialog
+        OutcomeDialog(self, getattr(self, '_foreground_tracker', None)).exec()
+
+    def _open_dictation(self):
+        prepare = getattr(self, 'on_dictation_state', None)
+        if prepare:
+            try:
+                prepare(True)
+            except ValueError as error:
+                self._log.append_log('SYS: ' + str(error))
+                return
+        from desktop.dictation_dialog import DictationDialog
+        try:
+            from desktop.core.dictation import record_clip
+            self._dictation_dialog = DictationDialog(self, getattr(self, 'on_dictation', None), getattr(self, 'on_text_transform', None),
+                recording=getattr(self, 'on_dictation_record', record_clip))
+            self._dictation_dialog.exec()
+        finally:
+            self._dictation_dialog = None
+            if prepare:
+                prepare(False)
+
+    def _show_reminder_notification(self, record):
+        from desktop.reminder_notification import ReminderNotification
+        popup = ReminderNotification(record, getattr(self, 'on_reminder_snooze', None), client=getattr(self, 'reminder_client', None), parent=self)
+        popup.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        popup.show()
+
+    def _open_workspace(self, kind, project=None):
         if not self.remember_conversations:
             self._log.append_log('SYS: Arbeitsstände benötigen den Modus mit Speicherung.')
             return
@@ -1549,7 +1640,22 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             return
         from desktop.workspace_dialog import WorkspaceDialog
         documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
-        WorkspaceDialog(self, self.on_workspace_operation, documents, prefer_load=kind == 'workspace_resume').exec()
+        WorkspaceDialog(self, self.on_workspace_operation, documents, prefer_load=kind == 'workspace_resume', project=project).exec()
+
+    def _open_project_memory(self, query):
+        if hasattr(self, '_backend_memory_page'):
+            self._backend_memory_page.certainty_filter.setCurrentIndex(0)
+            self._backend_memory_page.search.setText(query)
+            self._activate_navigation('memory')
+
+    def _open_document_changes(self):
+        from desktop.document_changes_dialog import DocumentChangesDialog
+        documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
+        DocumentChangesDialog(self, documents, getattr(self, 'on_text_transform', None)).exec()
+
+    def _request_window_help(self, question):
+        self._input.setText(question)
+        self._capture_window_help()
 
     def _offer_preference(self, draft):
         if not self.remember_conversations or not self.on_preference_confirmation:
@@ -1593,7 +1699,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         dialog = ScreenHelpDialog(target, image, self)
         if dialog.exec():
             self._open_attachments()
-            self._attachment_overlay.add_capture(image, target["title"])
+            self._attachment_overlay.add_capture(image, target["title"], target.get('controls', {}).get('text', '') if dialog.use_controls.isChecked() else '')
 
     def _open_attachments(self):
         if self._attachment_overlay is None:
@@ -1603,6 +1709,10 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             self._attachment_overlay.new_conversation.connect(self._new_conversation)
             self._attachment_overlay.modified.connect(self._documents_modified)
             self._attachment_overlay.capture_ready.connect(self._window_text_ready)
+            self._attachment_overlay.compare_requested.connect(self._open_document_changes)
+            self._attachment_overlay.tasks_requested.connect(lambda: self._open_document_drafts('tasks'))
+            self._attachment_overlay.cards_requested.connect(lambda: self._open_document_drafts('cards'))
+            self._attachment_overlay.review_requested.connect(self._open_flashcards)
         self._centre_overlay(self._attachment_overlay)
 
     def _attachments_changed(self, documents):

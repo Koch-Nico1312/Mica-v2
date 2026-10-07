@@ -163,6 +163,17 @@ def test_calibration_cannot_upload_audio_to_cloud(voice_api, monkeypatch):
     assert not calls
 
 
+def test_dictation_route_is_transcription_only_and_requires_authentication(voice_api):
+    client, calls, runtime = voice_api
+    assert client.post('/v1/voice/dictate', content=b'\0\0').status_code == 401
+    client.headers['X-Mica-API-Token'] = 'x' * 40
+    response = client.post('/v1/voice/dictate', content=b'\0\0' * 16000)
+    assert response.status_code == 200 and response.json()['storage'] == 'none'
+    assert len(calls) == 1
+    runtime.turn.assert_not_called()
+    runtime.audit.append.assert_not_called()
+
+
 def test_duplex_interrupt_stops_output_and_preserves_leading_speech(monkeypatch):
     session = CoreVoiceSession(LocalCoreClient("https://localhost", api_token="test"))
     session._capture_device_ready = True

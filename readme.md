@@ -24,6 +24,15 @@ The [productivity extensions](docs/productivity-extensions.md) add explicitly
 saved work checkpoints, selected-text previews through a global shortcut,
 restart-safe timers, named routines with documents, a daily overview and
 confirmed conversational preferences.
+The [project assistance extensions](docs/project-assistance.md) add named project
+checkpoints, document citations and comparisons, visible window controls,
+Windows timer delivery with the desktop closed and direct project-memory search.
+The [next assistance workflows](docs/assistance-extensions.md) add actionable
+reminders, reviewed document tasks, conversational routine drafts, dictation
+corrections, source-linked flashcards and optional project progress notes.
+The [planning and offline workflows](docs/planning-offline-results.md) add reviewed
+day plans with pauses, editable task steps, file/window evidence checks, explicit
+offline reconciliation and portable project exports as Markdown.
 
 > Deployment status: code and local acceptance checks do not prove that a
 > particular Windows, ZimaOS, or Proxmox installation is ready. Target-host,

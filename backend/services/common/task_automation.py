@@ -3,6 +3,9 @@ from __future__ import annotations
 import os
 import sqlite3
 import uuid
+import hashlib
+import json
+import re
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -21,6 +24,10 @@ ALLOWED_TRANSITIONS = {
     "completed": {"completed"},
     "cancelled": {"cancelled"},
 }
+
+
+class TaskConflict(ValueError):
+    """The task changed after the caller's explicit preview."""
 
 
 def _enabled(name: str) -> bool:
@@ -62,6 +69,7 @@ class TaskAutomationStore:
                 "fired_at TEXT NOT NULL, PRIMARY KEY(rule_id, subject_id))"
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_task_items_status_due ON task_items(status, due_at)")
+            conn.execute('CREATE TABLE IF NOT EXISTS task_creation_receipts (request_key TEXT PRIMARY KEY, task_id TEXT NOT NULL, fingerprint TEXT NOT NULL)')
             conn.execute("CREATE INDEX IF NOT EXISTS idx_rules_enabled ON automation_rules(enabled, trigger_name)")
 
     @contextmanager
@@ -108,12 +116,15 @@ class TaskAutomationStore:
 
     def create_task(
         self, title: str, description: str = "", priority: str = "normal", due_at: str | None = None,
+        *, idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         title = title.strip()
         if not title:
             raise ValueError("title is required")
         if priority not in TASK_PRIORITIES:
             raise ValueError("priority must be low, normal or high")
+        if idempotency_key is not None and not re.fullmatch(r'[a-f0-9]{32}', idempotency_key):
+            raise ValueError('Ungültige Anfragekennung.')
         now = self._now()
         task = {
             "id": uuid.uuid4().hex, "title": title[:160], "description": description.strip()[:4000],
@@ -121,6 +132,18 @@ class TaskAutomationStore:
             "created_at": now, "updated_at": now,
         }
         with self._connect() as conn:
+            if idempotency_key:
+                conn.execute('BEGIN IMMEDIATE')
+                fingerprint = hashlib.sha256(json.dumps([task[key] for key in ('title', 'description', 'priority', 'due_at')], ensure_ascii=False).encode()).hexdigest()
+                receipt = conn.execute('SELECT task_id, fingerprint FROM task_creation_receipts WHERE request_key=?', (idempotency_key,)).fetchone()
+                if receipt:
+                    if receipt[1] != fingerprint:
+                        raise ValueError('Diese Anfrage wurde bereits mit anderem Inhalt gespeichert. Bitte die Aufgabenübersicht prüfen.')
+                    row = conn.execute('SELECT id,title,description,status,priority,due_at,created_at,updated_at FROM task_items WHERE id=?', (receipt[0],)).fetchone()
+                    if not row:
+                        raise ValueError('Gespeicherte Aufgabe fehlt. Bitte Aufgabenübersicht prüfen.')
+                    conn.commit()
+                    return self._task(row)
             conn.execute(
                 "INSERT INTO task_items(id,title,description,status,priority,due_at,created_at,updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
@@ -128,6 +151,9 @@ class TaskAutomationStore:
                     "id", "title", "description", "status", "priority", "due_at", "created_at", "updated_at"
                 )),
             )
+            if idempotency_key:
+                conn.execute('INSERT INTO task_creation_receipts(request_key,task_id,fingerprint) VALUES (?,?,?)', (idempotency_key, task['id'], fingerprint))
+                conn.commit()
         return task
 
     def list_tasks(
@@ -167,12 +193,17 @@ class TaskAutomationStore:
         return self._task(row) if row else None
 
     def update_task(self, task_id: str, changes: dict[str, Any]) -> dict[str, Any] | None:
+        changes = dict(changes)
+        expected = changes.pop('expected_updated_at', None)
         allowed = {"title", "description", "status", "priority", "due_at"}
         if not changes or set(changes) - allowed:
             raise ValueError("no supported task fields supplied")
         current = self.get_task(task_id)
         if not current:
             return None
+        previous_updated_at = current['updated_at']
+        if expected is not None and expected != previous_updated_at:
+            raise TaskConflict('Die Aufgabe wurde inzwischen geändert. Bitte erneut abgleichen.')
         if "title" in changes:
             title = str(changes["title"] or "").strip()
             if not title:
@@ -193,11 +224,13 @@ class TaskAutomationStore:
             current["due_at"] = self._time(changes["due_at"])
         current["updated_at"] = self._now()
         with self._connect() as conn:
-            conn.execute(
-                "UPDATE task_items SET title=?,description=?,status=?,priority=?,due_at=?,updated_at=? WHERE id=?",
+            result = conn.execute(
+                "UPDATE task_items SET title=?,description=?,status=?,priority=?,due_at=?,updated_at=? WHERE id=? AND updated_at=?",
                 (current["title"], current["description"], current["status"], current["priority"],
-                 current["due_at"], current["updated_at"], task_id),
+                 current["due_at"], current["updated_at"], task_id, previous_updated_at),
             )
+            if result.rowcount != 1:
+                raise TaskConflict('Die Aufgabe wurde während der Änderung verändert. Bitte erneut abgleichen.')
         return current
 
     def create_rule(

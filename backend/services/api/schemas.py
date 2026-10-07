@@ -81,8 +81,13 @@ class DialogContextUpdate(BaseModel):
 
 class TextTransformRequest(BaseModel):
     text: str = Field(min_length=1, max_length=16000)
-    operation: Literal['explain', 'summarize', 'translate', 'rewrite']
+    operation: Literal['explain', 'summarize', 'translate', 'rewrite', 'bullets']
     language: str = Field(default='Deutsch', min_length=1, max_length=80)
+
+
+class DocumentDraftRequest(DialogContextUpdate):
+    operation: Literal['tasks', 'cards']
+    instruction: str = Field(default='', max_length=1000)
 
 
 class DialogResume(DialogContextUpdate):
@@ -138,14 +143,21 @@ class TaskItemCreate(BaseModel):
     description: str = Field(default="", max_length=4000)
     priority: Literal["low", "normal", "high"] = "normal"
     due_at: str | None = Field(default=None, max_length=64)
+    idempotency_key: str | None = Field(default=None, pattern=r'^[a-f0-9]{32}$')
 
 
 class TaskItemUpdate(BaseModel):
+    expected_updated_at: str | None = Field(default=None, max_length=64)
     title: str | None = Field(default=None, min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=4000)
     status: Literal["open", "in_progress", "completed", "cancelled"] | None = None
     priority: Literal["low", "normal", "high"] | None = None
     due_at: str | None = Field(default=None, max_length=64)
+
+
+class TaskDecomposeRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default='', max_length=4000)
 
 
 class AutomationRuleCreate(BaseModel):

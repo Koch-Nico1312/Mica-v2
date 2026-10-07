@@ -286,7 +286,7 @@ def test_quiet_period_blocks_wake_and_popups_but_keeps_manual_voice_available(mo
     mica = LocalMica.__new__(LocalMica)
     mica.quiet = QuietPeriod()
     mica.quiet.begin(5)
-    mica._restoring = mica._calibrating = False
+    mica._restoring = mica._calibrating = mica._dictating = False
     mica.ui = SimpleNamespace(muted=False, write_log=Mock(), show_content=Mock())
     mica.voice = SimpleNamespace(active=True, take_barge_audio=Mock(return_value=b""), start=Mock(return_value=True))
     mica.wake_word = SimpleNamespace(start=Mock(), stop=Mock())

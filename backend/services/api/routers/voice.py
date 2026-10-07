@@ -195,7 +195,7 @@ class VoiceRoutes:
                     service = "tts"
                     speech_response = await client.post(
                         local_voice_url("TTS_URL", "http://tts:8092") + "/v1/synthesize",
-                        json={"text": reply},
+                        json={"text": turn_result.get('spoken_reply', reply)},
                     )
                     speech_response.raise_for_status()
             except (HTTPException, self.httpx.HTTPError, ValueError, TimeoutError, WebSocketDisconnect) as error:
@@ -362,5 +362,6 @@ class VoiceRoutes:
 
 
 ROUTES = [("/v1/voice", "websocket", "voice"),
+          ("/v1/voice/dictate", "post", "voice_calibrate"),
           ("/v1/voice/health", "get", "voice_health"),
           ("/v1/voice/calibrate", "post", "voice_calibrate")]

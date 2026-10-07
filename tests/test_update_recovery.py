@@ -20,6 +20,50 @@ from backend.services.common.brain import MarkdownBrain
 from desktop.control_center import ControlCenter
 from desktop.core.desktop_backup import read_bundle
 from desktop.core.update_recovery import inspect_backup, prepare_checkpoint, source_state, verify_checkpoint
+from desktop.core.update_recovery import _publish_checkpoint
+
+
+def test_checkpoint_publication_retries_only_transient_windows_errors(tmp_path, monkeypatch):
+    stage, published = tmp_path / 'stage', tmp_path / 'published'
+    stage.mkdir()
+    (stage / 'manifest.json').write_text('verified')
+    rename = Path.rename
+    calls = []
+    def busy_once(path, target):
+        calls.append(path)
+        if len(calls) == 1:
+            error = PermissionError('temporarily busy')
+            error.winerror = 5
+            raise error
+        return rename(path, target)
+    monkeypatch.setattr(Path, 'rename', busy_once)
+    sleep = Mock()
+    monkeypatch.setattr('desktop.core.update_recovery.time.sleep', sleep)
+    _publish_checkpoint(stage, published)
+    assert (published / 'manifest.json').read_text() == 'verified'
+    assert len(calls) == 2
+    sleep.assert_called_once_with(.05)
+
+
+def test_checkpoint_publication_never_hides_persistent_or_non_windows_permission_failure(tmp_path, monkeypatch):
+    stage, published = tmp_path / 'stage', tmp_path / 'published'
+    stage.mkdir()
+    sleep = Mock()
+    monkeypatch.setattr('desktop.core.update_recovery.time.sleep', sleep)
+    ordinary = PermissionError('access denied')
+    rename = Mock(side_effect=ordinary)
+    monkeypatch.setattr(Path, 'rename', rename)
+    with pytest.raises(PermissionError):
+        _publish_checkpoint(stage, published)
+    assert rename.call_count == 1 and not published.exists()
+    busy = PermissionError('access denied')
+    busy.winerror = 5
+    rename.reset_mock()
+    rename.side_effect = busy
+    with pytest.raises(PermissionError):
+        _publish_checkpoint(stage, published)
+    assert rename.call_count == 6 and not published.exists()
+    assert stage.exists()
 
 
 def git(root, *args):

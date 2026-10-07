@@ -1,0 +1,10 @@
+{
+  "windows_uia_read": true,
+  "expected_label_confirmed": true,
+  "password_excluded": true,
+  "real_toggle_change_confirmed_against_baseline": true,
+  "real_file_changed_and_text_confirmed": true,
+  "planning_rendered": true,
+  "markdown_roundtrip": true,
+  "user_data_modified": false
+}
