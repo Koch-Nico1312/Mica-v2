@@ -323,8 +323,8 @@ class Phase0ApiTests(unittest.TestCase):
                     "input_mode": "push_to_talk", "state": "transcribing",
                 })
                 self.assertEqual(websocket.receive_json()["state"], "transcribing")
-                self.assertEqual(websocket.receive_json()["state"], "planning")
                 self.assertEqual(websocket.receive_json()["type"], "transcript")
+                self.assertEqual(websocket.receive_json()["state"], "planning")
                 self.assertEqual(websocket.receive_json()["text"], "Lokale Antwort")
                 self.assertEqual(websocket.receive_json()["state"], "speaking")
                 self.assertEqual(websocket.receive_bytes(), b"RIFF-test")

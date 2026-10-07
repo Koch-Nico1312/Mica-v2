@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-05",
+  "full_suite": {"passed": 719, "subtests_passed": 79, "warnings": 2, "seconds": 254.24, "excludes": "backend/tests/test_chonkie_runtime.py", "collected_before_final_changes": true},
+  "latest_focused_suite": {"passed": 77, "warnings": 2, "seconds": 16.86, "files": ["tests/test_daily_assistance.py", "tests/test_dialog_improvements.py", "tests/test_hud.py", "tests/test_mica_hud.py", "tests/test_feature_runtime_callbacks.py"], "covers_final_changes": true},
+  "backend_image_tests": {"passed": 2, "seconds": 0.030},
+  "ruff": "passed",
+  "diff_whitespace": "passed",
+  "repository_check": {"python_files": 300, "documentation_links": 125, "errors": 0},
+  "api_image_built": true,
+  "api_image_id": "sha256:055a15f387699d23ac0005aa2303f1edbf1ef7bed0ba8aca6f09915df40347e0",
+  "completion_audit": [
+    {"requirement": "Confirm the actual application window before success", "status": "implemented_and_verified", "sources": ["desktop/actions/open_app.py", "desktop/core/native_commands.py", "desktop/core/window_observation.py"], "evidence": ["Actual Windows visible-window/process observation in windows-runtime.json", "Failure, cancellation, title impersonation and host-adapter tests in test_daily_assistance.py"], "limit": "Installed third-party apps under production permissions remain target-host acceptance"},
+    {"requirement": "Spoken correction changes the latest running timer", "status": "implemented_and_verified", "sources": ["mica_shared/quick_commands.py", "desktop/core/native_commands.py"], "evidence": ["Real Redux and local TTS corrected a running timer from 300 to 600 seconds in voice-runtime.json", "Old-duration mismatch, independent timers, stale callback and no-model dispatch tests", "WebSocket correction acknowledgement precedes speech"], "limit": "Duration restarts from correction; app-lifetime timer"},
+    {"requirement": "Offer an explicit reload when a selected document changes", "status": "implemented_and_verified", "sources": ["desktop/core/attachments.py", "desktop/attachment_overlay.py", "desktop/ui.py", "backend/services/api/routers/conversation.py"], "evidence": ["Same-size changes and missing files detected", "Old content retained until explicit reload; selected body replaced afterwards", "Backend focus refreshed and old quotes cleared", "Rendered changed-document.png"], "limit": "Polling approximately every three seconds; no original-file mutation"},
+    {"requirement": "Visible configured reusable work routine with apps, focus timer and quiet time", "status": "implemented_and_verified", "sources": ["desktop/core/work_routine.py", "desktop/work_routine_dialog.py", "desktop/local_main.py", "mica_shared/quick_commands.py"], "evidence": ["Configuration roundtrip and arbitrary-program/duplicate-alias rejection", "Apps before timer and quiet time; partial failure, approval and cancellation stop subsequent stages", "Quiet time blocks wake and popups while preserving manual voice", "Routine voice acknowledgement precedes speech", "Rendered routine-dialog.png"], "limit": "Existing action permissions required; quiet time affects this Mica desktop, not system notifications"},
+    {"requirement": "Explicit window button capture and error-message conversation", "status": "implemented_and_verified", "sources": ["desktop/core/screen_help.py", "desktop/core/screen_capture.py", "desktop/screen_help_dialog.py", "desktop/attachment_overlay.py", "desktop/ui.py"], "evidence": ["Actual PrintWindow capture and local OCR of a controlled error window in windows-runtime.json", "No automatic capture, stale reference rejected, explicit preview acceptance", "OCR completion adds selected context and removes temporary image", "Existing document-to-text/voice context tests", "Rendered window-preview.png and desktop-controls.png"], "limit": "OCR text rather than general vision; free-form explanations require the chosen model"}
+  ],
+  "ui_minimum_size": {"window_width": 960, "input_width": 122, "new_buttons_visible": true},
+  "full_productive_stack_started": false,
+  "physical_microphone_speaker_verified": false,
+  "unrelated_local_changes_preserved": true
+}

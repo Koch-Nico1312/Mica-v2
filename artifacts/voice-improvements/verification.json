@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-05",
+  "desktop_suite": {"passed": 675, "subtests_passed": 79, "seconds": 221.49, "excluded_file": "backend/tests/test_chonkie_runtime.py"},
+  "backend_container_chonkie_tests": {"passed": 2, "image": "mica-mica-api:latest"},
+  "focused_voice_tests": {"passed": 54, "subtests_passed": 24},
+  "ruff_changed_python_files": "passed",
+  "repository_check": {"python_files": 286, "documentation_links": 106, "errors": 0},
+  "api_image_build": "passed",
+  "real_local_stt_calibration": "calibration-runtime.json",
+  "physical_microphone_speaker_acceptance": "not_verified"
+}

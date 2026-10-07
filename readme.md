@@ -10,6 +10,21 @@ Local speech recognition defaults to [Parakeet Redux on CPU](docs/parakeet-redux
 The model is included when building the STT image; Whisper remains an explicit
 alternative. Native Windows CPU support is currently unverified for this model.
 
+The desktop [voice setup](docs/voice-improvements.md) adds microphone calibration,
+an adjustable end-of-speech pause, a local names dictionary, speaking to interrupt,
+and transient speech diagnostics.
+The [conversation and document workflow](docs/dialog-improvements.md) shares
+context between text and speech, asks targeted clarification questions, handles
+simple commands without the language model and reads selected PDFs, text files
+and screenshot text locally.
+The [daily assistance tools](docs/daily-assistance.md) verify application windows,
+correct timers, offer document reloads, run a reviewed work routine and read
+one explicitly selected window through local OCR.
+The [productivity extensions](docs/productivity-extensions.md) add explicitly
+saved work checkpoints, selected-text previews through a global shortcut,
+restart-safe timers, named routines with documents, a daily overview and
+confirmed conversational preferences.
+
 > Deployment status: code and local acceptance checks do not prove that a
 > particular Windows, ZimaOS, or Proxmox installation is ready. Target-host,
 > hardware, certificate, model, and provider checks are listed in the

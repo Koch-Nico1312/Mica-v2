@@ -8,6 +8,7 @@ from fastapi import (
     WebSocket,
 )
 from backend.services.common.audit import AuditLog
+from backend.services.common.dialog_sessions import DialogSessions
 from backend.services.common.approval_auth import LocalApprovalSessions
 from backend.services.common.brain import MarkdownBrain
 from backend.services.common.hindsight import HindsightMemory, selected_summary
@@ -151,6 +152,7 @@ class ApiRuntime(
     """One app's services, locks and sessions; no global runtime instances."""
 
     def __init__(self, data_dir=None, dependencies=None):
+        self.dialog_sessions = DialogSessions()
         environment = dict(os.environ)
         if data_dir is not None:
             root = Path(data_dir).resolve()

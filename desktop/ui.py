@@ -46,7 +46,7 @@ from PyQt6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSplitter,
     QStackedWidget, QTextEdit, QVBoxLayout, QWidget, QProgressBar, QStyle,
-    QGraphicsDropShadowEffect,
+    QGraphicsDropShadowEffect, QGridLayout,
 )
 
 from desktop.ui_pages import LocalPagesMixin
@@ -104,6 +104,9 @@ class MainWindow(LocalPagesMixin, QMainWindow):
     _confirm_sig    = pyqtSignal(str, str)   # (title, detail) — irreversible-action gate
     _confirm_hide_sig = pyqtSignal()
     _backend_update_sig = pyqtSignal(str, bool, str)
+    _workspace_sig = pyqtSignal(str)
+    _preference_offer_sig = pyqtSignal(dict)
+    _routine_documents_sig = pyqtSignal(list)
 
     def __init__(self, face_path: str):
         super().__init__()
@@ -145,6 +148,13 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         from desktop.core.preferences import remember_conversations
         self.remember_conversations = remember_conversations()
         self._current_file: str | None = None
+        self._attachment_overlay = None
+        self.on_new_conversation = None
+        self.on_workspace_operation = None
+        self._workspace_sig.connect(self._open_workspace)
+        self.on_preference_confirmation = None
+        self._preference_offer_sig.connect(self._offer_preference)
+        self._routine_documents_sig.connect(self._set_routine_documents)
         self._remote_overlay: RemoteKeyOverlay | None = None
         self._customize_overlay: CustomizeOverlay | None = None
         self._provider_backend_busy = False
@@ -796,6 +806,17 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         cw = self.centralWidget()
         center_x = _SHELL_MARGIN + _LEFT_W + _SHELL_GAP
         width = max(280, cw.width() - center_x - _RIGHT_W - _SHELL_MARGIN - _SHELL_GAP)
+        columns = 5 if width >= 850 else 3 if width >= 680 else 2
+        self._footer.setFixedHeight(152 + (math.ceil(5 / columns) - 1) * 28)
+        if hasattr(self, '_composer_tools') and columns != getattr(self, '_composer_tool_columns', None):
+            while self._composer_tools.count():
+                self._composer_tools.takeAt(0)
+            for index, button in enumerate(self._composer_tool_buttons):
+                self._composer_tools.addWidget(button, index // columns, index % columns)
+            for index in range(6):
+                self._composer_tools.setColumnStretch(index, 0)
+            self._composer_tools.setColumnStretch(columns, 1)
+            self._composer_tool_columns = columns
         self._footer.setGeometry(
             center_x,
             max(0, cw.height() - self._footer.height() - 22),
@@ -803,6 +824,8 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             self._footer.height(),
         )
         compact = width < 680
+        margin = 16 if compact else 70
+        self._footer.layout().setContentsMargins(margin, 10, margin, 10)
         if hasattr(self, '_composer_wave_left'):
             self._composer_wave_left.hide()
             self._composer_wave_right.setVisible(not compact)
@@ -1254,6 +1277,19 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         self._input.returnPressed.connect(self._send)
         self._input.file_dropped.connect(self._on_file_selected)
         row.addWidget(self._input)
+        self._attachments_button = QPushButton("Dateien")
+        self._attachments_button.setToolTip("Dateien für dieses Gespräch auswählen oder entfernen")
+        self._attachments_button.clicked.connect(self._open_attachments)
+        self._routine_button = QPushButton("Abläufe")
+        self._routine_button.setToolTip("Arbeitsmodus mit Programmen, Fokus-Timer und Mica-Ruhezeit festlegen")
+        self._routine_button.clicked.connect(self._open_work_routine)
+        self._screen_help_button = QPushButton("Fensterhilfe")
+        self._screen_help_button.setToolTip("Zuletzt verwendetes Fenster einmalig erfassen und als Gesprächskontext auswählen")
+        self._screen_help_button.clicked.connect(self._capture_window_help)
+        from desktop.core.screen_help import ForegroundTracker
+        self._foreground_tracker = ForegroundTracker(self)
+        self._foreground_tracker.captured.connect(self._preview_window_help)
+        self._foreground_tracker.failed.connect(lambda error: self._log.append_log("ERR: " + error))
 
         row.addWidget(self._composer_wave_right)
 
@@ -1388,7 +1424,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
 
     def _build_footer(self) -> QWidget:
         w = QWidget()
-        w.setFixedHeight(132)
+        w.setFixedHeight(152)
         w.setStyleSheet("background: transparent;")
         lay = QHBoxLayout(w); lay.setContentsMargins(70, 10, 70, 10); lay.setSpacing(0)
         composer = QWidget()
@@ -1444,25 +1480,155 @@ class MainWindow(LocalPagesMixin, QMainWindow):
                 border-radius: 24px;
             }}
         """)
-        input_container.setLayout(self._build_input_row())
+        input_row = self._build_input_row()
+        input_layout = QVBoxLayout(input_container)
+        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setSpacing(0)
+        input_layout.addLayout(input_row)
+        tools = QGridLayout()
+        self._composer_tools = tools
+        tools.setContentsMargins(12, 0, 12, 6)
+        tools.setSpacing(8)
+        self._workspace_button = QPushButton('Arbeitsstand')
+        self._workspace_button.clicked.connect(lambda: self._open_workspace('workspace_save'))
+        self._selection_button = QPushButton('Textauswahl')
+        self._selection_button.setToolTip('Strg+Alt+M im gewünschten Programm: markierten Text prüfen und bearbeiten')
+        from PyQt6.QtWidgets import QMenu
+        from desktop.core.text_selection import SelectionCapture, SelectionShortcut
+        self._selection_capture = SelectionCapture(self)
+        self._selection_capture.selected.connect(self._preview_selection)
+        self._selection_capture.failed.connect(lambda text: self._log.append_log('SYS: ' + text))
+        self._selection_shortcut = SelectionShortcut(self)
+        self._selection_shortcut.triggered.connect(self._selection_capture.capture)
+        QApplication.instance().aboutToQuit.connect(lambda: self._selection_shortcut.enable(False))
+        menu = QMenu(self._selection_button)
+        preview = menu.addAction('Kopierten Text prüfen und bearbeiten')
+        preview.triggered.connect(lambda: self._preview_selection(QApplication.clipboard().text()))
+        shortcut = menu.addAction('Globales Tastenkürzel Strg+Alt+M')
+        shortcut.setCheckable(True)
+        from desktop.core.local_state import DATA_DIR, read_json
+        try:
+            enabled = read_json(DATA_DIR / 'selection-shortcut.json').get('enabled') is True
+        except (OSError, ValueError, AttributeError):
+            enabled = True
+        shortcut.setChecked(self._selection_shortcut.enable(enabled))
+        self._selection_shortcut_action = shortcut
+        shortcut.setText('Globales Tastenkürzel ' + self._selection_shortcut.label)
+        self._selection_button.setToolTip(self._selection_shortcut.label + ' im gewünschten Programm: markierten Text prüfen und bearbeiten')
+        if enabled and not shortcut.isChecked():
+            self._selection_button.setToolTip('Strg+Alt+M konnte nicht registriert werden. Das Kürzel ist möglicherweise schon belegt; kopierten Text über das Menü verwenden.')
+        shortcut.toggled.connect(self._toggle_selection_shortcut)
+        self._selection_button.setMenu(menu)
+        self._composer_tool_buttons = (self._attachments_button, self._routine_button, self._screen_help_button, self._workspace_button, self._selection_button)
+        for index, button in enumerate(self._composer_tool_buttons):
+            button.setFont(QFont("Segoe UI", 8))
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setMinimumWidth(button.fontMetrics().horizontalAdvance(button.text()) + 18)
+            button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            tools.addWidget(button, 0, index)
+        input_layout.addLayout(tools)
         inner.addWidget(input_container, stretch=1)
         self._style_mute_btn()
         return w
 
     def _on_file_selected(self, path: str):
         self._current_file = path
-        p    = Path(path)
-        size = _fmt_size(p.stat().st_size)
-        self._input.setPlaceholderText(f"Datei bereit: {p.name} · {size}")
-        self._log.append_log(f"FILE: {p.name} ({size}) loaded")
-        if self.on_text_command:
-            msg = (
-                f"[FILE_UPLOADED] path={path} | name={p.name} | "
-                f"type={p.suffix.lstrip('.')} | size={size} | "
-                f"Briefly tell the user you can see the file '{p.name}' "
-                f"({size}) has been uploaded and ask what they'd like to do with it."
-            )
-            threading.Thread(target=self.on_text_command, args=(msg,), daemon=True).start()
+        self._input.setPlaceholderText(f"Datei lesen: {Path(path).name}")
+        self._open_attachments()
+        self._attachment_overlay.add_file(path)
+
+    def _open_work_routine(self):
+        from desktop.work_routine_dialog import WorkRoutineDialog
+        WorkRoutineDialog(self).exec()
+
+    def _open_workspace(self, kind):
+        if not self.remember_conversations:
+            self._log.append_log('SYS: Arbeitsstände benötigen den Modus mit Speicherung.')
+            return
+        if not self.on_workspace_operation:
+            return
+        from desktop.workspace_dialog import WorkspaceDialog
+        documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
+        WorkspaceDialog(self, self.on_workspace_operation, documents, prefer_load=kind == 'workspace_resume').exec()
+
+    def _offer_preference(self, draft):
+        if not self.remember_conversations or not self.on_preference_confirmation:
+            return
+        from desktop.preference_dialog import PreferenceDialog
+        PreferenceDialog(self, draft, self.on_preference_confirmation).exec()
+
+    def _set_routine_documents(self, documents):
+        self._open_attachments()
+        self._attachment_overlay.replace_documents(documents)
+        self._attachment_overlay.hide()
+
+    def _toggle_selection_shortcut(self, enabled):
+        from desktop.core.local_state import DATA_DIR, write_json
+        active = self._selection_shortcut.enable(enabled)
+        self._selection_shortcut_action.setText('Globales Tastenkürzel ' + self._selection_shortcut.label)
+        self._selection_button.setToolTip(self._selection_shortcut.label + ' im gewünschten Programm: markierten Text prüfen und bearbeiten')
+        try:
+            write_json(DATA_DIR / 'selection-shortcut.json', {'enabled': enabled})
+        except OSError as error:
+            self._log.append_log('ERR: Tastenkürzel-Einstellung konnte nicht gespeichert werden: ' + str(error))
+        if enabled and not active:
+            self._log.append_log('SYS: Strg+Alt+M ist nicht verfügbar; kopierten Text über Textauswahl verwenden.')
+
+    def _preview_selection(self, text):
+        operation = getattr(self, 'on_text_transform', None)
+        if not operation:
+            self._log.append_log('SYS: Textbearbeitung benötigt den lokalen Core.')
+            return
+        if not text.strip() or len(text) > 16000:
+            self._log.append_log('SYS: Bitte Text mit höchstens 16.000 Zeichen markieren oder kopieren.')
+            return
+        from desktop.text_selection_dialog import TextSelectionDialog
+        TextSelectionDialog(self, text, operation).exec()
+
+    def _capture_window_help(self):
+        self._foreground_tracker.capture_async()
+
+    def _preview_window_help(self, target, image):
+        from desktop.screen_help_dialog import ScreenHelpDialog
+        dialog = ScreenHelpDialog(target, image, self)
+        if dialog.exec():
+            self._open_attachments()
+            self._attachment_overlay.add_capture(image, target["title"])
+
+    def _open_attachments(self):
+        if self._attachment_overlay is None:
+            from desktop.attachment_overlay import AttachmentOverlay
+            self._attachment_overlay = AttachmentOverlay(parent=self.centralWidget())
+            self._attachment_overlay.changed.connect(self._attachments_changed)
+            self._attachment_overlay.new_conversation.connect(self._new_conversation)
+            self._attachment_overlay.modified.connect(self._documents_modified)
+            self._attachment_overlay.capture_ready.connect(self._window_text_ready)
+        self._centre_overlay(self._attachment_overlay)
+
+    def _attachments_changed(self, documents):
+        changed = self._attachment_overlay.changed_titles() if self._attachment_overlay else []
+        text = f"Dateien ({len(documents)})" if documents else "Dateien"
+        self._attachments_button.setText(text + (" · Geändert" if changed else ""))
+        tooltip = "Im Gespräch ausgewählt: " + ", ".join(doc["title"] for doc in documents) if documents else "Keine Dateien ausgewählt"
+        if changed:
+            tooltip += "\nGeändert: " + ", ".join(changed) + ". Unter Dateien ausdrücklich neu einlesen."
+        self._attachments_button.setToolTip(tooltip)
+
+    def _documents_modified(self, titles):
+        self._attachments_changed(self.selected_documents())
+        if titles:
+            self._log.append_log("SYS: Datei geändert: " + ", ".join(titles) + ". Unter Dateien kannst du sie neu einlesen.")
+
+    def selected_documents(self):
+        return self._attachment_overlay.snapshot() if self._attachment_overlay else []
+
+    def _window_text_ready(self, title):
+        if not self._input.text().strip():
+            self._input.setText(f"Erkläre die Fehlermeldung in „{title}“ und mögliche nächste Schritte.")
+
+    def _new_conversation(self):
+        if self.on_new_conversation:
+            threading.Thread(target=self.on_new_conversation, daemon=True).start()
 
     def notify_phone_connected(self) -> None:
         if self._remote_overlay and self._remote_overlay.isVisible():
@@ -1744,8 +1910,26 @@ class MainWindow(LocalPagesMixin, QMainWindow):
     def _open_audio_devices(self):
         ov = AudioDeviceOverlay(parent=self.centralWidget())
         ov.picked.connect(self._on_audio_devices_applied)
+        ov.voice_settings_requested.connect(self._open_voice_settings)
         self._centre_overlay(ov)
         self._audio_overlay = ov            # keep a reference so it isn't GC'd
+
+    def _open_voice_settings(self):
+        from desktop.voice_settings_overlay import VoiceSettingsOverlay
+        previous = getattr(self, "_voice_overlay", None)
+        if previous is not None:
+            self._centre_overlay(previous)
+            return
+        ov = VoiceSettingsOverlay(parent=self.centralWidget(),
+                                  can_record=getattr(self, "voice_ready_for_calibration", lambda: True))
+        ov.busy_changed.connect(self._voice_calibration_changed)
+        self._voice_overlay = ov
+        self._centre_overlay(ov)
+
+    def _voice_calibration_changed(self, busy):
+        callback = getattr(self, "on_voice_calibration_change", None)
+        if callback:
+            callback(busy)
 
     def _on_audio_devices_applied(self):
         self._log.append_log("SYS: Audio devices updated.")
@@ -1937,6 +2121,8 @@ class MainWindow(LocalPagesMixin, QMainWindow):
     # ── Clipboard intelligence ───────────────────────────────────────────────────
 
     def _on_clipboard_changed(self):
+        if getattr(getattr(self, '_selection_capture', None), 'busy', False):
+            return
         try:
             text = QApplication.clipboard().text().strip()
             if len(text) >= 10:

@@ -71,6 +71,12 @@ keys/models fail closed; input text and generated audio are never logged.
 
 ## Desktop device selection and recovery
 
+For microphone calibration, configurable end-of-speech pauses, exact name
+corrections, speaking to interrupt and transient diagnostics, see
+[Sprache einrichten](voice-improvements.md). These features are available in the
+native Audio Devices panel. Their physical microphone and speaker acceptance
+is still open.
+
 The local Core voice session resolves the saved microphone and speaker names
 for each new recording. An explicitly selected device that cannot be resolved
 blocks the session rather than silently recording through another microphone.

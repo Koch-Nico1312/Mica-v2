@@ -30,6 +30,11 @@ def create_app(data_dir=None, dependencies=None) -> FastAPI:
     """Construct isolated services and routers for each application."""
     runtime = ApiRuntime(data_dir=data_dir, dependencies=dependencies)
     app = FastAPI(title="MICA local API", version="0.1.0")
+    from backend.services.common.dialog_sessions import DialogCapacityError
+
+    @app.exception_handler(DialogCapacityError)
+    async def dialog_capacity_error(request, error):
+        return JSONResponse(status_code=429, content={"detail": str(error)})
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):

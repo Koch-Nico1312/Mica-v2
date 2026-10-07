@@ -32,6 +32,13 @@ days. Phase 1 is not complete while an item below remains unchecked.
 
 ## Human and production evidence still required
 
+- [ ] Run the [microphone setup](voice-improvements.md) with the production
+  microphone and actual voice; verify background noise, name corrections and
+  the preferred end-of-speech pause.
+- [ ] Verify speaking to interrupt with the production speakers/headset:
+  playback alone must not trigger a new turn, and actual speech must preserve
+  the beginning of the next utterance. Simulated duplex tests do not close this gate.
+
 - [ ] Compare `kokoro-df_kerstin.wav`, `qwen3-serena-de.wav` and `dii_de-DE.wav`
   in `.mica-data/workspace/artifacts/phase1-voice-samples` and confirm that Kokoro Kerstin should
   remain MICA's fixed voice.

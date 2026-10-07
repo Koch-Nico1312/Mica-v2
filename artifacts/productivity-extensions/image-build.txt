@@ -1,0 +1,62 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.python
+#1 transferring dockerfile: 1.46kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim
+#2 DONE 0.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 378B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 11.52kB done
+#4 DONE 0.0s
+
+#5 [ 1/11] FROM docker.io/library/python:3.12-slim@sha256:02108f5d322dd89f1c9e552442c25acb0543dfdbc455693a5599624f20d9155d
+#5 resolve docker.io/library/python:3.12-slim@sha256:02108f5d322dd89f1c9e552442c25acb0543dfdbc455693a5599624f20d9155d 0.0s done
+#5 DONE 0.0s
+
+#6 [ 7/11] RUN mkdir -p /opt/mica && python -c "from tree_sitter_language_pack import download_all; download_all()" && chown -R 65532:65532 /opt/mica
+#6 CACHED
+
+#7 [ 2/11] WORKDIR /app
+#7 CACHED
+
+#8 [ 5/11] RUN pip install --no-cache-dir -r /app/requirements.txt
+#8 CACHED
+
+#9 [ 6/11] RUN case "0" in       1|true|yes|on)         pip install --no-cache-dir "laya==0.3.20" &&         python -c "from huggingface_hub import snapshot_download; patterns=['rl_agent_config.json','model.safetensors','tokenizer/*','encoder/*','multilingual/rl_agent_config.json','multilingual/model.safetensors','multilingual/tokenizer/*','multilingual/encoder/*']; snapshot_download('convaiinnovations/laya', allow_patterns=patterns, local_dir='/opt/mica/laya-model')"         ;;     esac
+#9 CACHED
+
+#10 [ 3/11] RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [ 4/11] COPY backend/requirements.txt /app/requirements.txt
+#11 CACHED
+
+#12 [ 8/11] COPY backend/services /app/backend/services
+#12 CACHED
+
+#13 [ 9/11] COPY mica_shared /app/mica_shared
+#13 DONE 0.0s
+
+#14 [10/11] COPY backend/backup_restore.py /app/backend/backup_restore.py
+#14 DONE 0.0s
+
+#15 [11/11] COPY backend/web_ui /app/web_ui
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers 0.1s done
+#16 exporting manifest sha256:01d81ec200843c366bc77f00a5bbe7151c92e99bf77fba588e7e7c6be2f6246d 0.0s done
+#16 exporting config sha256:c186ef28175484d188103e5b96e9feed362daa5a4fffbb7ddd030f96a33228c5 0.0s done
+#16 exporting attestation manifest sha256:7a6af5ccfe4575ccff095613134dbf6d481e450ee02d36ed31bc58228b2e98d6 0.0s done
+#16 exporting manifest list sha256:518fc5407c06975851beb69a3da2da44ee3c051af5442eb8165e28155ddc6931 0.0s done
+#16 naming to docker.io/library/mica-mica-api:latest done
+#16 unpacking to docker.io/library/mica-mica-api:latest 0.1s done
+#16 DONE 0.3s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/qeufwchhftni4c4imycqj5vua

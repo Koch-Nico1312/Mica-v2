@@ -1,0 +1,14 @@
+{
+  "transcript": "Starte einen Timer für eine Sekunde.",
+  "reply": "Timer für 1 Sekunde gestartet.",
+  "audio_seconds": 3.05,
+  "audio_bytes": 146444,
+  "llm_called": false,
+  "timer_elapsed": true,
+  "source": "Synthetic German Hedda speech",
+  "date": "2026-10-05",
+  "stt": "Real Parakeet Redux Docker service",
+  "tts": "Real local TTS Docker service",
+  "physical_microphone_speaker_verified": false,
+  "api_image_id": "sha256:997f39b43823b13a8740dd5e18100bf2e5400edee4d52322396d8532bf621f91"
+}

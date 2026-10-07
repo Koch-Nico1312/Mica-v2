@@ -11,9 +11,11 @@ from desktop.local_main import LocalMica
 
 def _mica(*, muted: bool = False, voice_active: bool = False):
     mica = LocalMica.__new__(LocalMica)
+    mica._calibrating = False
     mica._restoring = False
-    mica.ui = SimpleNamespace(muted=muted, write_log=Mock())
-    mica.voice = SimpleNamespace(active=voice_active)
+    mica._reset_dialog = Mock()
+    mica.ui = SimpleNamespace(muted=muted, write_log=Mock(), _win=SimpleNamespace())
+    mica.voice = SimpleNamespace(active=voice_active, take_barge_audio=Mock(return_value=b""))
     mica.wake_word = SimpleNamespace(start=Mock(return_value=True), stop=Mock())
     return mica
 
@@ -73,3 +75,27 @@ def test_switching_off_memory_cancels_inflight_voice_recording():
     mica.voice.cancel = Mock()
     mica._privacy_changed(False)
     mica.voice.cancel.assert_called_once_with()
+
+
+def test_calibration_excludes_wake_word_and_automatic_recording(monkeypatch):
+    mica = _mica()
+    mica._calibrating = True
+    mica.voice.start = Mock()
+    monkeypatch.setenv("MICA_WAKE_WORD_ENABLED", "1")
+    mica._feature_changed("MICA_WAKE_WORD_ENABLED", True)
+    mica._wake_detected()
+    mica._voice_completed()
+    mica.voice.start.assert_not_called()
+    mica.wake_word.start.assert_not_called()
+
+
+def test_barge_in_hands_leading_audio_to_next_turn_but_mute_discards_it():
+    mica = _mica()
+    mica.voice.start = Mock()
+    mica.voice.take_barge_audio.return_value = b"leading audio"
+    mica._voice_completed()
+    mica.voice.start.assert_called_once_with(auto_finalize=True, initial_audio=b"leading audio")
+    mica.voice.start.reset_mock()
+    mica.ui.muted = True
+    mica._voice_completed()
+    mica.voice.start.assert_not_called()

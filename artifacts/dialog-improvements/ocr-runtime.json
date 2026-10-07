@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-05",
+  "source": "Real rendered Mica settings screenshot",
+  "image_sha256": "96fe3554ec59496f41cb93e662a183d57498c4c04b3faa81fc05f1450ad01ef1",
+  "recognized_characters": 979,
+  "expected_words_found": true,
+  "engine": "Windows OCR",
+  "network_used": false
+}

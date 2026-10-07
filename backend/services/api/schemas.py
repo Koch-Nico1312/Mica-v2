@@ -31,6 +31,8 @@ class ChatRequest(BaseModel):
     remember: bool = True
     conversation_mode: str = Field(default="personal", max_length=32)
     memory_mode: Literal["recall", "reflect"] = "recall"
+    dialog_context: str = Field(default="", max_length=90000)
+    response_style: Literal["brief", "normal", "detailed"] = "normal"
 
 
 class BrainDocumentUpdate(BaseModel):
@@ -46,11 +48,52 @@ class TurnRequest(BaseModel):
     dry_run: bool = True
     client: str = Field(default="pyqt", pattern="^(pyqt|pwa|voice)$")
     conversation_mode: str = Field(default="personal", max_length=32)
+    session_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    native_commands: bool = False
+    response_style: Literal["brief", "normal", "detailed"] = "normal"
 
     @field_validator("params")
     @classmethod
     def params_stay_bounded(cls, value: dict[str, Any]) -> dict[str, Any]:
         return bounded_mapping(value)
+
+
+class ContextDocument(BaseModel):
+    id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    title: str = Field(min_length=1, max_length=160)
+    body: str = Field(max_length=32000)
+    source: Literal["text", "pdf", "screenshot"]
+
+
+class DialogContextUpdate(BaseModel):
+    session_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    documents: list[ContextDocument] = Field(default_factory=list, max_length=8)
+
+    @field_validator("documents")
+    @classmethod
+    def bounded_documents(cls, documents):
+        if sum(len(doc.body) for doc in documents) > 64000:
+            raise ValueError("Ausgewählte Dokumente sind zusammen zu groß.")
+        if len({doc.id for doc in documents}) != len(documents):
+            raise ValueError("Dokumente dürfen nicht doppelt ausgewählt sein.")
+        return documents
+
+
+class TextTransformRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=16000)
+    operation: Literal['explain', 'summarize', 'translate', 'rewrite']
+    language: str = Field(default='Deutsch', min_length=1, max_length=80)
+
+
+class DialogResume(DialogContextUpdate):
+    task_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{32}$')
+    next_step: str = Field(default='', max_length=2000)
+
+
+class NativeCommandResult(BaseModel):
+    session_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    turn_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    reply: str = Field(min_length=1, max_length=2000)
 
 
 class ApprovalRequest(BaseModel):

@@ -1,0 +1,15 @@
+{
+  "transcript": "Nein, zehn Minuten statt fünf",
+  "reply": "Timer für 10 Minuten ab jetzt neu gestartet.",
+  "audio_seconds": 4.075,
+  "audio_bytes": 195644,
+  "llm_called": false,
+  "timer_changed_from_seconds": 300,
+  "timer_changed_to_seconds": 600,
+  "timer_correction_verified": true,
+  "source": "Synthetic German Hedda speech",
+  "date": "2026-10-05",
+  "stt": "Real local Parakeet Redux Docker service",
+  "tts": "Real local TTS Docker service",
+  "physical_microphone_speaker_verified": false
+}

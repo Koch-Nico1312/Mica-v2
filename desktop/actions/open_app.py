@@ -256,9 +256,20 @@ def open_app(
 
     try:
         if launcher(normalized):
+            if _SYSTEM == "Windows":
+                from desktop.core.window_observation import wait_for_app_window
+                from mica_shared.quick_commands import APP_NAMES
+                canonical = APP_NAMES.get(app_name.casefold(), normalized)
+                if not wait_for_app_window(canonical):
+                    return f"Could not confirm that {app_name} has an application window. The launch was requested."
             return f"Opened {app_name}."
         if normalized.lower() != app_name.lower():
             if launcher(app_name):
+                if _SYSTEM == "Windows":
+                    from desktop.core.window_observation import wait_for_app_window
+                    from mica_shared.quick_commands import APP_NAMES
+                    if not wait_for_app_window(APP_NAMES.get(app_name.casefold(), normalized)):
+                        return f"Could not confirm that {app_name} has an application window. The launch was requested."
                 return f"Opened {app_name}."
         return (
             f"Could not confirm that {app_name} launched. "

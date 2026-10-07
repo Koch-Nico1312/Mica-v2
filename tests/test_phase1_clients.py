@@ -24,7 +24,8 @@ class Phase1ClientTests(unittest.TestCase):
         client._request.assert_called_once_with(
             "POST",
             "/v1/turns",
-            json={"message": "Status?", "client": "pyqt", "conversation_mode": "monitoring", "remember": True},
+            json={"message": "Status?", "client": "pyqt", "conversation_mode": "monitoring", "remember": True,
+                  "session_id": client.dialog_id, "native_commands": True},
         )
 
     def test_profile_client_uses_local_profile_endpoints(self) -> None:

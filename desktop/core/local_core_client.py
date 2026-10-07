@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -29,6 +30,7 @@ class LocalCoreClient:
         configured_ca = ca_file or os.getenv("MICA_CORE_CA_FILE", "")
         self.verify: str | bool = str(Path(configured_ca).expanduser().resolve()) if configured_ca else True
         self.session = requests.Session()
+        self.dialog_id = uuid.uuid4().hex
         self.session.trust_env = False
         self._credential_error = ''
         if api_token is None:
@@ -78,6 +80,13 @@ class LocalCoreClient:
     def diagnostics(self) -> dict[str, Any]:
         return self._request("GET", "/v1/diagnostics", timeout=(3, 15))
 
+    def voice_health(self) -> dict[str, Any]:
+        return self._request("GET", "/v1/voice/health", timeout=(3, 12))
+
+    def calibrate_voice(self, audio: bytes) -> dict[str, Any]:
+        return self._request("POST", "/v1/voice/calibrate", data=audio,
+                             headers={"Content-Type": "application/octet-stream"}, timeout=(5, 120))
+
     def pause_plan(self, plan_id: str) -> dict[str, Any]:
         return self._request("PATCH", f"/v1/agent-plans/{plan_id}", json={"status": "paused"})
 
@@ -123,6 +132,8 @@ class LocalCoreClient:
                 "client": "pyqt",
                 "conversation_mode": conversation_mode,
                 "remember": remember,
+                "session_id": self.dialog_id,
+                "native_commands": True,
             })
         except Exception:
             timing.finish('failed')
@@ -130,6 +141,31 @@ class LocalCoreClient:
         timing.mark('reply')
         timing.finish('success')
         return result
+
+    def select_documents(self, documents: list[dict]) -> dict:
+        return self._request('POST', '/v1/dialog/context', json={'session_id': self.dialog_id, 'documents': documents})
+
+    def clear_dialog(self) -> dict:
+        result = self._request('DELETE', f'/v1/dialog/{self.dialog_id}')
+        self.dialog_id = uuid.uuid4().hex
+        return result
+
+    def workspace_context(self):
+        return self._request('GET', f'/v1/dialog/{self.dialog_id}/workspace')
+
+    def day_overview(self):
+        return self._request('GET', '/v1/day-overview')
+
+    def transform_text(self, text, operation, language='Deutsch'):
+        return self._request('POST', '/v1/text/transform', json={
+            'text': text, 'operation': operation, 'language': language})
+
+    def resume_workspace(self, task_id, next_step, documents=None):
+        return self._request('POST', '/v1/dialog/workspace/resume', json={
+            'session_id': self.dialog_id, 'task_id': task_id, 'next_step': next_step, 'documents': documents or []})
+
+    def record_native_result(self, turn_id: str, reply: str) -> dict:
+        return self._request('POST', '/v1/dialog/result', json={'session_id': self.dialog_id, 'turn_id': turn_id, 'reply': reply[:2000]})
 
     def login(self, secret: str) -> dict[str, Any]:
         return self._request("POST", "/v1/auth/approval-session", json={"secret": secret})
@@ -202,6 +238,7 @@ class LocalCoreClient:
                 "dry_run": dry_run,
                 "client": "pyqt",
                 "conversation_mode": conversation_mode,
+                "session_id": self.dialog_id,
             },
         )
 

@@ -18,6 +18,8 @@ pyperclip
 pygetwindow
 opencv-python
 numpy
+pypdf>=5.0,<7.0
+tzdata; sys_platform == "win32"
 mss
 send2trash
 youtube-transcript-api

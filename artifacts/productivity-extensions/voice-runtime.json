@@ -1,0 +1,46 @@
+{
+  "commands": [
+    {
+      "transcript": "Was steht heute an?",
+      "expected_kind": "day_overview",
+      "recognized_command": {
+        "kind": "day_overview"
+      },
+      "matches": true
+    },
+    {
+      "transcript": "Starte Ablaufschulmodus",
+      "expected_kind": "routine",
+      "recognized_command": {
+        "kind": "routine",
+        "name": "schulmodus"
+      },
+      "matches": true
+    },
+    {
+      "transcript": "Antworte bei technischen Fragen kürzer",
+      "expected_kind": "preference_offer",
+      "recognized_command": {
+        "kind": "preference_offer",
+        "key": "Antwortlänge",
+        "value": "kürzer",
+        "scope": "technical"
+      },
+      "matches": true
+    },
+    {
+      "transcript": "Mach dort weiter, wo wir aufgehört haben.",
+      "expected_kind": "workspace_resume",
+      "recognized_command": {
+        "kind": "workspace_resume"
+      },
+      "matches": true
+    }
+  ],
+  "all_commands_recognized": true,
+  "real_local_stt": true,
+  "real_local_tts_audio_bytes": 159644,
+  "synthetic_input": true,
+  "physical_microphone_speaker_verified": false,
+  "llm_used": false
+}

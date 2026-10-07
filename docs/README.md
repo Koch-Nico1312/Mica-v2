@@ -1,6 +1,6 @@
 # MICA documentation
 
-Documentation index for the repository as of 2026-10-04. The root
+Documentation index for the repository as of 2026-10-05. The root
 [`readme.md`](../readme.md) gives the short introduction; this page points to
 the operational and acceptance detail.
 
@@ -12,6 +12,10 @@ the operational and acceptance detail.
 - [Architecture remediation results](architecture-remediation.md): the seven October findings, verified changes and remaining deployment acceptance.
 - [Backend deployment](../backend/README.md): Windows, ZimaOS, Proxmox VM, preflight, backup, and deployment checks.
 - [Parakeet Redux STT](parakeet-redux.md): local CPU recognition, Docker setup, explicit Whisper alternative and Windows runtime limits.
+- [Sprache einrichten](voice-improvements.md): Mikrofontest, einstellbare Satzende-Pause, Namen, Unterbrechen und Sprachdiagnose.
+- [Gespräche und Dokumente](dialog-improvements.md): gemeinsame Text-/Sprachbezüge, gezielte Rückfragen, Befehle ohne Sprachmodell, Dateiauswahl und Antwortlänge.
+- [Alltagshilfe](daily-assistance.md): bestätigte Programmstarts, Timerkorrekturen, Dateiänderungen, konfigurierbarer Arbeitsmodus und gezielte Fensterhilfe.
+- [Arbeitsstände und Tageshilfe](productivity-extensions.md): gespeicherte Arbeitsstände, Textauswahl per Tastenkürzel, Timer über Neustarts, benannte Abläufe mit Dokumenten, Tagesübersicht und bestätigte Gesprächskorrekturen.
 - [Backend implementation audit](../backend/IMPLEMENTATION_STATUS.md): dated evidence snapshot and target-host work that remains. Treat its results as historical evidence for the date shown, not as proof of a currently running deployment.
 - [Dream-RSI and Laya](dream-rsi.md): optional self-improvement evaluation and local semantic scoring.
 - [Hindsight memory](hindsight.md): optional backend memory, source selection, explicit reflection, setup, API, and backup boundaries.

@@ -41,6 +41,14 @@ class HudTests(unittest.TestCase):
         self.assertEqual(self.window._view_stack.currentIndex(), 4)
         self.assertTrue(self.window._quick_drawer.isHidden())
 
+    def test_new_tools_leave_text_input_usable_at_minimum_size(self):
+        self.window.resize(960, 680)
+        self.window.show()
+        self.app.processEvents()
+        self.assertGreaterEqual(self.window._input.width(), 100)
+        self.assertTrue(self.window._routine_button.isVisible())
+        self.assertTrue(self.window._screen_help_button.isVisible())
+
     def test_state_mute_and_live_audio_are_kept_in_sync(self):
         self.window._apply_state("THINKING")
         self.assertEqual(self.window.hud.state, "THINKING")

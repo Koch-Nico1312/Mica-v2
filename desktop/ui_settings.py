@@ -578,6 +578,7 @@ class AudioDeviceOverlay(_HudOverlay):
     webcam'."""
 
     picked = pyqtSignal()      # emitted after Apply, when something changed
+    voice_settings_requested = pyqtSignal()
     _devices_ready = pyqtSignal(dict)
     _OW = 460
 
@@ -659,6 +660,11 @@ class AudioDeviceOverlay(_HudOverlay):
         lay.addWidget(note)
         self._device_status = note
 
+        voice_setup = QPushButton("Sprache einrichten: Mikrofontest, Satzende und Diagnose")
+        voice_setup.setMinimumHeight(34)
+        voice_setup.clicked.connect(self._voice_setup)
+        lay.addWidget(voice_setup)
+
         row = QHBoxLayout(); row.setSpacing(8)
         self._refresh_button = QPushButton()
         self._refresh_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
@@ -712,6 +718,10 @@ class AudioDeviceOverlay(_HudOverlay):
                 pass  # The parent window may have closed during enumeration.
 
         threading.Thread(target=discover, name="mica-audio-inventory", daemon=True).start()
+
+    def _voice_setup(self):
+        self.hide()
+        self.voice_settings_requested.emit()
 
     def _populate_devices(self, inventory: dict):
         for kind, box in (("input", self._in_box), ("output", self._out_box)):

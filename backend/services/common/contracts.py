@@ -65,6 +65,16 @@ class VoiceControl(BaseModel):
     ]
     conversation_mode: ConversationMode = "personal"
     remember: bool = True
+    session_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    native_commands: bool = False
+    response_style: Literal["brief", "normal", "detailed"] = "normal"
+    name_aliases: list[dict[str, str]] = Field(default_factory=list, max_length=32)
+
+    @field_validator("name_aliases")
+    @classmethod
+    def validate_names(cls, value):
+        from mica_shared.voice_names import validate_aliases
+        return validate_aliases(value)
 
     @field_validator("conversation_mode", mode="before")
     @classmethod

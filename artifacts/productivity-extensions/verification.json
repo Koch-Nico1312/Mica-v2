@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-05",
+  "status": "complete",
+  "full_suite": {"passed": 757, "subtests_passed": 79, "warnings": 2, "seconds": 193.96, "log": "full-tests.txt", "separately_verified_in_api_image": "backend/tests/test_chonkie_runtime.py", "covers_final_source": true},
+  "focused_suite": {"passed": 111, "warnings": 2, "seconds": 27.52, "log": "focused-tests.txt", "before_final_joined_routine_grammar_case": true},
+  "chonkie_image_tests": {"passed": 2, "log": "chonkie-tests.txt"},
+  "ruff": "passed",
+  "unused_import_checks": "passed",
+  "git_diff_check": "passed",
+  "repository_check": {"python_files": 313, "local_documentation_links": 131, "errors": 0},
+  "api_image": "sha256:518fc5407c06975851beb69a3da2da44ee3c051af5442eb8165e28155ddc6931",
+  "backend_runtime": "backend-runtime.json",
+  "windows_runtime": "windows-runtime.json",
+  "voice_runtime": "voice-runtime.json",
+  "render_runtime": "render-check.json",
+  "completion_audit": [
+    {"requirement": "Save and resume selected documents, current task and next step across restart", "status": "implemented_and_verified", "sources": ["desktop/core/workspace.py", "desktop/workspace_dialog.py", "desktop/local_main.py", "backend/services/api/routers/conversation.py"], "evidence": ["File roundtrip, retained snapshot when original missing, provenance and deletion tests", "Atomic API resume of task, documents and next step; nonexistent tasks rejected", "Built API image runtime test", "Actual rendered workspace.png"], "limits": "Explicit saved checkpoint; no automatic replay of pending actions"},
+    {"requirement": "Selected text through a global shortcut; explain, summarize, translate and rewrite as a preview", "status": "implemented_and_verified", "sources": ["desktop/core/text_selection.py", "desktop/core/selection_reader.ps1", "desktop/text_selection_dialog.py", "backend/services/api/routers/conversation.py"], "evidence": ["Actual global Windows shortcut and controlled external selection; clipboard preserved", "Four API operations in the built image", "No transform before button, explicit copy, cloud gate, password/empty/changed-window/size rejection tests", "Actual rendered text-preview.png"], "limits": "Protected apps or unsupported copy paths can require the manual copy fallback; real model answer quality is not proved by the controlled provider stub"},
+    {"requirement": "Timers retain their deadlines across application restart", "status": "implemented_and_verified", "sources": ["desktop/core/native_commands.py", "desktop/core/local_state.py", "desktop/local_main.py"], "evidence": ["Restart retains remaining duration, correction and cancellation", "Missed expiry reported once on reopen", "Competing process ownership rejected and released on shutdown", "Corrupt file preserved and write failure rolls back"], "limits": "No notification while Mica is closed; system time affects restored deadlines"},
+    {"requirement": "Named work routines with separate programs, documents and quiet periods", "status": "implemented_and_verified", "sources": ["desktop/core/work_routine.py", "desktop/work_routine_dialog.py", "desktop/local_main.py", "mica_shared/quick_commands.py"], "evidence": ["Legacy migration, profile switching and selected-name execution tests", "Configured documents prepared before program execution, applied after successful starts; missing file stops the routine", "Real Redux recognized the named routine command", "Actual rendered routine-top.png and routine-documents.png"], "limits": "Normal host approvals remain required; already opened applications are retained on subsequent failure"},
+    {"requirement": "Spoken day overview joins tasks, reminders and unfinished work with a starting suggestion", "status": "implemented_and_verified", "sources": ["backend/services/common/day_overview.py", "desktop/core/day_overview.py", "mica_shared/quick_commands.py"], "evidence": ["Vienna date boundary, overdue tasks, priorities, completed-task exclusion and disabled-store tests", "Windows reminder register included with honest delivery status", "Actual built API image read-only overview", "Real Redux transcription recognized the overview; real local TTS produced audio"], "limits": "Registered Windows reminders do not prove delivery; long overviews are visibly shortened"},
+    {"requirement": "Conversational corrections offer persistent preference confirmation", "status": "implemented_and_verified", "sources": ["mica_shared/quick_commands.py", "desktop/preference_dialog.py", "desktop/local_main.py"], "evidence": ["Exact grammar offers a draft without persistent write", "Existing authenticated local preference confirmation required", "Built API image preference confirmation", "Real Redux recognized the technical brevity correction", "Actual rendered preference.png"], "limits": "Defined explicit correction phrases; other wording remains ordinary conversation"}
+  ],
+  "full_productive_stack_started": false,
+  "real_free_form_model_quality_verified": false,
+  "physical_microphone_speaker_verified": false,
+  "unrelated_local_changes_preserved": true
+}

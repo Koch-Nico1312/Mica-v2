@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-05",
+  "full_suite": {"passed": 700, "subtests_passed": 79, "warnings": 2, "seconds": 271.95, "excluded": "backend/tests/test_chonkie_runtime.py"},
+  "latest_focused_suite": {"passed": 47, "seconds": 23.72, "covers_changes_after_full_suite_collection": true},
+  "backend_image_tests": {"passed": 2},
+  "repository_check": {"python_files": 293, "documentation_links": 115, "errors": 0},
+  "ruff": "passed",
+  "requirements": {
+    "shared_text_voice_context": "Document focus, follow-up search, session isolation and WebSocket tests",
+    "targeted_clarifications": "Document/task choices, browser choices and spoken ambiguous times",
+    "commands_without_llm": "Strict grammar, policy/failure/cancellation tests; real Redux/TTS timer with LLM unavailable",
+    "document_drop_and_selection": "Real PDF extraction, local Windows OCR proof and selection/removal tests",
+    "response_length": "Persisted preference and prompt/token-bound tests; action voice waits for execution result"
+  },
+  "runtime_proof": "runtime.json",
+  "ocr_proof": "ocr-runtime.json",
+  "limitations": ["Physical microphone and speaker acceptance remains open", "Physical volume/app effects were not accepted in this run", "Screenshots provide OCR text rather than general visual understanding", "Free-form model follow-up quality requires everyday evaluation", "Timers stop when the desktop app closes"]
+}
