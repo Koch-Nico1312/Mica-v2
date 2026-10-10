@@ -1,228 +1,158 @@
-# MICA Improvements – Arbeitsstand
+# MICA Improvements – Arbeits- und Prüfstand
 
-Auftrag: kontinuierliche praktische Verbesserungen bis **11.10.2026 09:00 Europe/Vienna**.
-Branch: `MICA-Improvements`; Basis beim Start: `e0c2133`.
-Goal bleibt bis zum geprüften Abschluss aktiv.
+Stand: **11.10.2026**. Verbesserungsbranch: **MICA-Improvements**.
+Basis des ersten Zyklus: `e0c2133`. Geplantes Arbeitsende: 09:00 Uhr, Europe/Vienna.
 
-## Organisation
+## Aktueller Status
 
-- Heartbeat-ID: `mica-verbesserungen-bis-09-uhr`, Prüfung jede Minute in diesem
-  Chat; Statusmails nur alle 20 Minuten nach gespeichertem Versandzeitpunkt.
-- Verifiziertes Gmail-Konto und Status-Empfänger: `kochnico1312@gmail.com`.
-- Autorisierter Instruktionsabsender: `kochn8322@gmail.com`.
-- Nur neue Mails seit `2026-10-10T22:02:00Z` verarbeiten. Tatsächliche Absender und
-  Authentifizierungsheader prüfen; bearbeitete IDs in privatem Laufzeitstand merken.
-- Privater Laufzeitstand: `.mica-data/improvement-run/status.json` (nicht committen).
-- Erste Startmail erfolgreich gesendet, Message-ID `1a127d8266aa3a83`.
-- Vor jedem Arbeitsblock aktuelle Zeit/Nutzungsgrenzen prüfen. Bei >=95% Verbrauch
-  eines relevanten Fensters keine Entwicklungsarbeit bis zu dessen Reset. Keine
-  Reset-Credits nutzen. Weitere Statusmails nur soweit Konto/Tools nutzbar bleiben.
-- Nach 09:00 keine neuen Features beginnen; Änderungen prüfbar abschließen,
-  Abschlusscheckpoint pushen, Abschlussmail senden, Heartbeat deaktivieren.
-- Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
-  Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
-- Authentifizierte neue Mail-Instruktion am 11.10. um 00:27: Jira bis zum
-  Nachmittag zurückstellen. In dieser Nacht keine weitere Jira-Anmeldung,
-  OAuth- oder Integrationsarbeit; veröffentlichten Stand bewahren. Jira-Zugang
-  ist damit keine Voraussetzung für die übrige Nachtarbeit.
+| Bereich | Stand |
+|---|---|
+| Erster Funktionszyklus | Zehn Funktionen im Quellcode und ihren Bedienwegen implementiert |
+| Breite Regression | 953 Tests und 79 Untertests bestanden; ein Integrationstest ausgeschlossen |
+| Text-/Codeaufbereitung | Zwei zusätzliche Tests mit den festgelegten Versionen bestanden |
+| Quellcode und Links | Ruff bestanden; nach Dokumentationsüberarbeitung 377 Python-Dateien und 164 lokale Links ohne Fehler geprüft |
+| Veröffentlichung | Alle bisherigen Änderungen auf GitHub; letzter Prüfcheckpoint `1d8e134` |
+| Bugbot | Echter Reviewer nicht verfügbar; Coding-Goal an dieser vorgeschriebenen Stufe blockiert |
+| Jira | Weitere Einrichtung und echte Kontoabnahme bis zum Nachmittag zurückgestellt |
+| Dokumentation | Einstieg, Übersicht, Bedienwege, Git-Stand und Prüfbericht überarbeitet; bisherige Einstiegslinks erhalten |
 
-## Erster Zyklus: 10 von 10 Features lokal implementiert
+Diese Angaben beschreiben Quellcode und ausgeführte Prüfungen. Sie bestätigen
+keine aktuell laufende Desktop-/Backend-Version, physische Audio-Abnahme oder
+Verbindung mit einem echten Jira-Konto. Der ausgeschlossene Integrationstest
+benötigt einen separat laufenden Dienst. Die echte Bugbot-Abnahme bleibt offen;
+erfolgreiche Tests sind keine Garantie einer vollständig fehlerfreien Codebase.
 
-### 1. Direkte Atlassian-Jira-MCP-Verbindung
+## Die zehn Funktionen
 
-- MICA im Alltag → Jira: E-Mail plus eingeschränkter API-Token, Windows Credential
-  Manager, Zugang entfernen, gespeicherten Zugang prüfen, Website auswählen.
-- Eigene offene Vorgänge per voreingestelltem JQL suchen, JQL ändern, Vorgang lesen.
-- Offizieller v2-Endpunkt, MCP-Initialisierung, Session-/Protokollheader, JSON/SSE,
-  feste Lesewerkzeugliste, keine automatischen Abfragen, Hintergrundarbeit,
-  Antwortlimits, sichere Fehlertexte und reine Textanzeige.
-- `docs/JIRA_MCP.md` erklärt Einrichtung und erforderliche Rechte.
-- **Validierung:** 33 Tests bestanden (neue MCP/UI-Verträge plus Secure Store und
-  bestehende Aufgabenübersicht); Ruff und Git-Diff-Prüfung bestanden.
-- **Evidenzgrenze:** mit Testtransport geprüft. Echte Atlassian-Anmeldung ist
-  mangels benutzereigener Zugangsdaten noch unbestätigt. Browser-OAuth sowie
-  Jira-Schreibaktionen sind noch nicht eingebaut. Diese Ergänzungen dürfen nicht
-  als bereits erledigt ausgegeben werden.
+Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
+Die ausführliche Bedienung steht unter [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md).
 
-### 2. Aufgaben nach Dringlichkeit und Fälligkeit ordnen
+| Nr. | Funktion und Bedienweg | Umfang und Grenzen |
+|---|---|---|
+| 1 | Betrieb → Jira | Lesende MCP-Verbindung über E-Mail und eingeschränkten API-Token im Windows Credential Manager. Website wählen, Vorgänge suchen/lesen; kein Browser-OAuth oder Jira-Schreiben. Zurückgestellt. |
+| 2 | Betrieb → Aufgaben | Priorität und Wiener Termine, Filter für heute/überfällig/hohe Priorität; Sortierung nach Dringlichkeit, Fälligkeit oder Titel. Auswahl bleibt an die Aufgaben-ID gebunden. |
+| 3 | Aufgaben → Markdown-Export | Genau die sichtbare Ansicht speichern; veralteten Stand kennzeichnen. Keine Aktionsparameter oder Ausführungsergebnisse. Atomischer Dateiaustausch. |
+| 4 | Chat: Einheiten umrechnen | Länge, Masse, Volumen, Fläche, Zeit und Temperatur mit Dezimalarithmetik. Offline-Desktop unterstützt; gemischte Dimensionen und Temperaturen unter dem absoluten Nullpunkt abgelehnt. |
+| 5 | Dateien → Infos / Suche | Wort-/Zeichenzahl, Absätze, geschätzte Lesedauer und wörtliche Suche in ausgewählten, bereits eingelesenen Texten. Änderungen/Kürzungen sichtbar; keine zusätzliche Dateilese- oder Modellanfrage. |
+| 6 | Jira → lokale Aufgabe | Vorgang nach Vorschau und Bestätigung lokal übernehmen. Feste Website/Vorgangs-Identität verhindert überschreibende Duplikate. Speicherung erforderlich; Jira bleibt unverändert. Zurückgestellt. |
+| 7 | Betrieb → Listen | Einkaufs-, Pack- und Checklisten lokal speichern, umbenennen, abhaken und nach Bestätigung entfernen. Revision, Prozesssperre und atomisches Schreiben schützen vorhandene Änderungen. |
+| 8 | Chat: Rechner/Prozentfragen | Grundrechenarten und Klammern mit begrenzter Dezimalarithmetik, ohne Ausdrucksausführung oder Modellanfrage. Beispiel: `rechne (5 + 3) * 2`. |
+| 9 | Betrieb → Kennwort | Lokal 12–128 Zeichen erzeugen, standardmäßig 20; maskierte Anzeige und ausdrückliches Kopieren. Anzeige/eigene unveränderte Kopie nach 60 Sekunden oder Seitenwechsel entfernen. Windows-Clipboard-Verlauf bleibt unberührt. |
+| 10 | Betrieb → Dateigrößen | Metadaten eines ausgewählten Ordners lesen, Größen summieren und größte 20 Dateien zeigen. Links/Reparse-Punkte überspringen, Abbruch und begrenzte Teilprüfungen; keine Inhalte öffnen oder Dateien verändern. |
 
-- Aufgabenübersicht zeigt Priorität und Termin in Wiener Zeit, markiert
-  überfällige offene Aufgaben und bietet Filter für heute/überfällig/hohe Priorität.
-- Sortierung nach Dringlichkeit, Fälligkeit oder Titel; ursprüngliche Reihenfolge
-  bleibt auswählbar. Ungeklärte Ausführungen stehen bei Dringlichkeit zuerst.
-- Selektion bleibt an Aufgaben-ID gebunden; Statusaktionen greifen auch nach
-  Umsortierung auf die richtige Aufgabe. Abgeschlossene Aufgaben gelten nicht als
-  überfällig. Ungültige Termine werden sichtbar, nicht still umgedeutet.
+Details zur bestehenden Jira-Anbindung: [Jira-MCP](JIRA_MCP.md).
+Beim lokalen Jira-Import ist die anfängliche 30-Minuten-Dauer ausdrücklich
+ein anpassbarer Platzhalter. Wechsel von Website oder Vorgangsnummer verwirft
+die Vorschau. Unbekannte Antwortformate werden nicht in geratene Aufgaben umgewandelt.
 
-### 3. Sichtbare Aufgaben als Markdown exportieren
+## Aktuelle Prüfergebnisse
 
-- Exportknopf in der Aufgabenübersicht speichert genau den gefilterten/sortierten
-  Stand lokal. Veralteter Backend-Stand wird im Dokument kenntlich gemacht.
-- Keine Aktionsparameter oder Ausführungsergebnisse; Text wird Markdown-sicher
-  maskiert. Ungeklärte Ergebnisse bleiben als Hinweis sichtbar.
-- Atomisches Speichern; bei Fehler bleibt vorhandene Datei unverändert.
+Der breite erfolgreiche Lauf umfasst `tests/` und die Backend-Prüfungen für
+TTS, Docker-Lernen sowie Deployment-Verträge. Ein separat erforderlicher
+Integrationstest war ausdrücklich ausgeschlossen. Ergebnis: **953 Tests und
+79 Untertests bestanden**, Laufzeit 224,96 Sekunden. Eine vorhandene
+Starlette-Testclient-DeprecationWarning bleibt.
 
-### 4. Einheiten lokal und ohne Sprachmodell umrechnen
+Für eine Wiederholung mit den erforderlichen Desktop-/Testabhängigkeiten:
 
-- Chatbefehle wie `2,5 kg in gramm`, `12 zoll in cm`, `32 fahrenheit in celsius`.
-- Länge, Masse, Volumen, Fläche, Zeit und Temperatur; Dezimalkomma, exakte
-  definierte Faktoren und kontrollierte Ergebnisdarstellung.
-- Kanonische Desktop-UI kann Umrechnungen auch offline und ohne Speicherung
-  beantworten. Backend-Chat beantwortet dieselben Befehle direkt für alle Clients.
-- Keine Modell-/Netzwerkanfrage für die Berechnung, kein Ausdrucks-Eval. Gemischte
-  Dimensionen und Temperaturen unter dem absoluten Nullpunkt erzeugen klare Fehler.
-- Neue Backend-Grammatik braucht für den bereits laufenden API-Dienst einen
-  Neubau/Neustart. Bisher Source-/Test-Beleg, keine Aktualisierung des laufenden Dienstes.
+```powershell
+pytest tests backend/tests/test_tts_service.py backend/tests/test_docker_learning_acceptance.py backend/tests/test_deployment_acceptance.py -q -m "not integration"
+```
 
-### Checkpoints und Prüfstand
+Die Text-/Codeaufbereitung wurde separat unter Windows mit exakt
+`chonkie[code]==1.7.0` und `tree-sitter-language-pack==1.8.1` geprüft:
+**zwei Tests bestanden**. Das ist kein Beleg einer Docker-Abnahme; der lokale
+Docker-Daemon war zu diesem Zeitpunkt nicht erreichbar.
 
-### 5. Dokumentinfos und Suche in ausgewählten Texten
+Ruff über sämtliche im Branch geänderten Python-Dateien bestand. Die letzte
+Konsistenzprüfung nach der Dokumentationsüberarbeitung erfasste 377 Python-Dateien
+und 164 lokale Dokumentationslinks ohne Fehler. Nach Dokumentationsänderungen
+wird die Linkprüfung erneut ausgeführt.
 
-- Unter Dateien → Infos / Suche: Wörter, Zeichen, Zeichen ohne Leerraum,
-  Absätze und ausdrücklich geschätzte Lesedauer für bereits eingelesene Texte.
-- Literaltextsuche über alle ausgewählten Dokumente, mit Textzeilen und
-  begrenzten Ausschnitten. Unausgewählte Dateien werden nicht einbezogen.
-- Gekürzte/geänderte Textversionen werden kenntlich gemacht. Keine neue
-  Dateilese-, Backend-, Modell- oder Cloud-Anfrage für die Prüfung.
-- `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` sind in der kanonischen
-  Desktop-UI auch offline und ohne Speicherung erreichbar.
-- Fünf zusätzliche Tests für Zählung, wörtliche Suche, Grenzen, sichtbare
-  Oberfläche und den tatsächlichen Offline-Desktop-Pfad bestanden. Zusammen mit
-  angrenzenden neuen Funktionen: 57 Tests und Ruff-Prüfung bestanden.
+### Nachgewiesene Fehler und Stabilisierung
 
-### 6. Jira-Vorgänge als lokale Aufgaben übernehmen
+- **Ordnerprüfung:** Ein nach der ersten Auflistung durch einen Link ersetzter
+  Unterordner wurde noch betreten. Jetzt werden die Metadaten unmittelbar vor
+  dem Betreten erneut ohne Linkverfolgung geprüft. Der zuvor fehlschlagende
+  Regressionstest besteht. Gleichzeitig veränderte Dateisysteme liefern
+  weiterhin keinen atomaren Schnappschuss.
+- **Checklisten:** Ein echter zweiter Python-Prozess kann während der Dateisperre
+  nicht schreiben. Nach Freigabe gelingt Schreiben wieder. Ein Fehler beim
+  atomaren Dateiaustausch erhält den alten Stand und entfernt die temporäre Datei.
+- **Zusammengesetzte Oberfläche:** Dynamische Speicherungsfreigabe, Entfernen
+  des Kennworts beim Tabwechsel und unterdrückte Backend-Aktualisierung auf lokalen
+  Seiten wurden geprüft. Tests konstruierten auch die Hauptoberfläche im Qt-Offscreen-Modus.
 
-- Nach Lesen eines einzelnen Vorgangs bietet die Jira-Seite einen lokalen
-  Aufgabenimport mit vollständiger Vorschau und Bestätigung an.
-- Quelle/Website, Vorgangsnummer, Titel und Text werden übernommen, keine
-  Jira-Schreibaktion. Status wird offen, Frist bleibt leer; die anfängliche
-  30-Minuten-Dauer ist als anpassbarer Platzhalter im Dialog sichtbar.
-- Feste Identität aus Website/Vorgangsnummer verhindert doppelte Übernahmen.
-  Bereits vorhandene lokale Änderungen werden atomisch erhalten.
-- Im Modus ohne Speicherung wird der Import abgelehnt. Wechsel von Vorgangsnummer
-  oder Website verwirft die Importvorschau. Text und ADF-Beschreibung unterstützt,
-  unbekannte/uneindeutige Antworten führen nicht zu einem geratenen Import.
-- Drei neue Tests sowie angrenzende Jira-, Dokument-, Aufgaben- und Offline-
-  Planungsprüfungen bestanden: **80 Tests**, Ruff und Diff-Prüfung bestanden.
+### Frühere Testläufe richtig lesen
 
-### Checkpoints und Prüfstand (Fortsetzung)
+Die folgenden Zahlen sind Zwischenstände mit überlappenden Tests. Sie werden
+**nicht** addiert und ersetzen den aktuellen breiten Lauf nicht.
 
-### 8. Lokaler Rechner und Prozentfragen
+| Zwischenstand | Ergebnis |
+|---|---|
+| Jira-Protokoll/UI, Secure Store und Aufgabenübersicht | 33 bestanden |
+| Dokumentinfos und angrenzende Funktionen | 57 bestanden |
+| Jira-Import und angrenzende Offline-/Planungsfunktionen | 80 bestanden |
+| Erste Checklisten-/UI-Prüfungen | 32 bestanden |
+| Rechner und angrenzende Funktionen | 73 bestanden |
+| Kennwort und angrenzende Funktionen | 41 bestanden |
+| Früher erweiterter Lauf plus zusätzlicher Offline-Umrechnungstest | 160 plus ein zusätzlicher Test bestanden |
+| Alle zehn Erweiterungen und angrenzende Funktionen | 231 bestanden |
+| Ordnerkorrektur und angrenzende Prüfungen | 30 bestanden |
+| Checklisten-Prozess-/Speicherfehler, Ordner und Kennwort | 12 bestanden |
+| Integrierte Alltag-Seiten, Hauptoberfläche und Startvertrag | 27 bestanden |
 
-- Chat/Offline-Desktop beantwortet `rechne (5 + 3) * 2`, `0,1 + 0,2` und
-  `Was sind 15 Prozent von 80` über eine feste Grammatik mit Dezimalarithmetik.
-- Keine Modell-/Netzwerkanfrage oder Codeauswertung. Nur Grundrechenarten und
-  Klammern; Zahl-/Größen-/Verschachtelungsgrenzen, verständliche Fehler bei null.
-- Desktop ohne Speicherung sowie echter FastAPI-Chatpfad für alle Clients geprüft.
-- 73 Tests mit Rechner, Checklisten, Umrechnung, Dialogen und Dokumentinfos bestanden.
+Im ersten erweiterten Lauf fehlten Testabhängigkeiten (`numpy`, `pypdf`,
+`uvicorn`); der Wiederholungslauf mit ihnen bestand. Im ersten breiten Lauf
+bestanden 940 Tests, ein Test scheiterte am in der isolierten Umgebung fehlenden
+`sounddevice`. Diese Abhängigkeit steht bereits im Projektmanifest. Der einzelne
+Test und anschließend der gesamte breite Lauf bestanden mit ihr; dafür wurde
+kein Produktcode geändert.
 
-### 9. Lokaler Kennwortgenerator ohne Chatprotokoll
+## Veröffentlichte Checkpoints
 
-- Unter MICA im Alltag → Kennwort: 12–128 Zeichen, standardmäßig 20,
-  optionale Sonderzeichen, Zufall aus `secrets`/OS, maskierte Anzeige.
-- Keine Speicherung in Chat, Dateien oder Backend. Kopieren nur auf Klick.
-- Anzeige und die noch unveränderte eigene Zwischenablagekopie werden nach
-  60 Sekunden oder Verlassen der Seite entfernt. Fremder neuer Clipboard-Text
-  bleibt erhalten; Windows-Clipboard-Verlauf wird ausdrücklich nicht als gelöscht behauptet.
-- Zwei neue Tests sowie angrenzende UI-/Rechner-/Listenprüfungen: 41 bestanden.
-- Quelle: https://docs.python.org/3/library/secrets.html
+| Commit | Inhalt |
+|---|---|
+| `c2cb11a` | Jira-MCP und lesende Desktop-Bedienung |
+| `3bdac36` | Aufgabenansicht, Markdown-Export und Umrechnung |
+| `0b498b9` | Dokumentinfos und lokale Suche |
+| `b724ecc` | Geprüfter lokaler Jira-Aufgabenimport |
+| `0d87440` | Arbeitsstand und Überwachungsorganisation |
+| `5f5b01f` | Lokale Checklisten |
+| `679d945` | Rechner und Kennwortgenerator |
+| `4e6a14a` | Dateigrößen und kombinierte Zehn-Funktions-Prüfung |
+| `35f2beb` | Erneute Prüfung wartender Ordner vor dem Betreten |
+| `19c9825` | Checklisten-Prozesssperre und atomare Speicherfehler |
+| `aed840c` | Integrierte Navigation, Datenschutz und Kennwort-Lebenszyklus |
+| `1d8e134` | Breiter erfolgreicher Prüfstand |
 
-### 7. Lokale Einkaufs-, Pack- und Checklisten
+## Fortsetzung und laufende Organisation
 
-- Unter MICA im Alltag → Listen: benannte Listen erstellen/umbenennen,
-  Einträge hinzufügen, abhaken/wieder öffnen und nach Bestätigung entfernen.
-- Listen liegen ausschließlich im lokalen Datenbereich und überstehen Neustarts.
-  Keine externe Ausführung, automatische Bestellung oder Versandaktion.
-- Prozesssperre, atomisches Schreiben und Revision verhindern überschreibende
-  Änderungen durch veraltete Fenster. Duplikate werden sichtbar abgelehnt.
-- Im Modus ohne Speicherung wird keine Änderung übernommen. Beschädigter
-  gespeicherter Stand wird nicht still ersetzt.
-- Vier neue Persistenz-/Fehler-/UI-Tests, zusammen mit angrenzenden Seiten
-  **32 Tests bestanden**; Ruff und Diff-Prüfung bestanden.
+Auf die neue Dokumentationsanweisung hin wurden die Projekt-README und der
+Dokumentationsindex nach konkreten Nutzerzielen neu geordnet und auf Deutsch
+formuliert. Die Alltagshilfe nennt die tatsächliche Navigation **Betrieb**.
+Git-Neustart vom 04.10. und heutige GitHub-Anbindung sind getrennt beschrieben.
+Dieser Bericht zeigt die aktuelle Abnahme zuerst und die früheren Zwischenstände
+gesondert. Alle vorherigen Linkziele der beiden Einstiegsseiten bleiben erreichbar.
 
-- Erster GitHub-Checkpoint: `c2cb11a`, Jira-Implementierung.
-- Weitere veröffentlichte Checkpoints: `3bdac36` (Aufgaben/Export/Umrechnung),
-  `0b498b9` (Dokumentinfos/Suche), `b724ecc` (Jira-Aufgabenimport).
-- Erweiterter kombinierter Prüfstand: **160 bestanden**, dazu ein separat
-  hinzugefügter Test der kanonischen Desktop-Umrechnung im Offline-Modus ohne
-  Speicherung: **1 bestanden**. Insgesamt 161 unterschiedliche geprüfte Tests.
-- Abgedeckt: neue Funktionen, Dialoge, native Befehle, tägliche Operationen,
-  Aufgabenübersicht, Credential-Manager-Grenze und Antwortzeitmessung. Der API-Pfad
-  der Umrechnung ist über den echten FastAPI-Testclient geprüft.
-- Ruff und Git-Diff-Prüfung bestanden. Eine vorhandene Starlette-Testclient-
-  DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
-- Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
-  pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–10 als lokal implementiert;
-  externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
+Der nächste Feature-Zyklus beginnt erst nach der angeforderten echten
+`review-bugbot`-Prüfung oder einer ausdrücklichen Änderung dieser Stufe durch
+den Nutzer. Ein allgemeiner Agent oder eine manuelle Prüfung wird nicht als
+Bugbot ausgegeben. Der technische Blocker wurde nach wiederholter Prüfung
+festgestellt; vorhandene unveränderte Tests werden nicht fortlaufend wiederholt.
 
-### 10. Ordner auf große Dateien prüfen
+Neue authentifizierte Instruktionen, einschließlich der separat beauftragten
+Dokumentationspflege, werden weiterhin bearbeitet. Statusmails werden alle
+20 Minuten anhand des letzten gespeicherten Versandzeitpunkts gesendet.
+Die letzte regelmäßige Mail ging um 00:42 Uhr heraus.
 
-- MICA im Alltag → Dateigrößen: ausgewählten lokalen Ordner im Hintergrund
-  durchlaufen, logische Dateigrößen summieren und die größten 20 Dateien anzeigen.
-- Nur Metadaten lesen; keine Inhalte öffnen, verschieben oder löschen. Links und
-  Windows-Reparse-Punkte überspringen. Abbruch, Eintrags-/Tiefen-/Zeitbudget und
-  nicht lesbare Bereiche ergeben sichtbar eine Teilprüfung.
-- Drei neue Tests für Inventar, Abbruch/Grenzen, Links und den erreichbaren UI-Pfad.
-- Gemeinsamer aktueller Lauf über alle zehn Erweiterungen und angrenzende
-  Alltags-, Offline-, API- und Credential-Prüfungen: **231 Tests bestanden**.
-  Ruff für die neue Funktion bestanden. Vorhandene Testclient-DeprecationWarning.
+Die Überwachung heißt `mica-verbesserungen-bis-09-uhr`. Private Mail-IDs,
+bearbeitete Instruktionen und Versandzeiten stehen ausschließlich im lokalen
+Laufzeitstand `.mica-data/improvement-run/status.json`, der nicht committet wird.
+Bei mindestens 95 Prozent Verbrauch eines relevanten Nutzungsfensters wird
+Entwicklungsarbeit erst nach dem zugehörigen Reset fortgesetzt; Reset-Credits
+werden nicht verwendet. Nach 09:00 werden keine neuen Funktionen begonnen;
+Abschlussprüfung, Veröffentlichung und Abschlussmail folgen, dann endet die Überwachung.
 
-## Nächste Auswahl
-
-Prüfe zuerst bestehende Funktionen und aktuellen Bedarf; keine Duplikate oder
-isolierten Prototypen als Features zählen. Sinnvolle Kandidaten: bessere
-Aufgabenpriorisierung, Projekt-Weiterarbeit, Jira-Ergebnisse als lokale Aufgaben,
-eine übersichtliche tägliche Arbeitsansicht und sichere Erinnerungen.
-Jede Funktion braucht einen erreichbaren UI-/Chat-Pfad und passende Prüfungen.
-
-## Offene Prüfstufe
-
-Der spezielle Bugbot-Subagent ist in dieser Sitzung nicht als Tool verfügbar.
-Nach zehn Features erneut geprüft: kein Bugbot-Werkzeug vorhanden. Der Skill
-`review-bugbot` verlangt den echten Reviewer; einen allgemeinen Agenten oder
-manuelle Prüfung niemals als Bugbot ausgeben. Keine garantierte Bugfreiheit
-behaupten. Gemeldete echte Befunde bearbeiten und erneute Prüfung dokumentieren.
-Der nächste Feature-Zyklus beginnt erst nach dieser Prüfstufe. Bis dahin weitere
-Verifikation und Stabilisierung des vorhandenen Zyklus; Live-Jira und laufende
-Backend-/Desktop-Version weiterhin separat offen.
-
-## Stabilisierung nach dem ersten Zyklus
-
-- Eigener Regressionstest zeigte: ein nach der ersten Auflistung durch einen
-  Link ersetzter Unterordner wurde noch betreten. Vor jedem queued Ordner jetzt
-  erneute Metadatenprüfung ohne Linkverfolgung. Der vorher fehlschlagende Test
-  besteht; zusammen mit angrenzenden Ordner-/Listen-/Kennwort-/Aufgabenprüfungen
-  **30 Tests bestanden**, Ruff bestanden.
-- Das Dateisystem liefert keinen atomaren Schnappschuss; gleichzeitige externe
-  Änderungen können weiterhin eine Teilansicht ergeben. Der Test ist eine eigene
-  Verifikation und kein Bugbot-Befund. Die echte Bugbot-Prüfstufe bleibt offen.
-- Checklisten zusätzlich mit echtem zweitem Python-Prozess geprüft: Schreiben
-  während aktiver Dateisperre wird abgelehnt, nach Freigabe gelingt es wieder.
-  Fehler beim atomaren Dateiaustausch erhält den bisherigen Stand und entfernt
-  die temporäre Datei. Beide neuen Prüfungen mit Ordner/Kennwort: **12 bestanden**.
-- Projektweite Konsistenzprüfung: **376 Python-Dateien**, **150 lokale
-  Dokumentationslinks**, **0 Fehler**. Das ist Syntax-/Link-Evidenz und keine
-  vollständige Laufzeit- oder Bugbot-Abnahme.
-- Korrektur der Ordnerprüfung auf GitHub veröffentlicht: `35f2beb`.
-- Zusammengesetzte Alltag-Seiten prüfen die dynamische Speicherungsfreigabe,
-  den Kennwort-Lebenszyklus beim echten Tabwechsel und unterdrückte Backend-
-  Aktualisierung auf der lokalen Seite. Mit Hauptoberflächen-/Navigations-/
-  Startvertrag-Prüfungen **27 Tests bestanden**. Hauptoberfläche wurde im
-  Qt-Offscreen-Test konstruiert; dies ist keine Live-Dienst-/Audio-Abnahme.
-- Die Bedienhilfe zu den neuen Funktionen ist im Dokumentationsindex verlinkt.
-- Breiter aktueller Lauf: gesamtes `tests/` plus Backend-TTS-, Docker-Lern-
-  und Deployment-Unitprüfungen, ohne separat erforderlichen Integrationstest:
-  **953 Tests und 79 Untertests bestanden**, **1 Test ausgeschlossen**.
-  Laufzeit 224,96 Sekunden; vorhandene Starlette-Testclient-DeprecationWarning.
-- Der erste breite Lauf hatte 940 bestandene Tests und einen Fehler, weil in
-  der isolierten Testumgebung `sounddevice` fehlte. Die Abhängigkeit steht bereits
-  im Projektmanifest. Der betroffene Empfangs-Timeout-Test bestand mit ihr;
-  anschließend bestand der gesamte Wiederholungslauf. Kein Produktcode dafür geändert.
-- Chonkie-/CodeChunker-Runtime mit exakt `chonkie[code]==1.7.0` und
-  `tree-sitter-language-pack==1.8.1`: **2 Tests separat bestanden** unter Windows.
-  Keine Docker-Runtime-Abnahme: lokaler Docker-Daemon war nicht erreichbar.
-- Ruff über sämtliche im Branch geänderten Python-Dateien bestanden; aktuelle
-  Konsistenzprüfung: **377 Python-Dateien, 151 lokale Dokumentationslinks, 0 Fehler**.
-- Regelmäßige Statusmail um 00:42 Uhr gesendet. Echte Bugbot-Abnahme weiterhin
-  offen; die erfolgreichen Prüfungen ersetzen diesen Reviewer nicht.
+Zugangsdaten, Datenbanken, Modelle, virtuelle Umgebungen und private Mailinhalte
+werden nicht als Projekt-Checkpoints veröffentlicht.

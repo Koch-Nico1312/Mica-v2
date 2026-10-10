@@ -1,8 +1,29 @@
 # Neue Alltagshilfen
 
+Stand: **11.10.2026**. Öffne in der linken Navigation **Betrieb**.
+Die dortige Seite heißt „MICA im Alltag“. Wähle anschließend den passenden Reiter.
+Rechenbefehle gibst du im Chat ein; Dokumentinfos erreichst du über **Dateien**.
+
+| Dein Ziel | Wo? | Beispiel oder Ergebnis |
+|---|---|---|
+| Offene Aufgaben priorisieren | Betrieb → Aufgaben | Heute fällig, überfällig oder hohe Priorität |
+| Angezeigte Aufgaben mitnehmen | Betrieb → Aufgaben | Sichtbare Aufgaben als Markdown speichern |
+| Einheiten umrechnen | Chat | `12 Zoll in cm` |
+| Rechnen oder Prozentwert bestimmen | Chat | `Was sind 15 Prozent von 80` |
+| Wörter zählen oder Text suchen | Dateien → Infos / Suche | Wortzahl oder Treffer mit Textzeile |
+| Einkauf oder Reise vorbereiten | Betrieb → Listen | Einträge hinzufügen und abhaken |
+| Ein Kennwort erzeugen | Betrieb → Kennwort | Maskiertes Kennwort, auf Klick kopieren |
+| Große Dateien finden | Betrieb → Dateigrößen | Größte 20 Dateien eines ausgewählten Ordners |
+
+Aufgaben aus dem Backend benötigen eine Verbindung für einen aktuellen Stand.
+Rechner, Umrechnung, Dokumentinfos, Kennwortgenerator und Ordnerprüfung arbeiten
+lokal. Listenänderungen benötigen den Modus mit Speicherung. Die
+[Jira-Anbindung](JIRA_MCP.md) wird separat beschrieben und ist bis zum Nachmittag
+zurückgestellt. Der [Prüfstand](MICA_IMPROVEMENTS_PROGRESS.md) zeigt die Testbelege.
+
 ## Aufgaben im Blick
 
-Unter **MICA im Alltag → Aufgaben** kannst du den Aufgabenstand nach Dringlichkeit,
+Unter **Betrieb → Aufgaben** kannst du den Aufgabenstand nach Dringlichkeit,
 Fälligkeit oder Titel sortieren. Priorität und Termine sind in der Tabelle sichtbar.
 **Heute fällig oder überfällig**, **Überfällig** und **Hohe Priorität** zeigen die
 passenden offenen Aufgaben. Termine verwenden die Zeitzone Europe/Vienna.
@@ -50,7 +71,7 @@ Zählung auch im Offline-Desktop und im Modus ohne Speicherung an.
 
 ## Lokale Listen
 
-Unter **MICA im Alltag → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
+Unter **Betrieb → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
 Einträge lassen sich abhaken und wieder öffnen. Zum Entfernen eines Eintrags
 oder einer ganzen Liste bestätigst du die Auswahl ausdrücklich.
 
@@ -69,7 +90,7 @@ Klammern, mit höchstens zwölf signifikanten Stellen in der Ergebnisanzeige.
 
 ## Kennwort erzeugen
 
-Unter **MICA im Alltag → Kennwort** erzeugst du ein zufälliges Kennwort lokal.
+Unter **Betrieb → Kennwort** erzeugst du ein zufälliges Kennwort lokal.
 Die Anzeige ist zunächst maskiert; **Kopieren** übernimmt es auf deinen Klick
 in die Zwischenablage. MICA speichert das Kennwort nicht im Chat oder in Dateien.
 Nach 60 Sekunden oder beim Verlassen der Seite entfernt MICA die Anzeige und
@@ -78,7 +99,7 @@ bleibt davon unberührt. Vorher neu kopierter fremder Text wird nicht gelöscht.
 
 ## Große Dateien finden
 
-Unter **MICA im Alltag → Dateigrößen** wählst du einen Ordner aus. MICA zeigt
+Unter **Betrieb → Dateigrößen** wählst du einen Ordner aus. MICA zeigt
 die gefundenen logischen Dateigrößen und die größten 20 Dateien an. Es liest
 Dateinamen und Größen, ohne Dateiinhalte zu öffnen oder Dateien zu verändern.
 Links und Windows-Reparse-Punkte werden übersprungen; UNC-Netzwerkfreigaben

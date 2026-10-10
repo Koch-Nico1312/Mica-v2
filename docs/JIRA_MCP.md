@@ -1,6 +1,10 @@
 # Jira in MICA
 
-Im Bereich **MICA im Alltag → Jira** kannst du dein Atlassian-Konto verbinden,
+Stand: **11.10.2026**. Weitere Jira-Arbeit und die Verbindung mit einem echten
+Konto sind bis zum Nachmittag zurückgestellt. Die bereits implementierte
+Anbindung bleibt erhalten; diese Anleitung beschreibt ihren aktuellen Umfang.
+
+Im Bereich **Betrieb → Jira** (Seite „MICA im Alltag“) kannst du dein Atlassian-Konto verbinden,
 Websites auswählen, deine offenen Vorgänge suchen und einzelne Vorgänge lesen.
 Die Abfragen starten auf Klick und laufen im Hintergrund, ohne die Oberfläche zu blockieren.
 
@@ -31,6 +35,7 @@ Bei 401/403 prüfe Token, Scopes, MCP-Freigabe und die IP-Regeln deiner Organisa
 MICA veröffentlicht keine Token oder Server-Fehlertexte in Diagnosemeldungen.
 
 Offizielle Quellen:
+
 - [Atlassian MCP und Token-Authentifizierung](https://atlassian.github.io/atlassian-mcp-server/)
 - [Werkzeuge und Scopes](https://support.atlassian.com/atlassian-ai-gateway/docs/supported-tools/)
 - [MCP-Transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)

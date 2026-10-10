@@ -1,69 +1,104 @@
-# MICA documentation
+# MICA-Dokumentation
 
-Documentation index for the repository as of 2026-10-05. The root
-[`readme.md`](../readme.md) gives the short introduction; this page points to
-the operational and acceptance detail.
+Stand des Einstiegs: **11.10.2026**. Für den ersten Start beginne mit der
+[Projekt-README](../readme.md). Wähle danach die Anleitung für dein konkretes Ziel.
+Das Datum jeder Detailseite zeigt, auf welchen Arbeitsstand sich ihre Prüfergebnisse beziehen.
 
-## Start here
+## Schnell zur passenden Anleitung
 
-- [Project overview](Projekt-Übersicht.md): runtimes, capabilities, and setup boundaries.
-- [Architecture](Architektur.md): current desktop/backend layout, data flow, and trust boundaries.
-- [API and LAN access](api-access.md): API tokens, browser login, credentials and verification boundaries.
-- [Architecture remediation results](architecture-remediation.md): the seven October findings, verified changes and remaining deployment acceptance.
-- [Backend deployment](../backend/README.md): Windows, ZimaOS, Proxmox VM, preflight, backup, and deployment checks.
-- [Parakeet Redux STT](parakeet-redux.md): local CPU recognition, Docker setup, explicit Whisper alternative and Windows runtime limits.
-- [Sprache einrichten](voice-improvements.md): Mikrofontest, einstellbare Satzende-Pause, Namen, Unterbrechen und Sprachdiagnose.
-- [Gespräche und Dokumente](dialog-improvements.md): gemeinsame Text-/Sprachbezüge, gezielte Rückfragen, Befehle ohne Sprachmodell, Dateiauswahl und Antwortlänge.
-- [Aufmerksamkeit und interne Zustände](cognition.md): CPU-Zusatzschicht neben dem lokalen Modell, relevantes Gedächtnis, Gesprächsfokus, beobachtbare Antwortfehler und bedienbare Zustände.
-- [Alltagshilfe](daily-assistance.md): bestätigte Programmstarts, Timerkorrekturen, Dateiänderungen, konfigurierbarer Arbeitsmodus und gezielte Fensterhilfe.
-- [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md): Aufgabenfilter und Export, Umrechnung, Rechner, Dokumentinfos/Suche, lokale Listen, Kennwörter und Dateigrößen.
-- [Projektassistenz](project-assistance.md): mehrere Projektstände, belegte Dokumenttextstellen, Dateivergleiche, Fenster-Bedienelemente, Timer bei geschlossener Oberfläche und Projektgedächtnis auf Zuruf.
-- [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): bedienbare Erinnerungen, Dokumentaufgaben, Routinen im Gespräch, Diktatkorrekturen, Lernkarten und Projektfortschritt.
-- [Tagesplanung, Offline und Ergebnisprüfung](planning-offline-results.md): Zeitfenster und Pausen, bearbeitbare Schrittfolgen, belegte Datei-/Fensterprüfung, geprüfter Offline-Abgleich und Projekt-Export als Markdown.
-- [Flexible Planung und Projektfortsetzung](planning-extensions.md): Änderungs-Vorschau, direkte Projektfortsetzung, lesender ICS-Kalender, Aufgabenprüfkriterien und Lernblöcke aus Wiederholungsbedarf.
-- [Arbeitsstände und Tageshilfe](productivity-extensions.md): gespeicherte Arbeitsstände, Textauswahl per Tastenkürzel, Timer über Neustarts, benannte Abläufe mit Dokumenten, Tagesübersicht und bestätigte Gesprächskorrekturen.
-- [Backend implementation audit](../backend/IMPLEMENTATION_STATUS.md): dated evidence snapshot and target-host work that remains. Treat its results as historical evidence for the date shown, not as proof of a currently running deployment.
-- [Dream-RSI and Laya](dream-rsi.md): optional self-improvement evaluation and local semantic scoring.
-- [Hindsight memory](hindsight.md): optional backend memory, source selection, explicit reflection, setup, API, and backup boundaries.
-- [Daily operations implementation progress](daily-operations.md): desktop tasks, diagnostics, action history and backend memory controls; remaining recovery and backup work.
-- [Archived runtime](../legacy/README.md): Gemini Live, bundled plugins, old dashboard and inactive core modules.
-- [Historical self-source access](self-source-access.md): the archived Gemini Live editing tool; not part of the native Core runtime.
-- [Advanced agents](ADVANCED_AGENTS.md): legacy desktop agent components where still applicable; the current runtime boundaries are described in [Architecture](Architektur.md).
+| Ich möchte … | Hier weiterlesen |
+|---|---|
+| MICA oder das Backend einrichten | [Projektübersicht](Projekt-Übersicht.md), [Backend-Einrichtung](../backend/README.md) |
+| Verbindung, Zertifikate oder Zugang prüfen | [API und LAN-Zugriff](api-access.md), [Betrieb und Diagnose](daily-operations.md) |
+| Mikrofon und Sprachbedienung einstellen | [Sprache einrichten](voice-improvements.md), [Parakeet/Whisper](parakeet-redux.md) |
+| Mit Dokumenten und Gesprächen arbeiten | [Gespräche und Dokumente](dialog-improvements.md) |
+| Rechnen, Listen führen, Dateien oder Aufgaben prüfen | [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md) |
+| Den aktuellen Verbesserungs- und Prüfstand sehen | [MICA Improvements](MICA_IMPROVEMENTS_PROGRESS.md) |
+| Quellcode sichern oder aktualisieren | [Git und Updates](Git-Vorbereitung.md), [Repository-Pflege](repository-maintenance.md) |
+
+## Bedienung im Alltag
+
+- [Alltagshilfe](daily-assistance.md): Programmstarts prüfen, Timer korrigieren,
+  Dateiänderungen erkennen, Arbeitsmodus und gezielte Fensterhilfe nutzen.
+- [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md): Aufgabenfilter und Markdown-Export,
+  Umrechnung, Rechner, Dokumentinfos/Suche, Listen, Kennwörter und Dateigrößen.
+- [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): Erinnerungen,
+  Dokumentaufgaben, Routinen, Diktatkorrekturen, Lernkarten und Projektfortschritt.
+- [Tagesplanung, Offline und Ergebnisprüfung](planning-offline-results.md):
+  Zeitfenster, Pausen, bearbeitbare Schritte und ausdrücklicher Offline-Abgleich.
+- [Flexible Planung und Projektfortsetzung](planning-extensions.md):
+  Planänderungen mit Vorschau, Projektfortsetzung, ICS-Kalender und Lernblöcke.
+- [Projektassistenz](project-assistance.md): Projektstände, Textbelege,
+  Dateivergleiche, Fensterbedienung und Projektgedächtnis.
+- [Arbeitsstände und Tageshilfe](productivity-extensions.md): gespeicherte
+  Arbeitsstände, Textauswahl, dauerhafte Timer, Abläufe und Tagesübersicht.
+- [Aufmerksamkeit und interne Zustände](cognition.md): Gesprächsfokus,
+  relevantes Gedächtnis und beobachtbare Antwortfehler.
+
+## Einrichtung und Technik
+
+- [Architektur](Architektur.md): Desktop, Backend, Datenfluss und Berechtigungsgrenzen.
+- [Backend-Einrichtung](../backend/README.md): Windows, ZimaOS, Proxmox und Prüfungen.
+- [API und LAN-Zugriff](api-access.md): API-Token, Browser-Zugang und Zertifikate.
+- [Parakeet Redux STT](parakeet-redux.md): CPU-Erkennung, Docker, Whisper-Alternative
+  und Einschränkungen des nativen Windows-Modellpfads.
+- [Betrieb und Diagnose](daily-operations.md): Aufgaben, Aktionsverlauf,
+  Backups, Wiederherstellung und Backend-Gedächtnis.
+- [Jira-MCP](JIRA_MCP.md): bestehende lesende Anbindung und lokaler Aufgabenimport;
+  weitere Einrichtung und Kontoabnahme sind bis zum Nachmittag zurückgestellt.
+- [Lernen und Weiterentwicklung](evolution.md): bestätigte Vorlieben,
+  Fähigkeitslücken, Skill-Werkstatt und begrenzte Artefakt-Reparaturen.
+- [Dream-RSI und Laya](dream-rsi.md): optionale Bewertung und Weiterentwicklung.
+- [Hindsight](hindsight.md): optionales Gedächtnis, Quellen, Reflexionen und Backups.
+- [Repository-Pflege](repository-maintenance.md): Dateien, lokale Checks und sichere Pflege.
 
 ## Phasen und Abnahme
 
-These documents distinguish implemented code, automated checks, local runtime
-evidence, and acceptance that still requires a target machine or external
-service. A feature flag being present or enabled is not deployment proof.
+**Implementiert** bedeutet, dass der Code und sein Bedienweg vorhanden sind.
+**Automatisiert geprüft** nennt die tatsächlich ausgeführten Tests.
+**Auf dem Zielgerät bestätigt** braucht Belege von der konkreten Installation,
+etwa für Audio, Modelle, Zertifikate oder ein externes Konto.
 
-- [Phase 0: local core](phase0-acceptance.md)
-- [Phase 1: voice](phase1-acceptance.md) and [voice policy](phase1-voice.md)
-- [Phase 2: learning and research](phase2-acceptance.md) and [operating guide](phase2-learning.md)
-- [Phase 3A: automation](phase3a-acceptance.md)
-- [Phase 4: bounded planning and server operations](phase4-acceptance.md)
-- [Phase 4.5: perception and presence](phase4.5-acceptance.md)
-- [Hindsight CPU pilot, 2026-09-30](../artifacts/hindsight-pilot/acceptance.md): real-server storage, retrieval, reflection, outage, restart, correction, and deletion checks; three-example quality and latency comparison. Default activation remains off.
+Die folgenden Seiten dokumentieren Prüfwege und datierte Ergebnisse. Eine
+aktivierte Einstellung oder ein historisch grüner Test ersetzt keine aktuelle
+Abnahme auf deinem Zielgerät.
 
-The acceptance pages are snapshots and may describe work performed on a
-particular machine. Re-run their stated checks against the intended deployment
-before treating a gate as passed.
+- [Phase 0: lokaler Core](phase0-acceptance.md)
+- [Phase 1: Sprache](phase1-acceptance.md) und [Sprachrichtlinie](phase1-voice.md)
+- [Phase 2: Lernen und Recherche](phase2-acceptance.md) und [Bedienung](phase2-learning.md)
+- [Phase 3A: Automatisierung](phase3a-acceptance.md)
+- [Phase 4: Planung und Serverbetrieb](phase4-acceptance.md)
+- [Phase 4.5: Wahrnehmung und Präsenz](phase4.5-acceptance.md)
+- [Backend-Implementierungsbericht](../backend/IMPLEMENTATION_STATUS.md):
+  datierter Stand und noch erforderliche Prüfungen auf dem Zielgerät.
+- [Architektur-Korrekturen](architecture-remediation.md): sieben Oktober-Befunde,
+  Korrekturen und verbleibende Betriebsprüfungen.
+- [Hindsight-Pilot vom 30.09.2026](../artifacts/hindsight-pilot/acceptance.md):
+  echter Server, Ausfall/Wiederherstellung und begrenzter Qualitätsvergleich.
+  Die Standardaktivierung bleibt aus.
 
-## Design and change records
+## Sicherheit und Änderungshistorie
 
-- [Cloud-provider security](cloud-provider-security.md)
-- [Monthly security review](monthly-security-review.md)
-- [Architecture decision: Phase 0 local core](decisions/0001-phase0-local-core.md)
-- [Dream-RSI decisions and implementation](decisions/20.09.26-100-points-decisions.md), [implementation record](20.09.26-100-points-implementation.md), and [analysis](decisions/20.09.26-100-points-analysis.md)
-- [50-point decisions](decisions/20.09.26-50-points-decisions.md) and [implementation record](20.09.26-50-points-implementation.md)
-- [Git preparation](Git-Vorbereitung.md)
-- [Repository maintenance](repository-maintenance.md): layout, safe cleanup, and local checks.
-- [Code efficiency refactor](code-efficiency.md): changes, local measurements, regression checks and limits.
-- [Historical design QA](design-qa.md): dated UI evidence; the original local captures may be unavailable.
+- [Cloud-Anbieter und private Inhalte](cloud-provider-security.md)
+- [Monatliche Sicherheitsprüfung](monthly-security-review.md)
+- [Git, Sicherungen und Updates](Git-Vorbereitung.md)
+- [Effizienzänderungen und Messungen](code-efficiency.md)
+- [Architekturentscheidung: lokaler Core](decisions/0001-phase0-local-core.md)
+- [Dream-RSI-Entscheidungen](decisions/20.09.26-100-points-decisions.md),
+  [Umsetzung](20.09.26-100-points-implementation.md) und
+  [Analyse](decisions/20.09.26-100-points-analysis.md)
+- [50-Punkte-Entscheidungen](decisions/20.09.26-50-points-decisions.md) und
+  [Umsetzung](20.09.26-50-points-implementation.md)
+- [Historische UI-Prüfung](design-qa.md): damalige Bild-/Oberflächenbelege.
 
-Older dated change records are retained as history. For current behavior, prefer
-the source files and the operational guides linked above.
+## Archivierte Funktionen
 
+Der normale Start verwendet den aktuellen Desktop-/Backend-Pfad. Die folgenden
+Seiten beschreiben frühere Laufzeiten oder deren Bestandteile:
 
-## Lernen und Weiterentwicklung
+- [Archivierter Gemini-Live-Pfad](../legacy/README.md)
+- [Historischer Selbstquellcode-Zugriff](self-source-access.md)
+- [Erweiterte Agenten](ADVANCED_AGENTS.md)
 
-Der lokale Bereich **Weiterentwicklung** verbindet bestätigte Vorlieben, erkannte Fähigkeitslücken, eine Skill-Werkstatt mit unabhängigen Qualitätsvergleichen und begrenzte Reparaturen versionierter Code-Artefakte. Nutzung, Grenzen und API stehen in [Lernen und Weiterentwicklung](evolution.md).
+Für das heutige Verhalten haben aktueller Quellcode und die passende
+Bedienungsanleitung Vorrang vor älteren Änderungstagebüchern.
