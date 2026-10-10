@@ -104,6 +104,14 @@ Wähle **Neue Notiz**, gib Titel und Text ein und klicke **Speichern**.
 Die Suche findet wörtliche Zeichenfolgen in Titel und Text, unabhängig von
 Groß-/Kleinschreibung. Sie verändert den geöffneten Entwurf nicht.
 
+Die Trefferliste zeigt einen kurzen Textausschnitt und die Anzahl der passenden
+Notizen. Auch Treffer weiter hinten in langen Zeilen erscheinen im Ausschnitt.
+Mit **Notiz anheften** hältst du gespeicherte Notizen oben in der Liste;
+**Notiz lösen** hebt das wieder auf. Ansonsten werden Titel alphabetisch sortiert.
+Anheften speichert nur diese Markierung: Ein offener Textentwurf bleibt erhalten
+und wird dadurch nicht gespeichert. Auch die Markierung bleibt nach Neustarts
+erhalten und benötigt den Modus mit Speicherung.
+
 Es gibt keine automatische Speicherung. Beim Wechsel zu einer anderen Notiz,
 bei **Neue Notiz** und bei **Neu laden** bestätigst du das Verwerfen eines
 ungespeicherten Entwurfs. Beim Beenden von MICA gehen ungespeicherte Entwürfe

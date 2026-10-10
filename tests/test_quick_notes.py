@@ -6,7 +6,7 @@ import pytest
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtWidgets import QApplication, QMessageBox
-from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, search_notes
+from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
 from desktop.quick_notes_page import QuickNotesPage
 
 
@@ -125,3 +125,67 @@ def test_note_count_limit_preserves_state_and_edits_remain_possible(tmp_path):
     assert store.path.read_bytes() == before
     data, _ = store.change('save', revision=1, note_id=data['notes'][0]['id'], title='Erste', body='Bearbeitet')
     assert len(data['notes']) == 100 and data['notes'][0]['body'] == 'Bearbeitet'
+
+
+def test_pin_existing_format_restart_stale_write_and_bad_flag(tmp_path):
+    store = QuickNotesStore(tmp_path / 'notes.json')
+    data, first = store.change('save', revision=0, title='Alpha', body='Text')
+    data, second = store.change('save', revision=1, title='Zebra', body='Text')
+    assert 'pinned' not in data['notes'][1]
+    data, _ = store.change('pin', revision=2, note_id=second, pinned=True)
+    assert search_notes(data['notes'], '')[0]['id'] == second
+    assert QuickNotesStore(store.path).read() == data
+    before = store.path.read_bytes()
+    with pytest.raises(ValueError, match='inzwischen'):
+        store.change('pin', revision=2, note_id=second, pinned=False)
+    with pytest.raises(ValueError):
+        store.change('pin', revision=3, note_id=second, pinned=1)
+    assert store.path.read_bytes() == before
+    data, _ = store.change('save', revision=3, note_id=second, title='Zebra', body='Bearbeitet')
+    assert data['notes'][1]['pinned']
+    data, _ = store.change('pin', revision=4, note_id=second, pinned=False)
+    assert search_notes(data['notes'], '')[0]['id'] == first
+    data['notes'][0]['pinned'] = 'true'
+    store.path.write_text(json.dumps(data), encoding='utf-8')
+    with pytest.raises(ValueError):
+        store.read()
+
+
+def test_excerpt_includes_late_unicode_literal_hit_and_is_bounded():
+    note = {'body': 'Erste Zeile\n' + 'x' * 500 + ' Straße ist hier ' + 'y' * 500}
+    preview = note_excerpt(note, 'STRASSE')
+    assert 'Straße' in preview and preview.startswith('…') and preview.endswith('…')
+    assert len(preview) <= 142
+    assert note_excerpt(note) == 'Erste Zeile'
+    assert note_excerpt({'body': '<script> & .*'}, '.*') == '<script> & .*'
+
+
+def test_ui_pin_preserves_draft_checks_privacy_and_keeps_identity(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = QuickNotesStore(tmp_path / 'notes.json')
+    data, identifier = store.change('save', revision=0, title='Zebra', body='Gespeichert')
+    store.change('save', revision=1, title='Alpha', body='Andere')
+    privacy = {'save': True}
+    page = QuickNotesPage(store=store, can_save=lambda: privacy['save'])
+    page.notes.setCurrentRow(1)
+    assert page.note_id == identifier
+    page.body.setPlainText('Offener Entwurf')
+    page.pin_button.click()
+    assert page.notes.currentRow() == 0 and page.note_id == identifier
+    assert page.body.toPlainText() == 'Offener Entwurf' and page.dirty()
+    assert store.read()['notes'][0]['body'] == 'Gespeichert'
+    assert 'Angeheftet' in page.notes.item(0).text()
+    assert page.pin_button.text() == 'Notiz lösen'
+    before = store.path.read_bytes()
+    privacy['save'] = False
+    page.pin_button.click()
+    assert store.path.read_bytes() == before and page.dirty()
+    privacy['save'] = True
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError):
+        page.pin_button.click()
+    assert store.path.read_bytes() == before and page.dirty()
+    page.search.setText('Andere')
+    assert page.notes.count() == 1 and page.body.toPlainText() == 'Offener Entwurf'
+    assert page.result_count.text().startswith('1 / 2')
+    page.close()
+    app.processEvents()

@@ -32,6 +32,7 @@ class QuickNotesStore:
                     or '\n' in note['title'] or '\r' in note['title']
                     or not isinstance(note.get('body'), str) or not 1 <= len(note['body'].strip()) <= MAX_BODY
                     or len(note['body']) > MAX_BODY
+                    or type(note.get('pinned', False)) is not bool
                     or not isinstance(note.get('updated_at'), str)):
                 raise ValueError('Eine gespeicherte Notiz ist ungültig.')
             try:
@@ -43,9 +44,11 @@ class QuickNotesStore:
             identifiers.add(note['id'])
         return data
 
-    def change(self, operation, *, revision, note_id=None, title='', body=''):
-        if operation not in {'save', 'remove'}:
+    def change(self, operation, *, revision, note_id=None, title='', body='', pinned=None):
+        if operation not in {'save', 'remove', 'pin'}:
             raise ValueError('Unbekannte Notizaktion.')
+        if operation == 'pin' and type(pinned) is not bool:
+            raise ValueError('Ungültiger Anheften-Zustand.')
         if operation == 'save':
             if (not isinstance(title, str) or not 1 <= len(title.strip()) <= 80
                     or '\n' in title or '\r' in title or not isinstance(body, str)
@@ -63,6 +66,10 @@ class QuickNotesStore:
                 if note is None:
                     raise ValueError('Bitte eine gespeicherte Notiz auswählen.')
                 data['notes'].remove(note)
+            elif operation == 'pin':
+                if note is None:
+                    raise ValueError('Bitte zuerst eine gespeicherte Notiz auswählen.')
+                note['pinned'] = pinned
             else:
                 if note is None:
                     if len(data['notes']) >= MAX_NOTES:
@@ -79,4 +86,24 @@ class QuickNotesStore:
 def search_notes(notes, query):
     """Literal case-insensitive filtering; no expression evaluation or network."""
     query = query.strip().casefold()
-    return [note for note in notes if not query or query in note['title'].casefold() or query in note['body'].casefold()]
+    matches = [note for note in notes if not query or query in note['title'].casefold() or query in note['body'].casefold()]
+    return sorted(matches, key=lambda note: (not note.get('pinned', False), note['title'].casefold(), note['id']))
+
+
+def note_excerpt(note, query='', *, limit=140):
+    """Bounded plain text around a literal body hit, including Unicode casefold."""
+    lines = [line.strip() for line in note['body'].splitlines() if line.strip()]
+    query = query.strip().casefold()
+    line = next((line for line in lines if query and query in line.casefold()), lines[0] if lines else '')
+    position = line.casefold().find(query) if query else 0
+    character = 0
+    folded_position = 0
+    if position > 0:
+        for index, value in enumerate(line):
+            if folded_position + len(value.casefold()) > position:
+                character = index
+                break
+            folded_position += len(value.casefold())
+    start = max(0, character - 40)
+    end = min(len(line), start + limit)
+    return ('…' if start else '') + line[start:end] + ('…' if end < len(line) else '')

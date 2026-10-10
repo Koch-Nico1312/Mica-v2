@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                             QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
-from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, search_notes
+from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
 from desktop.core.markdown_export import note_markdown, save_markdown
 
 
@@ -27,6 +27,8 @@ class QuickNotesPage(QWidget):
         self.notes = QListWidget()
         self.notes.currentItemChanged.connect(self.select_note)
         layout.addWidget(self.notes, 1)
+        self.result_count = QLabel()
+        layout.addWidget(self.result_count)
         self.title = QLineEdit()
         self.title.setMaxLength(80)
         self.title.setPlaceholderText('Titel')
@@ -53,6 +55,9 @@ class QuickNotesPage(QWidget):
         for button in (self.new_button, self.save_button, self.remove_button, self.refresh_button, self.export_button):
             row.addWidget(button)
         layout.addLayout(row)
+        self.pin_button = QPushButton('Notiz anheften')
+        self.pin_button.clicked.connect(self.toggle_pin)
+        layout.addWidget(self.pin_button)
         self.reload()
 
     def dirty(self):
@@ -74,14 +79,23 @@ class QuickNotesPage(QWidget):
         self.notes.blockSignals(True)
         try:
             self.notes.clear()
-            for note in search_notes(self.snapshot['notes'], self.search.text()):
-                item = QListWidgetItem(note['title'])
+            matches = search_notes(self.snapshot['notes'], self.search.text())
+            for note in matches:
+                prefix = 'Angeheftet · ' if note.get('pinned', False) else ''
+                item = QListWidgetItem(prefix + note['title'] + '\n' + note_excerpt(note, self.search.text()))
                 item.setData(Qt.ItemDataRole.UserRole, note['id'])
                 self.notes.addItem(item)
                 if note['id'] == self.note_id:
                     self.notes.setCurrentItem(item)
         finally:
             self.notes.blockSignals(False)
+        self.result_count.setText(f"{len(matches)} / {len(self.snapshot['notes'])} Notizen · Angeheftete zuerst")
+        self.update_pin_button()
+
+    def update_pin_button(self):
+        note = next((note for note in self.snapshot['notes'] if note['id'] == self.note_id), None)
+        self.pin_button.setEnabled(note is not None)
+        self.pin_button.setText('Notiz lösen' if note and note.get('pinned', False) else 'Notiz anheften')
 
     def load_editor(self, note):
         self.note_id = note['id'] if note else None
@@ -89,6 +103,7 @@ class QuickNotesPage(QWidget):
         self.title.setText(self.saved_fields[0])
         self.body.setPlainText(self.saved_fields[1])
         self.show_draft_status()
+        self.update_pin_button()
 
     def select_note(self, current, previous):
         if current is None:
@@ -134,6 +149,10 @@ class QuickNotesPage(QWidget):
             self.status.setText('Nicht gespeichert; Entwurf bleibt erhalten: ' + str(error))
             return False
         self.snapshot = data
+        if operation == 'pin':
+            self.render_list()
+            self.status.setText('Anheften-Zustand gespeichert. Der Textentwurf bleibt unverändert.')
+            return True
         note = next((note for note in data['notes'] if note['id'] == identifier), None)
         self.load_editor(note)
         self.render_list()
@@ -142,6 +161,11 @@ class QuickNotesPage(QWidget):
 
     def save(self):
         self.change('save', title=self.title.text(), body=self.body.toPlainText())
+
+    def toggle_pin(self):
+        note = next((note for note in self.snapshot['notes'] if note['id'] == self.note_id), None)
+        if note:
+            self.change('pin', pinned=not note.get('pinned', False))
 
     def export(self):
         if not self.can_save():

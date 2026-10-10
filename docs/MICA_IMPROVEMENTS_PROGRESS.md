@@ -70,6 +70,20 @@ Textmaskierung und gescheiterten Dateiaustausch ab. Diese Prüfung ist eine loka
 Quellcode-/Qt-Offscreen-Prüfung; der laufende Desktop muss die Änderungen durch
 einen Neustart laden.
 
+**Notizen anheften und Suchvorschau:** Gespeicherte Notizen lassen sich dauerhaft
+anheften/lösen. Angeheftete stehen zuerst, andere nach Titel; jede Suche zeigt
+eine begrenzte Textvorschau am ersten passenden Texttreffer und die Trefferzahl.
+Die Vorschau berücksichtigt Unicode-Groß-/Kleinschreibung, etwa Straße/STRASSE.
+Anheften erhält offene Textentwürfe und speichert deren Inhalt nicht. Alte
+Notizdateien ohne Markierung bleiben lesbar; ungültige Markierungen werden
+abgelehnt. Revision und Speicherungsfreigabe schützen auch diese Änderung.
+
+**18 Tests bestanden** für Notizen, Markdown-Export und integrierte Alltagsseiten;
+Ruff bestanden. Die neue Anheft-Prüfung deckt Neustart, alte Dateiformate,
+veraltete Revisionen, Speicherfehler und offene Entwürfe ab. Eine beim ersten
+Testlauf gefundene falsche Einfügung im Neuladeweg wurde korrigiert; der erneute
+Lauf und die statische Prüfung bestehen.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
