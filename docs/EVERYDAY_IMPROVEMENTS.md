@@ -115,9 +115,18 @@ erhalten und benötigt den Modus mit Speicherung.
 Es gibt keine automatische Speicherung. Beim Wechsel zu einer anderen Notiz,
 bei **Neue Notiz** und bei **Neu laden** bestätigst du das Verwerfen eines
 ungespeicherten Entwurfs. Beim Beenden von MICA gehen ungespeicherte Entwürfe
-verloren; speichere sie vorher. **Notiz entfernen** benötigt eine Bestätigung.
+verloren; speichere sie vorher. **In Papierkorb** benötigt eine Bestätigung
+und verschiebt den gespeicherten Text dorthin; ein offener Entwurf wird verworfen.
 
-Bis zu 100 Notizen mit jeweils 80 Zeichen Titel und 20.000 Zeichen Text bleiben
+Mit **Papierkorb anzeigen** siehst du entfernte Notizen schreibgeschützt.
+**Notiz wiederherstellen** bringt sie mit ihrem gespeicherten Text und ihrer
+Anheft-Markierung zurück. Blende danach den Papierkorb aus, um sie zu bearbeiten.
+**Endgültig entfernen** löscht erst nach einer weiteren Bestätigung; danach
+ist eine Wiederherstellung aus diesem Papierkorb nicht mehr möglich. Es gibt
+keine automatische Leerung.
+
+Bis zu 100 Notizen einschließlich Papierkorb mit jeweils 80 Zeichen Titel und
+20.000 Zeichen Text bleiben
 lokal gespeichert. Der Notizblock sendet sie nicht an das Backend oder ein Modell.
 Im Modus ohne Speicherung bleiben Entwürfe bearbeitbar; Speichern und Entfernen
 werden abgelehnt. Ein veralteter Stand oder Speicherfehler erhält den Entwurf

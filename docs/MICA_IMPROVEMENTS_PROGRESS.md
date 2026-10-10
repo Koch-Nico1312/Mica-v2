@@ -84,6 +84,18 @@ veraltete Revisionen, Speicherfehler und offene Entwürfe ab. Eine beim ersten
 Testlauf gefundene falsche Einfügung im Neuladeweg wurde korrigiert; der erneute
 Lauf und die statische Prüfung bestehen.
 
+**Notiz-Papierkorb:** Entfernen verschiebt den gespeicherten Text nach Bestätigung
+in einen lokalen Papierkorb. Eine separate schreibgeschützte Ansicht ermöglicht
+Wiederherstellen oder bestätigtes endgültiges Entfernen. Normale Suche blendet
+entfernte Notizen aus. Die Identität, Texte und Anheft-Markierung bleiben bei
+Wiederherstellung erhalten; es gibt keine automatische Leerung. Das Limit von
+100 Notizen schließt den Papierkorb ein. Ungespeicherte Änderungen werden beim
+Verschieben nach dem ausdrücklichen Hinweis verworfen.
+
+**20 Tests bestanden** für Notizfunktionen, Export und integrierte Alltagsseiten;
+Ruff bestanden. Neue Prüfungen decken Neustart, Wiederherstellen, Zustandsgrenzen,
+Revisionkonflikte, gescheiterte endgültige Entfernung, Abbruch und Datenschutz ab.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.

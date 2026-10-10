@@ -1,6 +1,6 @@
 """Local scratchpad with explicit save and protected drafts."""
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+from PyQt6.QtWidgets import (QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                             QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
 from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
@@ -19,6 +19,9 @@ class QuickNotesPage(QWidget):
         note = QLabel('Kurze Ideen und Arbeitsnotizen lokal sammeln. Erst Speichern schreibt die Notiz auf dieses Gerät.')
         note.setWordWrap(True)
         layout.addWidget(note)
+        self.trash = QCheckBox('Papierkorb anzeigen')
+        self.trash.toggled.connect(self.switch_trash)
+        layout.addWidget(self.trash)
         self.search = QLineEdit()
         self.search.setPlaceholderText('In Titel und Notiztext suchen')
         self.search.setMaxLength(200)
@@ -58,6 +61,9 @@ class QuickNotesPage(QWidget):
         self.pin_button = QPushButton('Notiz anheften')
         self.pin_button.clicked.connect(self.toggle_pin)
         layout.addWidget(self.pin_button)
+        self.restore_button = QPushButton('Notiz wiederherstellen')
+        self.restore_button.clicked.connect(self.restore)
+        layout.addWidget(self.restore_button)
         self.reload()
 
     def dirty(self):
@@ -73,13 +79,13 @@ class QuickNotesPage(QWidget):
         count = len(self.body.toPlainText())
         suffix = ' · Noch nicht gespeichert' if self.dirty() else ' · Unverändert'
         self.status.setText(f'{count} / {MAX_BODY} Zeichen' + suffix)
-        self.save_button.setEnabled(count <= MAX_BODY)
+        self.save_button.setEnabled(count <= MAX_BODY and not self.trash.isChecked())
 
     def render_list(self, *_):
         self.notes.blockSignals(True)
         try:
             self.notes.clear()
-            matches = search_notes(self.snapshot['notes'], self.search.text())
+            matches = search_notes(self.snapshot['notes'], self.search.text(), trash_only=self.trash.isChecked())
             for note in matches:
                 prefix = 'Angeheftet · ' if note.get('pinned', False) else ''
                 item = QListWidgetItem(prefix + note['title'] + '\n' + note_excerpt(note, self.search.text()))
@@ -89,13 +95,29 @@ class QuickNotesPage(QWidget):
                     self.notes.setCurrentItem(item)
         finally:
             self.notes.blockSignals(False)
-        self.result_count.setText(f"{len(matches)} / {len(self.snapshot['notes'])} Notizen · Angeheftete zuerst")
+        total = sum(note.get('trashed', False) == self.trash.isChecked() for note in self.snapshot['notes'])
+        label = 'Papierkorb' if self.trash.isChecked() else 'Notizen · Angeheftete zuerst'
+        self.result_count.setText(f'{len(matches)} / {total} {label}')
         self.update_pin_button()
 
     def update_pin_button(self):
         note = next((note for note in self.snapshot['notes'] if note['id'] == self.note_id), None)
-        self.pin_button.setEnabled(note is not None)
+        self.pin_button.setEnabled(note is not None and not self.trash.isChecked())
         self.pin_button.setText('Notiz lösen' if note and note.get('pinned', False) else 'Notiz anheften')
+        self.restore_button.setEnabled(note is not None and self.trash.isChecked())
+        self.remove_button.setText('Endgültig entfernen' if self.trash.isChecked() else 'In Papierkorb')
+
+    def switch_trash(self, checked):
+        if not self.allow_discard():
+            self.trash.blockSignals(True)
+            self.trash.setChecked(not checked)
+            self.trash.blockSignals(False)
+            return
+        self.title.setReadOnly(checked)
+        self.body.setReadOnly(checked)
+        self.new_button.setEnabled(not checked)
+        self.load_editor(None)
+        self.render_list()
 
     def load_editor(self, note):
         self.note_id = note['id'] if note else None
@@ -134,7 +156,8 @@ class QuickNotesPage(QWidget):
             self.status.setText('Notizen konnten nicht geladen werden: ' + str(error))
             return
         self.snapshot = data
-        note = next((note for note in data['notes'] if note['id'] == self.note_id), None)
+        note = next((note for note in data['notes'] if note['id'] == self.note_id
+                     and note.get('trashed', False) == self.trash.isChecked()), None)
         self.load_editor(note)
         self.render_list()
 
@@ -154,9 +177,13 @@ class QuickNotesPage(QWidget):
             self.status.setText('Anheften-Zustand gespeichert. Der Textentwurf bleibt unverändert.')
             return True
         note = next((note for note in data['notes'] if note['id'] == identifier), None)
+        if operation in {'remove', 'purge', 'restore'}:
+            note = None
         self.load_editor(note)
         self.render_list()
-        self.status.setText('Notiz gespeichert.' if operation == 'save' else 'Notiz entfernt.')
+        self.status.setText({'save': 'Notiz gespeichert.', 'remove': 'Notiz in den Papierkorb verschoben.',
+                             'restore': 'Notiz wiederhergestellt. Papierkorb ausblenden, um sie zu bearbeiten.',
+                             'purge': 'Notiz endgültig entfernt.'}.get(operation, 'Änderung gespeichert.'))
         return True
 
     def save(self):
@@ -189,8 +216,16 @@ class QuickNotesPage(QWidget):
         self.status.setText('Sichtbarer Text als Markdown exportiert. Die Notiz in MICA wurde nicht verändert.')
 
     def remove(self):
+        operation = 'purge' if self.trash.isChecked() else 'remove'
+        message = ('Diese Notiz endgültig löschen? Sie kann anschließend nicht wiederhergestellt werden.'
+                   if operation == 'purge' else
+                   'Gespeicherte Notiz in den Papierkorb verschieben? Ungespeicherte Änderungen werden verworfen.')
         if self.note_id is not None and QMessageBox.question(
-                self, 'Notiz entfernen', 'Diese gespeicherte Notiz und den aktuellen Entwurf entfernen?',
+                self, 'Notiz entfernen', message,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
-            self.change('remove')
+            self.change(operation)
+
+    def restore(self):
+        if self.note_id is not None and self.trash.isChecked():
+            self.change('restore')

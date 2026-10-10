@@ -25,7 +25,8 @@ def test_save_update_search_restart_and_stale_writer(tmp_path):
     assert search_notes(data['notes'], 'überARBEITET') == data['notes']
     assert search_notes(data['notes'], '.*') == []
     data, _ = store.change('remove', revision=data['revision'], note_id=identifier)
-    assert data['notes'] == [] and store.read() == data
+    assert search_notes(data['notes'], '') == [] and store.read() == data
+    assert data['notes'][0]['trashed']
 
 
 @pytest.mark.parametrize('title,body', [('', 'Text'), ('Zeile\nZwei', 'Text'),
@@ -86,7 +87,7 @@ def test_ui_privacy_save_filter_and_protected_draft(tmp_path):
     assert len(store.read()['notes']) == 2
     with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
         page.remove()
-    assert len(store.read()['notes']) == 1 and page.title.text() == ''
+    assert len(search_notes(store.read()['notes'], '')) == 1 and page.title.text() == ''
     page.close()
     app.processEvents()
 
@@ -187,5 +188,76 @@ def test_ui_pin_preserves_draft_checks_privacy_and_keeps_identity(tmp_path):
     page.search.setText('Andere')
     assert page.notes.count() == 1 and page.body.toPlainText() == 'Offener Entwurf'
     assert page.result_count.text().startswith('1 / 2')
+    page.close()
+    app.processEvents()
+
+
+def test_trash_restore_restart_and_purge_require_correct_state(tmp_path):
+    store = QuickNotesStore(tmp_path / 'notes.json')
+    data, identifier = store.change('save', revision=0, title='Idee', body='Text')
+    data, _ = store.change('pin', revision=1, note_id=identifier, pinned=True)
+    data, _ = store.change('remove', revision=2, note_id=identifier)
+    assert search_notes(data['notes'], '') == []
+    assert search_notes(data['notes'], '', trash_only=True)[0]['body'] == 'Text'
+    assert QuickNotesStore(store.path).read() == data
+    before = store.path.read_bytes()
+    for operation, values in [('save', {'title': 'Neue', 'body': 'Text'}), ('pin', {'pinned': False}), ('remove', {})]:
+        with pytest.raises(ValueError, match='wiederherstellen'):
+            store.change(operation, revision=3, note_id=identifier, **values)
+    with pytest.raises(ValueError, match='inzwischen'):
+        store.change('restore', revision=2, note_id=identifier)
+    assert store.path.read_bytes() == before
+    data, _ = store.change('restore', revision=3, note_id=identifier)
+    assert data['notes'][0]['pinned'] and search_notes(data['notes'], '')
+    with pytest.raises(ValueError, match='Papierkorb'):
+        store.change('purge', revision=4, note_id=identifier)
+    data, _ = store.change('remove', revision=4, note_id=identifier)
+    before = store.path.read_bytes()
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError), pytest.raises(PermissionError):
+        store.change('purge', revision=5, note_id=identifier)
+    assert store.path.read_bytes() == before
+    data, _ = store.change('purge', revision=5, note_id=identifier)
+    assert data['notes'] == []
+
+
+def test_ui_trash_switch_draft_confirmation_restore_and_purge_privacy(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = QuickNotesStore(tmp_path / 'notes.json')
+    store.change('save', revision=0, title='Idee', body='Text')
+    privacy = {'save': True}
+    page = QuickNotesPage(store=store, can_save=lambda: privacy['save'])
+    page.notes.setCurrentRow(0)
+    page.body.setPlainText('Entwurf')
+    with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.No):
+        page.trash.setChecked(True)
+    assert not page.trash.isChecked() and page.body.toPlainText() == 'Entwurf'
+    with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+        page.remove()
+    assert page.notes.count() == 0 and page.title.text() == ''
+    page.trash.setChecked(True)
+    page.notes.setCurrentRow(0)
+    assert page.body.isReadOnly() and not page.save_button.isEnabled()
+    assert page.body.toPlainText() == 'Text'
+    before = store.path.read_bytes()
+    privacy['save'] = False
+    page.restore_button.click()
+    assert store.path.read_bytes() == before
+    privacy['save'] = True
+    page.restore_button.click()
+    assert page.notes.count() == 0
+    page.trash.setChecked(False)
+    page.notes.setCurrentRow(0)
+    assert page.body.toPlainText() == 'Text' and not page.body.isReadOnly()
+    with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+        page.remove()
+    page.trash.setChecked(True)
+    page.notes.setCurrentRow(0)
+    before = store.path.read_bytes()
+    with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.No):
+        page.remove()
+    assert store.path.read_bytes() == before
+    with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+        page.remove()
+    assert store.read()['notes'] == [] and page.notes.count() == 0
     page.close()
     app.processEvents()

@@ -33,6 +33,7 @@ class QuickNotesStore:
                     or not isinstance(note.get('body'), str) or not 1 <= len(note['body'].strip()) <= MAX_BODY
                     or len(note['body']) > MAX_BODY
                     or type(note.get('pinned', False)) is not bool
+                    or type(note.get('trashed', False)) is not bool
                     or not isinstance(note.get('updated_at'), str)):
                 raise ValueError('Eine gespeicherte Notiz ist ungültig.')
             try:
@@ -45,7 +46,7 @@ class QuickNotesStore:
         return data
 
     def change(self, operation, *, revision, note_id=None, title='', body='', pinned=None):
-        if operation not in {'save', 'remove', 'pin'}:
+        if operation not in {'save', 'remove', 'pin', 'restore', 'purge'}:
             raise ValueError('Unbekannte Notizaktion.')
         if operation == 'pin' and type(pinned) is not bool:
             raise ValueError('Ungültiger Anheften-Zustand.')
@@ -62,10 +63,19 @@ class QuickNotesStore:
             note = next((record for record in data['notes'] if record['id'] == note_id), None)
             if note_id is not None and note is None:
                 raise ValueError('Die ausgewählte Notiz ist nicht mehr vorhanden.')
+            trashed = note is not None and note.get('trashed', False)
+            if operation in {'restore', 'purge'} and not trashed:
+                raise ValueError('Bitte eine Notiz aus dem Papierkorb auswählen.')
+            if operation in {'save', 'remove', 'pin'} and trashed:
+                raise ValueError('Bitte die Notiz zuerst aus dem Papierkorb wiederherstellen.')
             if operation == 'remove':
                 if note is None:
                     raise ValueError('Bitte eine gespeicherte Notiz auswählen.')
+                note['trashed'] = True
+            elif operation == 'purge':
                 data['notes'].remove(note)
+            elif operation == 'restore':
+                note['trashed'] = False
             elif operation == 'pin':
                 if note is None:
                     raise ValueError('Bitte zuerst eine gespeicherte Notiz auswählen.')
@@ -73,7 +83,7 @@ class QuickNotesStore:
             else:
                 if note is None:
                     if len(data['notes']) >= MAX_NOTES:
-                        raise ValueError('Höchstens 100 Notizen; bitte zuerst eine alte Notiz entfernen.')
+                        raise ValueError('Höchstens 100 Notizen einschließlich Papierkorb; bitte zuerst eine alte Notiz endgültig entfernen.')
                     note = {'id': uuid.uuid4().hex}
                     data['notes'].append(note)
                 note.update(title=title, body=body, updated_at=datetime.now(timezone.utc).isoformat())
@@ -83,10 +93,11 @@ class QuickNotesStore:
             return data, note_id
 
 
-def search_notes(notes, query):
+def search_notes(notes, query, *, trash_only=False):
     """Literal case-insensitive filtering; no expression evaluation or network."""
     query = query.strip().casefold()
-    matches = [note for note in notes if not query or query in note['title'].casefold() or query in note['body'].casefold()]
+    matches = [note for note in notes if note.get('trashed', False) == trash_only
+               and (not query or query in note['title'].casefold() or query in note['body'].casefold())]
     return sorted(matches, key=lambda note: (not note.get('pinned', False), note['title'].casefold(), note['id']))
 
 
