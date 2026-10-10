@@ -96,6 +96,19 @@ Verschieben nach dem ausdrücklichen Hinweis verworfen.
 Ruff bestanden. Neue Prüfungen decken Neustart, Wiederherstellen, Zustandsgrenzen,
 Revisionkonflikte, gescheiterte endgültige Entfernung, Abbruch und Datenschutz ab.
 
+**Mehrere Listen-Einträge einfügen:** Ein ausdrücklicher Textdialog verarbeitet
+Zeilen, Aufzählungen, Nummerierungen und Markdown-Haken. Vorschau und Bestätigung
+gehen einer gemeinsamen atomaren Änderung voraus; bereits erledigte Haken werden
+übernommen. Duplikate, ungültige Einträge und das 200-Einträge-Limit führen zu
+keiner Teiländerung. Ziel und Revision dürfen während der Dialoge nicht wechseln.
+Dateien und Zwischenablage werden nicht automatisch gelesen.
+
+**21 Tests bestanden** für Checklisten, lokale Markdown-Exporte und integrierte
+Alltagsseiten. Neue Prüfungen decken Formatübernahme, Duplikate, Eingabegrenzen,
+veraltete Revision, Dateiaustauschfehler, Vorschauabbruch und Speicherfreigabe ab.
+Lange Parametertest-Namen verursachten im ersten Lauf einen Windows-Testaufbaufehler;
+kurze explizite Fallnamen beseitigen diesen, der erneute Lauf besteht.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.

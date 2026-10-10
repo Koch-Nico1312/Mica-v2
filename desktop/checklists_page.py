@@ -2,7 +2,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
-from desktop.core.checklists import CHECKLIST_TEMPLATES, ChecklistStore
+from desktop.core.checklists import CHECKLIST_TEMPLATES, ChecklistStore, parse_checklist_lines
 from desktop.core.markdown_export import checklist_markdown, save_markdown
 
 
@@ -53,6 +53,9 @@ class ChecklistsPage(QWidget):
         self.add_button = QPushButton('Hinzufügen')
         self.add_button.clicked.connect(self.add)
         row.addWidget(self.add_button)
+        self.paste_button = QPushButton('Mehrere Einträge')
+        self.paste_button.clicked.connect(self.paste_items)
+        row.addWidget(self.paste_button)
         layout.addLayout(row)
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(['Erledigt', 'Eintrag'])
@@ -118,6 +121,7 @@ class ChecklistsPage(QWidget):
         finally:
             self._rendering = False
         self.add_button.setEnabled(record is not None)
+        self.paste_button.setEnabled(record is not None)
         self.status.setText(f"{sum(not item['done'] for item in items)} offen · {sum(item['done'] for item in items)} erledigt" if record else 'Lege eine Liste an, z. B. Einkauf oder Urlaub.')
 
     def change(self, operation, **kwargs):
@@ -166,6 +170,35 @@ class ChecklistsPage(QWidget):
     def add(self):
         if self.change('add', text=self.entry.text()):
             self.entry.clear()
+
+    def paste_items(self):
+        record = self.selected_list()
+        revision = self.snapshot['revision']
+        if record is None:
+            return
+        text, accepted = QInputDialog.getMultiLineText(
+            self, 'Mehrere Einträge', 'Ein Eintrag pro Zeile. Aufzählungen und Markdown-Haken werden erkannt:')
+        if not accepted:
+            return
+        try:
+            items = parse_checklist_lines(text)
+        except ValueError as error:
+            self.status.setText('Nicht übernommen: ' + str(error))
+            return
+        preview = QMessageBox(self)
+        preview.setWindowTitle('Einträge prüfen')
+        preview.setTextFormat(Qt.TextFormat.PlainText)
+        preview.setText(f"{len(items)} Einträge zu {record['name']} hinzufügen?\n"
+                        f"{sum(item['done'] for item in items)} bereits erledigt. Vorhandene Einträge bleiben erhalten.")
+        preview.setDetailedText('\n'.join(('☑ ' if item['done'] else '☐ ') + item['text'] for item in items))
+        preview.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        preview.setDefaultButton(QMessageBox.StandardButton.No)
+        if preview.exec() == QMessageBox.StandardButton.Yes:
+            # Modal dialogs must not retarget the confirmed list or revision.
+            if self.choice.currentData() != record['id'] or self.snapshot['revision'] != revision:
+                self.status.setText('Auswahl inzwischen geändert; bitte Einträge erneut prüfen.')
+                return
+            self.change('add_many', items=items)
 
     def toggle(self, item):
         if not self._rendering and item.column() == 0:

@@ -13,6 +13,34 @@ CHECKLIST_TEMPLATES = {
 }
 
 
+def parse_checklist_lines(text):
+    """Accept pasted plain/bulleted/task-list text, without reading the clipboard."""
+    if not isinstance(text, str) or len(text) > 64_000:
+        raise ValueError('Bitte höchstens 64.000 Zeichen einfügen.')
+    items = []
+    seen = set()
+    for number, line in enumerate(text.splitlines(), 1):
+        value = line.strip()
+        if not value:
+            continue
+        value = re.sub(r'^(?:[-*•]\s+|\d+[.)]\s+)', '', value)
+        checked = re.match(r'^\[([ xX])\]\s+', value)
+        done = bool(checked and checked[1].lower() == 'x')
+        if checked:
+            value = value[checked.end():].strip()
+        if not 1 <= len(value) <= 240:
+            raise ValueError(f'Zeile {number}: Bitte 1–240 Zeichen pro Eintrag verwenden.')
+        if value.casefold() in seen:
+            raise ValueError(f'Zeile {number}: Eintrag ist im eingefügten Text doppelt vorhanden.')
+        seen.add(value.casefold())
+        items.append({'text': value, 'done': done})
+        if len(items) > 200:
+            raise ValueError('Höchstens 200 Einträge in einer Liste.')
+    if not items:
+        raise ValueError('Bitte mindestens einen Eintrag eingeben.')
+    return items
+
+
 class ChecklistStore:
     def __init__(self, path=None):
         self.path = path or DATA_DIR / 'checklists.json'
@@ -44,9 +72,9 @@ class ChecklistStore:
                 ids.add(item['id'])
         return data
 
-    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None):
+    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None, items=None):
         if operation not in {'create', 'rename', 'add', 'toggle', 'remove_item', 'remove_list',
-                             'from_template', 'duplicate', 'reset'}:
+                             'from_template', 'duplicate', 'reset', 'add_many'}:
             raise ValueError('Unbekannte Listenaktion.')
         if operation == 'from_template' and (not isinstance(template, str) or template not in CHECKLIST_TEMPLATES):
             raise ValueError('Bitte eine vorhandene Listenvorlage wählen.')
@@ -84,6 +112,22 @@ class ChecklistStore:
                 if any(item['text'].casefold() == text.casefold() for item in record['items']):
                     raise ValueError('Dieser Eintrag ist bereits in der Liste.')
                 record['items'].append({'id': uuid.uuid4().hex, 'text': text, 'done': False})
+            elif operation == 'add_many':
+                if not isinstance(items, list) or not 1 <= len(items) <= 200:
+                    raise ValueError('Bitte 1–200 Einträge übergeben.')
+                if len(record['items']) + len(items) > 200:
+                    raise ValueError('Zusammen höchstens 200 Einträge in einer Liste.')
+                seen = {item['text'].casefold() for item in record['items']}
+                for item in items:
+                    if (not isinstance(item, dict) or not isinstance(item.get('text'), str)
+                            or not 1 <= len(item['text'].strip()) <= 240
+                            or '\n' in item['text'] or '\r' in item['text'] or type(item.get('done')) is not bool):
+                        raise ValueError('Ein eingefügter Eintrag ist ungültig.')
+                    value = item['text'].strip()
+                    if value.casefold() in seen:
+                        raise ValueError('Ein eingefügter Eintrag ist bereits vorhanden. Bitte doppelte Einträge entfernen.')
+                    seen.add(value.casefold())
+                    record['items'].append({'id': uuid.uuid4().hex, 'text': value, 'done': item['done']})
             elif operation == 'remove_list':
                 data['lists'].remove(record)
             elif operation == 'reset':

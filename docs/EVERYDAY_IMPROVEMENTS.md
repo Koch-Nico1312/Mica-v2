@@ -97,6 +97,15 @@ mit ihren Haken in einer selbst gewählten Datei. Hat eine andere MICA-Instanz
 inzwischen Änderungen gespeichert, enthält der Export einen Hinweis auf die
 ältere Ansicht. Die gespeicherte Liste wird durch den Export nicht verändert.
 
+**Mehrere Einträge** öffnet ein Textfeld für einen Eintrag pro Zeile. Du kannst
+einfache Zeilen, Aufzählungen wie `- Milch` oder Markdown-Haken wie `- [x] Brot`
+einfügen. MICA zeigt anschließend Anzahl und Erledigt-Zustand; unter den Details
+prüfst du alle Einträge. Erst deine Bestätigung übernimmt sie gemeinsam.
+Vorhandene Einträge bleiben erhalten. Doppelte Einträge, zu lange Zeilen oder
+mehr als insgesamt 200 Einträge werden vollständig abgelehnt; es gibt keine
+teilweise Übernahme. Weder Dateien noch die Zwischenablage werden automatisch
+eingelesen.
+
 ## Lokaler Notizblock
 
 Unter **Betrieb → Notizblock** sammelst du kurze Ideen und Arbeitsnotizen.

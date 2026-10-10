@@ -10,7 +10,7 @@ import pytest
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox
-from desktop.core.checklists import ChecklistStore
+from desktop.core.checklists import ChecklistStore, parse_checklist_lines
 from desktop.core.local_state import FileLease
 from desktop.checklists_page import ChecklistsPage
 
@@ -202,5 +202,61 @@ def test_ui_template_preview_privacy_copy_and_reset_confirmation(tmp_path):
         privacy['save'] = True
         page.reset()
     assert not store.read()['lists'][0]['items'][0]['done']
+    page.close()
+    app.processEvents()
+
+
+def test_pasted_lines_preserve_markdown_checks_and_fail_as_one_change(tmp_path):
+    items = parse_checklist_lines('Milch\n- [x] Brot\n* [ ] Käse\n1. Äpfel\n\n• Reis')
+    assert [item['text'] for item in items] == ['Milch', 'Brot', 'Käse', 'Äpfel', 'Reis']
+    assert [item['done'] for item in items] == [False, True, False, False, False]
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    data, _ = store.change('add_many', revision=1, list_id=identifier, items=items)
+    assert data['revision'] == 2 and len(data['lists'][0]['items']) == 5
+    assert len({item['id'] for item in data['lists'][0]['items']}) == 5
+    assert ChecklistStore(store.path).read() == data
+    before = store.path.read_bytes()
+    for values in ([{'text': 'Neu', 'done': False}, {'text': 'Milch', 'done': False}],
+                   [{'text': 'Neu', 'done': False}, {'text': 'Ungültig', 'done': 1}]):
+        with pytest.raises(ValueError):
+            store.change('add_many', revision=2, list_id=identifier, items=values)
+        assert store.path.read_bytes() == before
+    with pytest.raises(ValueError, match='inzwischen'):
+        store.change('add_many', revision=1, list_id=identifier, items=[{'text': 'Neu', 'done': False}])
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError), pytest.raises(PermissionError):
+        store.change('add_many', revision=2, list_id=identifier, items=[{'text': 'Neu', 'done': False}])
+    assert store.path.read_bytes() == before
+
+
+@pytest.mark.parametrize('text', ['', 'Milch\nmilch', 'x' * 241, '\n'.join(str(index) for index in range(201)), 'x' * 64001],
+                         ids=['empty', 'duplicate', 'long-entry', 'too-many', 'long-input'])
+def test_pasted_lines_reject_duplicates_and_limits(text):
+    with pytest.raises(ValueError):
+        parse_checklist_lines(text)
+
+
+def test_ui_paste_preview_cancel_privacy_and_confirmation(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = ChecklistStore(tmp_path / 'lists.json')
+    store.change('create', revision=0, text='Einkauf')
+    page = ChecklistsPage(store=store)
+    before = store.path.read_bytes()
+    with patch('desktop.checklists_page.QInputDialog.getMultiLineText', return_value=('Milch', False)):
+        page.paste_button.click()
+    assert store.path.read_bytes() == before
+    with patch('desktop.checklists_page.QInputDialog.getMultiLineText', return_value=('Milch\n- [x] Brot', True)), \
+         patch('desktop.checklists_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.No):
+        page.paste_items()
+    assert store.path.read_bytes() == before
+    with patch('desktop.checklists_page.QInputDialog.getMultiLineText', return_value=('Milch\n- [x] Brot', True)), \
+         patch('desktop.checklists_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.Yes):
+        page.can_save = lambda: False
+        page.paste_items()
+        assert store.path.read_bytes() == before
+        page.can_save = lambda: True
+        page.paste_items()
+    assert page.table.rowCount() == 2
+    assert store.read()['lists'][0]['items'][1]['done']
     page.close()
     app.processEvents()
