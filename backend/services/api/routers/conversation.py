@@ -17,9 +17,34 @@ from backend.services.common.document_sources import context_sources, resolve_ci
 from backend.services.api.constants import DEFAULT_SYSTEM_PROMPT
 from backend.services.api.schemas import DocumentDraftRequest
 from backend.services.api.schemas import TaskDecomposeRequest
+from backend.services.api.schemas import CognitiveSettingsUpdate
+from backend.services.common.cognition import CognitiveState
 
 
 class ConversationRoutes:
+    def cognitive_status(self, session_id: str) -> dict:
+        if not re.fullmatch(r'[a-f0-9]{32}', session_id):
+            raise HTTPException(422, 'Ungültige Gesprächskennung.')
+        with self.dialog_sessions.session(session_id) as state:
+            return state.cognition.snapshot()
+
+    def cognitive_settings(self, session_id: str, request: CognitiveSettingsUpdate) -> dict:
+        if not re.fullmatch(r'[a-f0-9]{32}', session_id):
+            raise HTTPException(422, 'Ungültige Gesprächskennung.')
+        with self.dialog_sessions.session(session_id) as state:
+            state.cognition.enabled = request.enabled
+            state.cognition.profile = request.profile
+            if not request.enabled:
+                state.cognition.reset()
+            return state.cognition.snapshot()
+
+    def reset_cognition(self, session_id: str) -> dict:
+        if not re.fullmatch(r'[a-f0-9]{32}', session_id):
+            raise HTTPException(422, 'Ungültige Gesprächskennung.')
+        with self.dialog_sessions.session(session_id) as state:
+            state.cognition.reset()
+            return state.cognition.snapshot()
+
     def decompose_task_item(self, request: TaskDecomposeRequest) -> dict:
         import json
         from backend.services.common.task_decomposition import parse_steps
@@ -101,6 +126,7 @@ class ConversationRoutes:
             state.pending = None
             state.history.clear()
             state.issued_commands.clear()
+            state.cognition.reset()
             state.documents = [document.model_dump() for document in request.documents]
             state.next_step = request.next_step
             state.focus = ({'id': task['id'], 'task_id': task['id'], 'title': task['title'],
@@ -128,7 +154,8 @@ class ConversationRoutes:
                         del state.issued_commands[next(iter(state.issued_commands))]
                     state.issued_commands[result["turn_id"]] = request.message
             else:
-                result = self._turn(request, dialog_context=state.context(request.message) if request.session_id else "")
+                result = self._turn(request, dialog_context=state.context(request.message) if request.session_id else "",
+                                    cognitive_state=state.cognition, history=list(state.history))
             if result.get("reply"):
                 state.record(request.message, result["reply"])
             if result.get("plan"):
@@ -147,6 +174,7 @@ class ConversationRoutes:
                 state.pending = None
                 if removed or updated:
                     state.history.clear()
+                    state.cognition.reset()
                 if state.focus and state.focus.get("id") in removed:
                     state.focus = None
                 elif state.focus and state.focus.get("id") in updated:
@@ -166,7 +194,7 @@ class ConversationRoutes:
             state.record(original, request.reply)
             return {"recorded": True, "storage": "memory"}
 
-    def _turn(self, request: TurnRequest, *, dialog_context="") -> dict[str, Any]:
+    def _turn(self, request: TurnRequest, *, dialog_context="", cognitive_state=None, history=()) -> dict[str, Any]:
         """Single PyQt/PWA entry point for local conversation and explicit tool plans.
 
         A caller may request a registered action, but this endpoint only plans it.
@@ -280,14 +308,14 @@ class ConversationRoutes:
                 "conversation_mode": conversation_mode,
                 "plan": plan,
             }
-        response = self.chat(
+        response = self._chat(
             self.ChatRequest(
                 message=request.message,
                 conversation_mode=conversation_mode,
                 remember=request.remember,
                 dialog_context=dialog_context,
                 response_style=request.response_style,
-            )
+            ), cognitive_state=cognitive_state, history=history,
         )
         return {
             "schema_version": 1,
@@ -298,6 +326,9 @@ class ConversationRoutes:
         }
 
     def chat(self, request: ChatRequest) -> dict[str, Any]:
+        return self._chat(request)
+
+    def _chat(self, request: ChatRequest, *, cognitive_state=None, history=()) -> dict[str, Any]:
         """Text counterpart to voice; local unless a cloud provider is explicit."""
         conversation_mode = self.normalize_conversation_mode(request.conversation_mode)
         cloud_provider = self.configured_cloud_provider()
@@ -374,6 +405,11 @@ class ConversationRoutes:
             if include_private_context
             else []
         )
+        cognitive_state = cognitive_state or CognitiveState()
+        cognitive_prompt = ""
+        if not cloud_provider:
+            evidence, cognitive_prompt = self.cognitive_controller.prepare(
+                cognitive_state, request.message, evidence, history=history)
         system_prompt, runtime_config, active_knowledge = (
             self._active_assistant_profile()
         )
@@ -455,15 +491,20 @@ class ConversationRoutes:
                     conversation_mode, additional_instructions=additional_prompt
                 )
                 + " Nutze Kontext nur, wenn er fuer die Frage relevant ist. " + style_prompt
+                + ("\nAntwortsteuerung:\n" + cognitive_prompt if cognitive_prompt else "")
                 + (' Belege Aussagen aus ausgewählten Dokumenten mit den vorhandenen Markierungen [Q1], [Q2] usw. Verwende nur Markierungen aus document_sources. Bei widersprüchlichen Quellen beide nennen und den Widerspruch erklären. Fehlende Belege ausdrücklich benennen; Dateinamen, Seiten und Textstellen nicht erfinden.' if document_sources else ''),
                 # Session and attachment data do not grant action authority.
             )
         except ValueError as error:
+            if not cloud_provider:
+                self.cognitive_controller.observe(cognitive_state, error=True)
             self.phase4_store.set_presence("error", "chat")
             self.audit.append("chat.failed", {"reason": str(error)[:500]})
             raise HTTPException(503, "Sprachmodell ist nicht bereit") from error
         spoken_reply = reply
         reply, citations, invalid_citations = resolve_citations(reply, document_sources)
+        if not cloud_provider:
+            self.cognitive_controller.observe(cognitive_state, reply=reply, invalid_citations=invalid_citations)
         if document_sources:
             spoken_reply = re.sub(r'\[Q\d+\]', '', spoken_reply)
             spoken_reply += ' Die Dokumentquellen stehen bei der Antwort.' if citations else ' Für diese Antwort wurde keine konkrete Dokumenttextstelle angegeben.'
@@ -513,6 +554,7 @@ class ConversationRoutes:
             "retrieval": evidence,
             "mode": response_mode,
             "conversation_mode": conversation_mode,
+            "cognition": cognitive_state.snapshot() if not cloud_provider else {"enabled": False, "reason": "cloud_provider"},
         }
 
     def get_profile(self) -> dict[str, Any]:
@@ -645,6 +687,9 @@ class ConversationRoutes:
 
 
 ROUTES = [
+    ('/v1/dialog/{session_id}/cognition', 'get', 'cognitive_status'),
+    ('/v1/dialog/{session_id}/cognition', 'patch', 'cognitive_settings'),
+    ('/v1/dialog/{session_id}/cognition', 'delete', 'reset_cognition'),
     ('/v1/task-items/decompose', 'post', 'decompose_task_item'),
     ('/v1/documents/draft', 'post', 'draft_from_documents'),
     ('/v1/day-overview', 'get', 'get_day_overview'),

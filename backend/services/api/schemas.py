@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from backend.services.common.contracts import ExecutionRequest, bounded_mapping
 from backend.services.common.vision import MAX_IMAGE_BYTES
 
@@ -33,6 +33,12 @@ class ChatRequest(BaseModel):
     memory_mode: Literal["recall", "reflect"] = "recall"
     dialog_context: str = Field(default="", max_length=90000)
     response_style: Literal["brief", "normal", "detailed"] = "normal"
+
+
+class CognitiveSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+    profile: Literal["low_vram", "balanced"] = "balanced"
 
 
 class BrainDocumentUpdate(BaseModel):

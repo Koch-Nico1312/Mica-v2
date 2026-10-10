@@ -9,6 +9,7 @@ from fastapi import (
 )
 from backend.services.common.audit import AuditLog
 from backend.services.common.dialog_sessions import DialogSessions
+from backend.services.common.cognition import CognitiveController
 from backend.services.common.approval_auth import LocalApprovalSessions
 from backend.services.common.brain import MarkdownBrain
 from backend.services.common.hindsight import HindsightMemory, selected_summary
@@ -153,6 +154,7 @@ class ApiRuntime(
 
     def __init__(self, data_dir=None, dependencies=None):
         self.dialog_sessions = DialogSessions()
+        self.cognitive_controller = CognitiveController()
         environment = dict(os.environ)
         if data_dir is not None:
             root = Path(data_dir).resolve()

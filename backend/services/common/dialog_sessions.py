@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import json
 import threading
 import time
+from .cognition import CognitiveState
 
 
 class DialogCapacityError(ValueError):
@@ -24,6 +25,7 @@ class DialogState:
     issued_commands: dict = field(default_factory=dict)
     lock: threading.RLock = field(default_factory=threading.RLock)
     users: int = 0
+    cognition: CognitiveState = field(default_factory=CognitiveState)
 
     def context(self, message="") -> str:
         from .document_sources import source_spans
@@ -86,6 +88,7 @@ class DialogSessions:
                     state.focus = state.pending = None
                     state.next_step = ''
                     state.issued_commands.clear()
+                    state.cognition.reset()
                     # In-flight callers remain pinned until they finish.
         finally:
             with self._lock:

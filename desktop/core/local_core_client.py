@@ -158,6 +158,16 @@ class LocalCoreClient:
         self.dialog_id = uuid.uuid4().hex
         return result
 
+    def cognitive_status(self, session_id=None) -> dict:
+        return self._request('GET', f'/v1/dialog/{session_id or self.dialog_id}/cognition')
+
+    def cognitive_settings(self, enabled, profile='balanced', session_id=None) -> dict:
+        return self._request('PATCH', f'/v1/dialog/{session_id or self.dialog_id}/cognition',
+                             json={'enabled': enabled, 'profile': profile})
+
+    def reset_cognition(self, session_id=None) -> dict:
+        return self._request('DELETE', f'/v1/dialog/{session_id or self.dialog_id}/cognition')
+
     def workspace_context(self):
         return self._request('GET', f'/v1/dialog/{self.dialog_id}/workspace')
 
