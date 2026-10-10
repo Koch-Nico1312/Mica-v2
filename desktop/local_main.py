@@ -65,6 +65,7 @@ class LocalMica:
         self.native_commands.document_drafts_handler = self._document_drafts_requested
         self.native_commands.review_cards_handler = self._review_cards_requested
         self.native_commands.task_planning_handler = self._task_planning_requested
+        self.native_commands.document_info_handler = self._document_info_requested
         self.native_commands.outcome_handler = self._outcome_requested
         self.ui._win.on_task_planning = self._task_planning_operation
         self.ui._win.on_document_drafts = self._document_drafts_operation
@@ -141,6 +142,11 @@ class LocalMica:
     def _task_planning_requested(self, page, title=''):
         self.ui._win._task_planning_sig.emit(page, title)
         return 'Aufgaben und Tagesplanung geöffnet. Prüfe Dauern, freie Zeitfenster und Vorschläge. Offline-Änderungen werden erst nach deinem Abgleich übernommen.'
+
+    def _document_info_requested(self):
+        from desktop.core.document_inspection import statistics_text
+        overlay = getattr(self.ui._win, '_attachment_overlay', None)
+        return statistics_text(overlay.checkpoint_documents() if overlay else [])
 
     def _outcome_requested(self):
         self.ui._win._outcome_sig.emit()
@@ -586,9 +592,9 @@ class LocalMica:
             try:
                 from mica_shared.quick_commands import parse_quick_command
                 quick = parse_quick_command(text)
-                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'workspace_continue', 'project_switch', 'review_cards', 'unit_convert'}
+                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'workspace_continue', 'project_switch', 'review_cards', 'unit_convert', 'document_info'}
                 if quick and quick['kind'] in local_openers:
-                    if not self.ui.remember_conversations and quick['kind'] not in {'outcome_check', 'unit_convert'}:
+                    if not self.ui.remember_conversations and quick['kind'] not in {'outcome_check', 'unit_convert', 'document_info'}:
                         raise ValueError('Lokale gespeicherte Funktionen benötigen den Modus mit Speicherung.')
                     answer = self._run_native(quick, text)
                     self.ui.write_log('Mica: ' + answer)

@@ -21,7 +21,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 4 von 10 Features lokal implementiert
+## Erster Zyklus: 5 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -71,6 +71,22 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 
 ### Checkpoints und Prüfstand
 
+### 5. Dokumentinfos und Suche in ausgewählten Texten
+
+- Unter Dateien → Infos / Suche: Wörter, Zeichen, Zeichen ohne Leerraum,
+  Absätze und ausdrücklich geschätzte Lesedauer für bereits eingelesene Texte.
+- Literaltextsuche über alle ausgewählten Dokumente, mit Textzeilen und
+  begrenzten Ausschnitten. Unausgewählte Dateien werden nicht einbezogen.
+- Gekürzte/geänderte Textversionen werden kenntlich gemacht. Keine neue
+  Dateilese-, Backend-, Modell- oder Cloud-Anfrage für die Prüfung.
+- `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` sind in der kanonischen
+  Desktop-UI auch offline und ohne Speicherung erreichbar.
+- Fünf zusätzliche Tests für Zählung, wörtliche Suche, Grenzen, sichtbare
+  Oberfläche und den tatsächlichen Offline-Desktop-Pfad bestanden. Zusammen mit
+  angrenzenden neuen Funktionen: 57 Tests bestanden; Ruff-Prüfung folgt im Checkpoint.
+
+### Checkpoints und Prüfstand (Fortsetzung)
+
 - Erster GitHub-Checkpoint: `c2cb11a`, Jira-Implementierung.
 - Erweiterter kombinierter Prüfstand: **160 bestanden**, dazu ein separat
   hinzugefügter Test der kanonischen Desktop-Umrechnung im Offline-Modus ohne
@@ -82,7 +98,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
 - Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
   pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–4 als lokal implementiert;
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–5 als lokal implementiert;
   externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
 
 ## Nächste Auswahl

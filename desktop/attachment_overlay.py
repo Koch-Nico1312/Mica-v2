@@ -67,6 +67,9 @@ class AttachmentOverlay(_HudOverlay):
             actions.addWidget(button)
         layout.addLayout(actions)
         buttons = QHBoxLayout()
+        self.inspect_button = QPushButton('Infos / Suche')
+        self.inspect_button.clicked.connect(self.inspect_documents)
+        buttons.addWidget(self.inspect_button)
         compare = QPushButton('Änderungen')
         compare.clicked.connect(self.compare_requested.emit)
         buttons.addWidget(compare)
@@ -99,6 +102,10 @@ class AttachmentOverlay(_HudOverlay):
             changed = [doc["id"] for doc in docs if attachment_changed(doc)]
             self._changes_checked.emit(changed, generation)
         threading.Thread(target=worker, name="mica-document-watch", daemon=True).start()
+
+    def inspect_documents(self):
+        from desktop.document_inspection_dialog import DocumentInspectionDialog
+        DocumentInspectionDialog(self, self.checkpoint_documents()).exec()
 
     def _changed_files(self, identifiers, generation):
         self._checking = False

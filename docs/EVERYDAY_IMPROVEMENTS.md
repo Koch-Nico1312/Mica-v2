@@ -32,3 +32,18 @@ Währungsumrechnung und Maße wie Cups sind nicht Teil dieser Funktion.
 
 Die Backend-Version muss neu gestartet/gebaut werden, bevor die neuen
 Chatbefehle im bereits laufenden Backend verfügbar sind.
+
+## Dokumentinfos und lokale Suche
+
+Unter **Dateien → Infos / Suche** siehst du die Wort-/Zeichenzahl der ausgewählten
+Dokumente. MICA zählt die bereits eingelesene Textversion und kennzeichnet
+gekürzte oder nachträglich geänderte Dateien. Die Lesedauer ist eine Schätzung
+mit 200 Wörtern pro Minute.
+
+Im selben Fenster kannst du wörtlichen Text in allen angehakten Dokumenten
+suchen. Treffer enthalten den Dokumentnamen, die Textzeile und einen Ausschnitt.
+Suchzeichen wie `.*` sind normale Zeichen, keine regulären Ausdrücke.
+Es werden weder zusätzliche Dateien gelesen noch Texte an ein Modell gesendet.
+
+Die Befehle `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` zeigen die
+Zählung auch im Offline-Desktop und im Modus ohne Speicherung an.

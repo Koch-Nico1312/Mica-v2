@@ -226,6 +226,7 @@ class NativeCommands:
         self.document_drafts_handler = self.review_cards_handler = None
         self.dictation_handler = None
         self.task_planning_handler = self.outcome_handler = None
+        self.document_info_handler = None
 
     def execute(self, command: dict, original: str, *, cancelled=None) -> str:
         # The server's/model's parameter object cannot extend the exact grammar.
@@ -234,6 +235,8 @@ class NativeCommands:
         if cancelled is not None and cancelled.is_set():
             return "Befehl abgebrochen."
         kind = command["kind"]
+        if kind == 'document_info':
+            return self.document_info_handler() if self.document_info_handler else 'Bitte unter Dateien Infos / Suche öffnen.'
         if kind == 'unit_convert':
             from mica_shared.unit_conversion import conversion_reply
             return conversion_reply(command)

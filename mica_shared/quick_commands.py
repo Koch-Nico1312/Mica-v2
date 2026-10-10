@@ -27,6 +27,8 @@ def parse_quick_command(message: str) -> dict | None:
     conversion = parse_conversion(original)
     if conversion:
         return conversion
+    if text in {'dokumentinfos', 'wörter zählen', 'zeichen zählen', 'wie viele wörter haben meine dokumente'}:
+        return {'kind': 'document_info'}
     adjustment = re.fullmatch(r'(?:ich habe |ich kann )?erst ab \d{1,2}(?::\d{2})?\s*(?:uhr)?(?: zeit)?|(?:die )?aufgabe(?: .+?)? dauert (?:länger|(?:jetzt )?\d{1,4} minuten)', original, flags=re.I)
     if adjustment:
         return {'kind': 'task_planning', 'page': 'adjust', 'title': original}

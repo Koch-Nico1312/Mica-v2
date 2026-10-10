@@ -149,7 +149,7 @@ class ConversationRoutes:
             elif quick and request.native_commands:
                 if self.policy.is_emergency_stopped():
                     return {"state": "stopped", "reply": "Not-Aus ist aktiv."}
-                if not request.remember and quick['kind'] not in {'day_overview', 'document_tasks', 'document_cards', 'routine_draft', 'dictation', 'outcome_check'}:
+                if not request.remember and quick['kind'] not in {'day_overview', 'document_tasks', 'document_cards', 'routine_draft', 'dictation', 'outcome_check', 'document_info'}:
                     return {"state": "completed", "reply": "Im Modus ohne Speicherung sind nur Gesprächsanfragen erlaubt."}
                 result = {"schema_version": 1, "state": "native_command", "turn_id": uuid.uuid4().hex,
                           "command": quick, "message": request.message}
