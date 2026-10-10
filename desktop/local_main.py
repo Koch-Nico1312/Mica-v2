@@ -36,7 +36,7 @@ class LocalMica:
     def __init__(self, ui: JarvisUI):
         self.ui = ui
         self.client = LocalCoreClient()
-        self.ui.use_backend_memory()
+        self.ui.use_backend_memory(session_provider=lambda: self.client.dialog_id)
         self.ui._win._control_center.restore_busy.connect(self._restore_busy)
         self._request_lock = threading.RLock()
         self._restoring = False

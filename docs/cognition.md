@@ -40,6 +40,11 @@ Auslagerung eine Option, falls das eingesetzte Backend die GPU nicht unterstütz
 
 ## Bedienung und API
 
+In der Desktop-Seite **Gedächtnis** öffnet **Aufmerksamkeit und Zustand** die
+Zustandsübersicht. Dort kannst du die Schicht für das aktuelle Gespräch
+abschalten, eines der beiden Profile übernehmen oder den Zustand zurücksetzen.
+**Zustand aktualisieren** lädt die aktuellen Werte nach weiteren Antworten.
+
 Die authentifizierten Endpunkte beziehen sich auf dieselbe 32-stellige
 Gesprächskennung wie Text und Sprache:
 
@@ -53,3 +58,34 @@ Gespräch, Neustart oder 30 Minuten Inaktivität entfernt sie. Dauerhafte
 Erinnerungen bleiben in der bestehenden Gedächtnisübersicht bearbeitbar.
 Cloud-Antworten erhalten diese Zusatzschicht nicht. Zustände und Modellantworten
 können weder Aktionen freigeben noch Freigaben oder Not-Aus umgehen.
+
+## Verifikation vom 10. Oktober 2026
+
+116 unterschiedliche gezielte Tests und 33 Untertests bestehen für die Zusatzschicht, die
+Bedienoberfläche, Gedächtnis, Gesprächsverlauf, Stimme und Providergrenzen.
+Der Repository-Check meldet keine Fehler.
+
+Zusätzlich lief das vorhandene `Qwen3-4B-Q4_K_M.gguf` mit llama.cpp `b11541`
+auf diesem Windows-Rechner mit RTX 4060, 4096 Kontextpositionen und 12 zur GPU
+auszulagernden Schichten. Der Prozess wurde von NVIDIA als GPU-Prozess erfasst.
+Beide Profile wurden über den echten API-Code mit echten Modellantworten
+geprüft: Gesprächsbezüge, Nutzerkorrektur, Zustandsreset und Gedächtnisabruf
+nach einem neuen API-Runtime wurden erfolgreich nachgewiesen.
+
+Die reine CPU-Steuerung benötigte in je 1000 Messschritten mit Python-
+Speicherverfolgung durchschnittlich 0,647 bzw. 0,957 Millisekunden. Die dabei
+maximal gemessenen Python-Zusatzallokationen lagen bei etwa 18–19 KB; das ist
+kein Messwert für den gesamten API-Prozess oder dessen Gedächtnisindex.
+Der [Messbericht](../artifacts/cognition-acceptance.json) enthält ausschließlich
+synthetische Testgespräche. Reproduzierbar bei bereits laufendem lokalem Modell:
+
+```powershell
+python scripts/verify_cognition.py --model-url http://127.0.0.1:18082 --output .mica-data/cognition-probe/acceptance.json
+```
+
+Der Test verwendet temporäre API-Daten und verändert nicht das aktive Gedächtnis.
+Die RTX-4060-Integration ist ein lokaler Modelltest, keine vollständige
+Desktop-/HTTPS-/Audio-Deploymentabnahme. Eine physische GTX 970 stand nicht
+zur Verfügung; belegt ist die GPU-unabhängige CPU-Zusatzschicht und das kleinere
+Profil, nicht die Kompatibilität jedes Sprachmodell- oder CUDA-Backends mit
+dieser älteren Grafikkarte.

@@ -14,6 +14,7 @@ the operational and acceptance detail.
 - [Parakeet Redux STT](parakeet-redux.md): local CPU recognition, Docker setup, explicit Whisper alternative and Windows runtime limits.
 - [Sprache einrichten](voice-improvements.md): Mikrofontest, einstellbare Satzende-Pause, Namen, Unterbrechen und Sprachdiagnose.
 - [Gespräche und Dokumente](dialog-improvements.md): gemeinsame Text-/Sprachbezüge, gezielte Rückfragen, Befehle ohne Sprachmodell, Dateiauswahl und Antwortlänge.
+- [Aufmerksamkeit und interne Zustände](cognition.md): CPU-Zusatzschicht neben dem lokalen Modell, relevantes Gedächtnis, Gesprächsfokus, beobachtbare Antwortfehler und bedienbare Zustände.
 - [Alltagshilfe](daily-assistance.md): bestätigte Programmstarts, Timerkorrekturen, Dateiänderungen, konfigurierbarer Arbeitsmodus und gezielte Fensterhilfe.
 - [Projektassistenz](project-assistance.md): mehrere Projektstände, belegte Dokumenttextstellen, Dateivergleiche, Fenster-Bedienelemente, Timer bei geschlossener Oberfläche und Projektgedächtnis auf Zuruf.
 - [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): bedienbare Erinnerungen, Dokumentaufgaben, Routinen im Gespräch, Diktatkorrekturen, Lernkarten und Projektfortschritt.

@@ -54,6 +54,15 @@ def test_self_observation_is_measured_bounded_and_affects_next_prompt():
     assert 'Quellenmarkierungen' in prompt
 
 
+def test_followup_recall_uses_previous_focus_but_topic_switch_does_not():
+    controller, state = CognitiveController(), CognitiveState(focus_terms=['mikrofon'])
+    assert 'mikrofon' in controller.memory_query(state, 'Wie verbessere ich das?', history=[{}])
+    assert controller.memory_query(state, 'Anderes Thema: Was ist das?', history=[{}]) == 'Anderes Thema: Was ist das?'
+    assert controller.memory_query(state, 'Erkläre Photosynthese', history=[{}]) == 'Erkläre Photosynthese'
+    state.enabled = False
+    assert controller.memory_query(state, 'Wie verbessere ich das?', history=[{}]) == 'Wie verbessere ich das?'
+
+
 @pytest.fixture
 def api(tmp_path, monkeypatch):
     monkeypatch.setenv('MICA_API_TOKEN', 'x' * 40)

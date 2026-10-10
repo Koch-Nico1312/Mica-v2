@@ -2472,13 +2472,18 @@ class JarvisUI:
     def remember_conversations(self) -> bool:
         return self._win.remember_conversations
 
-    def use_backend_memory(self):
+    def use_backend_memory(self, session_provider=None):
         from desktop.control_center import BackendMemoryPage
         window = self._win
         previous = window._view_stack.currentIndex()
         old = window._memory_page
         window._view_stack.removeWidget(old)
         page = BackendMemoryPage()
+        if session_provider is not None:
+            from desktop.cognition_panel import open_cognition_dialog
+            page.cognition_button = QPushButton('Aufmerksamkeit und Zustand')
+            page.cognition_button.clicked.connect(lambda: open_cognition_dialog(window, session_provider))
+            page.layout().insertWidget(2, page.cognition_button)
         page.private.setChecked(not window.remember_conversations)
         def set_preference(value):
             from desktop.core.preferences import set_remember_conversations

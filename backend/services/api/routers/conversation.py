@@ -398,14 +398,16 @@ class ConversationRoutes:
             not cloud_provider or self.cloud_private_context_allowed()
         )
         document_sources = context_sources(request.dialog_context) if include_private_context else []
+        cognitive_state = cognitive_state or CognitiveState()
+        recall_query = (self.cognitive_controller.memory_query(cognitive_state, request.message, history=history)
+                        if not cloud_provider else request.message)
         evidence = (
             self.rerank_retrieval(
-                request.message, self.brain.search(request.message, limit=5)
+                recall_query, self.brain.search(recall_query, limit=5)
             )
             if include_private_context
             else []
         )
-        cognitive_state = cognitive_state or CognitiveState()
         cognitive_prompt = ""
         if not cloud_provider:
             evidence, cognitive_prompt = self.cognitive_controller.prepare(

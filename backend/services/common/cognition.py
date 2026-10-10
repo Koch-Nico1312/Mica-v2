@@ -55,6 +55,13 @@ class CognitiveController:
     def __init__(self, *, clock=time.monotonic):
         self.clock = clock
 
+    def memory_query(self, state: CognitiveState, message: str, *, history=()) -> str:
+        if (state.enabled and history and state.focus_terms and
+                re.search(r"\b(das|dazu|daran|damit|weiter|nochmal|nochmals)\b", message.casefold()) and
+                not re.search(r"\b(anderes thema|themenwechsel|stattdessen)\b", message.casefold())):
+            return message[:15000] + ' ' + ' '.join(state.focus_terms)
+        return message
+
     def prepare(self, state: CognitiveState, message: str, evidence: list[dict], *, history=()) -> tuple[list[dict], str]:
         if not state.enabled:
             return evidence, ""

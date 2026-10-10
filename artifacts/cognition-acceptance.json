@@ -1,0 +1,397 @@
+{
+  "schema_version": 1,
+  "results": [
+    {
+      "profile": "low_vram",
+      "turns": [
+        {
+          "elapsed_seconds": 5.588,
+          "reply": "Schön, dass du einen neuen Projektname ausgewählt hast! „Sternkarte“ klingt interessant – möchtest du, dass ich dir bei der Umsetzung helfen? 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "low_vram",
+            "stance": "neutral",
+            "continuity": 0.0,
+            "caution": 0.0,
+            "supportive": 0.0,
+            "focus_terms": [
+              "heisst",
+              "lokale",
+              "mein",
+              "sternkarte",
+              "testprojekt",
+              "wetteranzeige",
+              "ziel"
+            ],
+            "turns": 1,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 143,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 3.269,
+          "reply": "Dein Testprojekt heißt „Sternkarte“ und das Ziel ist eine lokale Wetteranzeige. 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "low_vram",
+            "stance": "focused",
+            "continuity": 0.57,
+            "caution": 0.0,
+            "supportive": 0.0,
+            "focus_terms": [
+              "hat",
+              "heisst",
+              "lokale",
+              "mein",
+              "sternkarte",
+              "testprojekt",
+              "welches",
+              "wetteranzeige",
+              "wie",
+              "ziel"
+            ],
+            "turns": 2,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 143,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 81,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 3.25,
+          "reply": "Dann ist das Ziel „eine lokale Anzeige für Pflanzenpflege“. 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "low_vram",
+            "stance": "careful",
+            "continuity": 0.75,
+            "caution": 0.6,
+            "supportive": 0.0,
+            "focus_terms": [
+              "antwort",
+              "anzeige",
+              "deine",
+              "hat",
+              "heisst",
+              "korrigiere",
+              "lokale",
+              "mein",
+              "nein",
+              "pflanzenpflege",
+              "sternkarte",
+              "testprojekt"
+            ],
+            "turns": 3,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 143,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 81,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 61,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 2.166,
+          "reply": "Dein Testprojekt heißt „Sternkarte“. 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "low_vram",
+            "stance": "careful",
+            "continuity": 0.38,
+            "caution": 0.6,
+            "supportive": 0.0,
+            "focus_terms": [
+              "heisst",
+              "mein",
+              "namen",
+              "nenne",
+              "nur",
+              "seinen",
+              "testprojekt",
+              "wie"
+            ],
+            "turns": 4,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 143,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 81,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 61,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 38,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        }
+      ],
+      "subjective_experience_tested": false,
+      "physical_gpu_compatibility_proven": false,
+      "dialog_reset_verified": true,
+      "restart_reply": "Sternkarte.",
+      "persistent_memory_verified": true,
+      "controller_measurement": {
+        "iterations": 1000,
+        "average_ms": 0.647,
+        "python_peak_allocated_bytes": 18337,
+        "additional_model_calls": 0,
+        "device": "cpu"
+      }
+    },
+    {
+      "profile": "balanced",
+      "turns": [
+        {
+          "elapsed_seconds": 4.527,
+          "reply": "Sternkarte – klingt interessant! Lokale Wetteranzeige – das klingt genau so, wie du es möchtest. Was möchtest du als nächstes machen?",
+          "cognition": {
+            "enabled": true,
+            "profile": "balanced",
+            "stance": "neutral",
+            "continuity": 0.0,
+            "caution": 0.0,
+            "supportive": 0.0,
+            "focus_terms": [
+              "heisst",
+              "lokale",
+              "mein",
+              "sternkarte",
+              "testprojekt",
+              "wetteranzeige",
+              "ziel"
+            ],
+            "turns": 1,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 133,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 3.26,
+          "reply": "Dein Testprojekt heißt Sternkarte und das Ziel ist eine lokale Wetteranzeige. Klingt super! 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "balanced",
+            "stance": "focused",
+            "continuity": 0.57,
+            "caution": 0.0,
+            "supportive": 0.0,
+            "focus_terms": [
+              "hat",
+              "heisst",
+              "lokale",
+              "mein",
+              "sternkarte",
+              "testprojekt",
+              "welches",
+              "wetteranzeige",
+              "wie",
+              "ziel"
+            ],
+            "turns": 2,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 133,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 93,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 3.385,
+          "reply": "Dank dir, ich habe mich geändert. Das Ziel ist eine lokale Anzeige für Pflanzenpflege. 😊",
+          "cognition": {
+            "enabled": true,
+            "profile": "balanced",
+            "stance": "careful",
+            "continuity": 0.75,
+            "caution": 0.6,
+            "supportive": 0.0,
+            "focus_terms": [
+              "antwort",
+              "anzeige",
+              "deine",
+              "hat",
+              "heisst",
+              "korrigiere",
+              "lokale",
+              "mein",
+              "nein",
+              "pflanzenpflege",
+              "sternkarte",
+              "testprojekt"
+            ],
+            "turns": 3,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 133,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 93,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 88,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        },
+        {
+          "elapsed_seconds": 1.715,
+          "reply": "Dein Testprojekt heißt Sternkarte.",
+          "cognition": {
+            "enabled": true,
+            "profile": "balanced",
+            "stance": "careful",
+            "continuity": 0.38,
+            "caution": 0.6,
+            "supportive": 0.0,
+            "focus_terms": [
+              "heisst",
+              "mein",
+              "namen",
+              "nenne",
+              "nur",
+              "seinen",
+              "testprojekt",
+              "wie"
+            ],
+            "turns": 4,
+            "observations": [
+              {
+                "kind": "reply_generated",
+                "reply_characters": 133,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 93,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 88,
+                "invalid_citation_detected": false
+              },
+              {
+                "kind": "reply_generated",
+                "reply_characters": 34,
+                "invalid_citation_detected": false
+              }
+            ],
+            "storage": "session_memory",
+            "expires_after_seconds": 1800,
+            "device": "cpu",
+            "additional_gpu_memory_bytes": 0,
+            "additional_model_calls": 0,
+            "subjective_experience_claimed": false
+          }
+        }
+      ],
+      "subjective_experience_tested": false,
+      "physical_gpu_compatibility_proven": false,
+      "dialog_reset_verified": true,
+      "restart_reply": "Dein Testprojekt heißt Sternkarte. 🌟",
+      "persistent_memory_verified": true,
+      "controller_measurement": {
+        "iterations": 1000,
+        "average_ms": 0.957,
+        "python_peak_allocated_bytes": 18897,
+        "additional_model_calls": 0,
+        "device": "cpu"
+      }
+    }
+  ]
+}
