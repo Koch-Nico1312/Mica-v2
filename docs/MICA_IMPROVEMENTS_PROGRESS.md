@@ -22,7 +22,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 7 von 10 Features lokal implementiert
+## Erster Zyklus: 9 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -103,6 +103,26 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 
 ### Checkpoints und Prüfstand (Fortsetzung)
 
+### 8. Lokaler Rechner und Prozentfragen
+
+- Chat/Offline-Desktop beantwortet `rechne (5 + 3) * 2`, `0,1 + 0,2` und
+  `Was sind 15 Prozent von 80` über eine feste Grammatik mit Dezimalarithmetik.
+- Keine Modell-/Netzwerkanfrage oder Codeauswertung. Nur Grundrechenarten und
+  Klammern; Zahl-/Größen-/Verschachtelungsgrenzen, verständliche Fehler bei null.
+- Desktop ohne Speicherung sowie echter FastAPI-Chatpfad für alle Clients geprüft.
+- 73 Tests mit Rechner, Checklisten, Umrechnung, Dialogen und Dokumentinfos bestanden.
+
+### 9. Lokaler Kennwortgenerator ohne Chatprotokoll
+
+- Unter MICA im Alltag → Kennwort: 12–128 Zeichen, standardmäßig 20,
+  optionale Sonderzeichen, Zufall aus `secrets`/OS, maskierte Anzeige.
+- Keine Speicherung in Chat, Dateien oder Backend. Kopieren nur auf Klick.
+- Anzeige und die noch unveränderte eigene Zwischenablagekopie werden nach
+  60 Sekunden oder Verlassen der Seite entfernt. Fremder neuer Clipboard-Text
+  bleibt erhalten; Windows-Clipboard-Verlauf wird ausdrücklich nicht als gelöscht behauptet.
+- Zwei neue Tests sowie angrenzende UI-/Rechner-/Listenprüfungen: 41 bestanden.
+- Quelle: https://docs.python.org/3/library/secrets.html
+
 ### 7. Lokale Einkaufs-, Pack- und Checklisten
 
 - Unter MICA im Alltag → Listen: benannte Listen erstellen/umbenennen,
@@ -129,7 +149,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
 - Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
   pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–7 als lokal implementiert;
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–9 als lokal implementiert;
   externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
 
 ## Nächste Auswahl

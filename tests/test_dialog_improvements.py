@@ -57,6 +57,15 @@ def test_unit_conversion_completes_for_all_clients_without_model_or_persistent_s
     assert runtime.brain.documents() == []
 
 
+def test_calculation_completes_over_api_without_model_or_storage(dialog):
+    client, runtime = dialog
+    for native in (False, True):
+        answer = turn(client, 'Was sind 15 Prozent von 80', native_commands=native)
+        assert answer['state'] == 'completed' and answer['reply'] == 'Ergebnis: 12'
+    runtime._local_completion.assert_not_called()
+    assert runtime.brain.documents() == []
+
+
 def test_selected_document_search_follow_up_and_ambiguous_file_choice(dialog):
     client, runtime = dialog
     select(client, [document(), document("c" * 32, "Docker Server.md", "Docker auf Proxmox")])

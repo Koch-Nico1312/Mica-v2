@@ -59,3 +59,19 @@ den Backend-Aufgaben und lösen keine Bestellungen oder andere Aktionen aus.
 Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
 MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
 den neuen Stand vor einem erneuten Änderungsversuch.
+
+## Rechner
+
+Im Chat funktionieren `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder
+`Was sind 15 Prozent von 80`. MICA berechnet das lokal mit Dezimalarithmetik,
+auch im Offline-Desktop ohne Speicherung. Unterstützt sind +, -, *, / und
+Klammern, mit höchstens zwölf signifikanten Stellen in der Ergebnisanzeige.
+
+## Kennwort erzeugen
+
+Unter **MICA im Alltag → Kennwort** erzeugst du ein zufälliges Kennwort lokal.
+Die Anzeige ist zunächst maskiert; **Kopieren** übernimmt es auf deinen Klick
+in die Zwischenablage. MICA speichert das Kennwort nicht im Chat oder in Dateien.
+Nach 60 Sekunden oder beim Verlassen der Seite entfernt MICA die Anzeige und
+die noch unveränderte eigene Zwischenablagekopie. Der Windows-Zwischenablageverlauf
+bleibt davon unberührt. Vorher neu kopierter fremder Text wird nicht gelöscht.

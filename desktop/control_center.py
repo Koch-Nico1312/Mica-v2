@@ -442,6 +442,9 @@ class ControlCenter(ApiPage):
         from desktop.checklists_page import ChecklistsPage
         self.checklists_page = ChecklistsPage(can_save=can_save)
         self.tabs.addTab(self.checklists_page, 'Listen')
+        from desktop.password_page import PasswordPage
+        self.password_page = PasswordPage()
+        self.tabs.addTab(self.password_page, 'Kennwort')
         self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)
         self.timer.setInterval(5000)

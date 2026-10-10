@@ -142,10 +142,13 @@ class ConversationRoutes:
             if immediate:
                 result = {"schema_version": 1, "turn_id": uuid.uuid4().hex,
                           "client": request.client, **immediate}
-            elif quick and quick['kind'] == 'unit_convert':
-                from mica_shared.unit_conversion import conversion_reply
+            elif quick and quick['kind'] in {'unit_convert', 'calculate'}:
+                if quick['kind'] == 'unit_convert':
+                    from mica_shared.unit_conversion import conversion_reply as numeric_reply
+                else:
+                    from mica_shared.calculator import calculation_reply as numeric_reply
                 result = {"schema_version": 1, "state": "completed", "turn_id": uuid.uuid4().hex,
-                          "client": request.client, "reply": conversion_reply(quick)}
+                          "client": request.client, "reply": numeric_reply(quick)}
             elif quick and request.native_commands:
                 if self.policy.is_emergency_stopped():
                     return {"state": "stopped", "reply": "Not-Aus ist aktiv."}

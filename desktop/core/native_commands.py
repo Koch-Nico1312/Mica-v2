@@ -235,6 +235,9 @@ class NativeCommands:
         if cancelled is not None and cancelled.is_set():
             return "Befehl abgebrochen."
         kind = command["kind"]
+        if kind == 'calculate':
+            from mica_shared.calculator import calculation_reply
+            return calculation_reply(command)
         if kind == 'document_info':
             return self.document_info_handler() if self.document_info_handler else 'Bitte unter Dateien Infos / Suche öffnen.'
         if kind == 'unit_convert':

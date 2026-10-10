@@ -23,6 +23,10 @@ def parse_quick_command(message: str) -> dict | None:
     text = re.sub(r"^(?:(?:hallo|hey)\s+)?mica[,\s]+", "", message.strip(), flags=re.I)
     original = re.sub(r"^bitte\s+", "", text, flags=re.I).rstrip(".!?")
     text = original.casefold()
+    from mica_shared.calculator import parse_calculation
+    calculation = parse_calculation(original)
+    if calculation:
+        return calculation
     from mica_shared.unit_conversion import parse_conversion
     conversion = parse_conversion(original)
     if conversion:

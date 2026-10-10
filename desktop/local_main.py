@@ -592,9 +592,9 @@ class LocalMica:
             try:
                 from mica_shared.quick_commands import parse_quick_command
                 quick = parse_quick_command(text)
-                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'workspace_continue', 'project_switch', 'review_cards', 'unit_convert', 'document_info'}
+                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'workspace_continue', 'project_switch', 'review_cards', 'unit_convert', 'document_info', 'calculate'}
                 if quick and quick['kind'] in local_openers:
-                    if not self.ui.remember_conversations and quick['kind'] not in {'outcome_check', 'unit_convert', 'document_info'}:
+                    if not self.ui.remember_conversations and quick['kind'] not in {'outcome_check', 'unit_convert', 'document_info', 'calculate'}:
                         raise ValueError('Lokale gespeicherte Funktionen benötigen den Modus mit Speicherung.')
                     answer = self._run_native(quick, text)
                     self.ui.write_log('Mica: ' + answer)
