@@ -122,3 +122,85 @@ def test_atomic_replace_failure_keeps_state_and_removes_temporary_file(tmp_path)
     assert set(tmp_path.iterdir()) == existing
     data, _ = store.change('rename', revision=data['revision'], list_id=identifier, text='Urlaub')
     assert data['lists'][0]['name'] == 'Urlaub'
+
+
+def test_template_duplicate_reset_restart_and_stale_writer(tmp_path):
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, original = store.change('from_template', revision=0, text='Wochenende', template='Reise')
+    assert len(data['lists'][0]['items']) == 6
+    item_id = data['lists'][0]['items'][0]['id']
+    data, _ = store.change('toggle', revision=1, list_id=original, item_id=item_id, done=True)
+    before_copy = data
+    data, copied = store.change('duplicate', revision=2, list_id=original, text='Nächste Reise')
+    assert copied != original and data['lists'][0] == before_copy['lists'][0]
+    assert [item['text'] for item in data['lists'][1]['items']] == [item['text'] for item in data['lists'][0]['items']]
+    assert not any(item['done'] for item in data['lists'][1]['items'])
+    original_ids = {item['id'] for item in data['lists'][0]['items']}
+    assert original_ids.isdisjoint(item['id'] for item in data['lists'][1]['items'])
+    before = store.path.read_bytes()
+    with pytest.raises(ValueError, match='inzwischen'):
+        store.change('reset', revision=2, list_id=original)
+    assert store.path.read_bytes() == before
+    data, _ = store.change('reset', revision=3, list_id=original)
+    assert not any(item['done'] for item in data['lists'][0]['items'])
+    assert {item['id'] for item in data['lists'][0]['items']} == original_ids
+    assert ChecklistStore(store.path).read() == data
+
+
+def test_template_copy_invalid_requests_and_atomic_failure(tmp_path):
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('from_template', revision=0, text='Einkauf', template='Einkauf')
+    before = store.path.read_bytes()
+    for operation, arguments in [
+        ('from_template', {'text': 'Andere', 'template': 'Unbekannt'}),
+        ('from_template', {'text': 'Andere', 'template': []}),
+        ('duplicate', {'text': 'EINKAUF', 'list_id': identifier}),
+        ('duplicate', {'text': 'Andere', 'list_id': 'missing'}),
+        ('from_template', {'text': 'Mehr\nZeilen', 'template': 'Reise'}),
+    ]:
+        with pytest.raises(ValueError):
+            store.change(operation, revision=1, **arguments)
+        assert store.path.read_bytes() == before
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError('locked')):
+        with pytest.raises(PermissionError):
+            store.change('duplicate', revision=data['revision'], list_id=identifier, text='Andere')
+    assert store.path.read_bytes() == before
+    assert not list(tmp_path.glob('*.tmp'))
+
+
+def test_ui_template_preview_privacy_copy_and_reset_confirmation(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = ChecklistStore(tmp_path / 'lists.json')
+    privacy = {'save': False}
+    page = ChecklistsPage(store=store, can_save=lambda: privacy['save'])
+    page.template_choice.setCurrentText('Reise')
+    assert 'Reisepass' in page.template_preview.text()
+    assert not store.path.exists()
+    page.template_button.click()
+    assert not store.path.exists() and 'Speicherung' in page.status.text()
+    privacy['save'] = True
+    page.name.setText('Urlaub')
+    page.template_button.click()
+    assert page.table.rowCount() == 6
+    page.table.item(0, 0).setCheckState(Qt.CheckState.Checked)
+    before = store.read()
+    with patch('desktop.checklists_page.QMessageBox.question', return_value=QMessageBox.StandardButton.No):
+        page.reset()
+    assert store.read() == before
+    with patch('desktop.checklists_page.QInputDialog.getText', return_value=('Später', False)):
+        page.duplicate()
+    assert store.read() == before
+    with patch('desktop.checklists_page.QInputDialog.getText', return_value=('Später', True)):
+        page.duplicate()
+    assert len(store.read()['lists']) == 2 and page.choice.currentText() == 'Später'
+    assert not any(item['done'] for item in page.selected_list()['items'])
+    page.choice.setCurrentIndex(0)
+    with patch('desktop.checklists_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+        privacy['save'] = False
+        page.reset()
+        assert store.read()['lists'][0]['items'][0]['done']
+        privacy['save'] = True
+        page.reset()
+    assert not store.read()['lists'][0]['items'][0]['done']
+    page.close()
+    app.processEvents()

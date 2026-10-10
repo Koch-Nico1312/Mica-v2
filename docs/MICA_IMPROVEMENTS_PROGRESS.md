@@ -1,7 +1,8 @@
 # MICA Improvements – Arbeits- und Prüfstand
 
 Stand: **11.10.2026**. Verbesserungsbranch: **MICA-Improvements**.
-Basis des ersten Zyklus: `e0c2133`. Geplantes Arbeitsende: 09:00 Uhr, Europe/Vienna.
+Basis des ersten Zyklus: `e0c2133`. Aktueller Auftrag: Featurearbeit bis 06:00 Uhr,
+Dokumentationsüberarbeitung ab 08:30 Uhr am 11.10.2026, Europe/Vienna.
 
 ## Aktueller Status
 
@@ -12,15 +13,30 @@ Basis des ersten Zyklus: `e0c2133`. Geplantes Arbeitsende: 09:00 Uhr, Europe/Vie
 | Text-/Codeaufbereitung | Zwei zusätzliche Tests mit den festgelegten Versionen bestanden |
 | Quellcode und Links | Ruff bestanden; nach Dokumentationsüberarbeitung 377 Python-Dateien und 164 lokale Links ohne Fehler geprüft |
 | Veröffentlichung | Alle bisherigen Änderungen auf GitHub; letzter Prüfcheckpoint `1d8e134` |
-| Bugbot | Echter Reviewer nicht verfügbar; Coding-Goal an dieser vorgeschriebenen Stufe blockiert |
+| Codeprüfung | Nutzer hat Bugbot ausdrücklich ausgeschlossen; eigene Codeprüfung und passende Tests |
 | Jira | Weitere Einrichtung und echte Kontoabnahme bis zum Nachmittag zurückgestellt |
 | Dokumentation | Einstieg, Übersicht, Bedienwege, Git-Stand und Prüfbericht überarbeitet; bisherige Einstiegslinks erhalten |
 
 Diese Angaben beschreiben Quellcode und ausgeführte Prüfungen. Sie bestätigen
 keine aktuell laufende Desktop-/Backend-Version, physische Audio-Abnahme oder
 Verbindung mit einem echten Jira-Konto. Der ausgeschlossene Integrationstest
-benötigt einen separat laufenden Dienst. Die echte Bugbot-Abnahme bleibt offen;
-erfolgreiche Tests sind keine Garantie einer vollständig fehlerfreien Codebase.
+benötigt einen separat laufenden Dienst. Erfolgreiche Tests sind keine Garantie
+einer vollständig fehlerfreien Codebase.
+
+## Neuer Funktionszyklus
+
+**Wiederverwendbare Checklisten:** Unter Betrieb → Listen bieten Einkauf, Reise
+und Arbeitsbeginn eine sichtbare Vorlage vor dem ausdrücklichen Anlegen.
+Bestehende Listen lassen sich als neue, vollständig offene Liste kopieren oder
+nach Bestätigung für den nächsten Durchlauf wieder öffnen. Neue IDs trennen
+Kopien vom Original; Namenkonflikte, veraltete Revisionen und Speicherfehler
+überschreiben keine vorhandenen Listen. Der Modus ohne Speicherung bleibt wirksam.
+
+Prüfung dieses Pakets: **10 Tests bestanden** für Checklisten und integrierte
+Alltagsseiten, einschließlich Neustart, Revision, Kopieridentität,
+Speicherfehler, Bestätigungsabbruch und dynamischem Datenschutz. Die Prüfung
+verwendet Qt-Offscreen; eine sichtbare laufende Desktop-Abnahme steht aus.
+Die folgenden breiten Ergebnisse beziehen sich auf den vorherigen Checkpoint.
 
 ## Die zehn Funktionen
 
@@ -135,23 +151,23 @@ Git-Neustart vom 04.10. und heutige GitHub-Anbindung sind getrennt beschrieben.
 Dieser Bericht zeigt die aktuelle Abnahme zuerst und die früheren Zwischenstände
 gesondert. Alle vorherigen Linkziele der beiden Einstiegsseiten bleiben erreichbar.
 
-Der nächste Feature-Zyklus beginnt erst nach der angeforderten echten
-`review-bugbot`-Prüfung oder einer ausdrücklichen Änderung dieser Stufe durch
-den Nutzer. Ein allgemeiner Agent oder eine manuelle Prüfung wird nicht als
-Bugbot ausgegeben. Der technische Blocker wurde nach wiederholter Prüfung
-festgestellt; vorhandene unveränderte Tests werden nicht fortlaufend wiederholt.
+Der Nutzer hat im aktuellen Auftrag ausdrücklich angewiesen, Bugbot nie zu
+verwenden und neue Features weiterzuentwickeln. Die frühere Bugbot-Stufe gilt
+damit nicht mehr; Änderungen werden mit eigener Codeprüfung und passenden
+Tests geprüft. Unveränderte Tests werden nicht fortlaufend wiederholt.
 
 Neue authentifizierte Instruktionen, einschließlich der separat beauftragten
 Dokumentationspflege, werden weiterhin bearbeitet. Statusmails werden alle
 20 Minuten anhand des letzten gespeicherten Versandzeitpunkts gesendet.
-Die letzte regelmäßige Mail ging um 00:42 Uhr heraus.
 
 Die Überwachung heißt `mica-verbesserungen-bis-09-uhr`. Private Mail-IDs,
 bearbeitete Instruktionen und Versandzeiten stehen ausschließlich im lokalen
 Laufzeitstand `.mica-data/improvement-run/status.json`, der nicht committet wird.
+Die Überwachung gehört jetzt zum aktuellen Verbesserungsauftrag; eine separate
+einmalige Fortsetzung beginnt die Dokumentationsüberarbeitung um 08:30 Uhr.
 Bei mindestens 95 Prozent Verbrauch eines relevanten Nutzungsfensters wird
 Entwicklungsarbeit erst nach dem zugehörigen Reset fortgesetzt; Reset-Credits
-werden nicht verwendet. Nach 09:00 werden keine neuen Funktionen begonnen;
+werden nicht verwendet. Nach 06:00 werden keine neuen Funktionen begonnen;
 Abschlussprüfung, Veröffentlichung und Abschlussmail folgen, dann endet die Überwachung.
 
 Zugangsdaten, Datenbanken, Modelle, virtuelle Umgebungen und private Mailinhalte

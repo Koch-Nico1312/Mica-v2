@@ -2,7 +2,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QComboBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
-from desktop.core.checklists import ChecklistStore
+from desktop.core.checklists import CHECKLIST_TEMPLATES, ChecklistStore
 
 
 class ChecklistsPage(QWidget):
@@ -31,6 +31,19 @@ class ChecklistsPage(QWidget):
         row.addWidget(refresh)
         layout.addLayout(row)
         row = QHBoxLayout()
+        self.template_choice = QComboBox()
+        self.template_choice.addItems(CHECKLIST_TEMPLATES)
+        row.addWidget(self.template_choice)
+        self.template_preview = QLabel()
+        self.template_preview.setWordWrap(True)
+        row.addWidget(self.template_preview, 1)
+        self.template_choice.currentTextChanged.connect(self.preview_template)
+        self.template_button = QPushButton('Vorlage als neue Liste')
+        self.template_button.clicked.connect(self.from_template)
+        row.addWidget(self.template_button)
+        layout.addLayout(row)
+        self.preview_template()
+        row = QHBoxLayout()
         self.entry = QLineEdit()
         self.entry.setMaxLength(240)
         self.entry.setPlaceholderText('Eintrag, z. B. 2 Liter Milch')
@@ -52,7 +65,8 @@ class ChecklistsPage(QWidget):
         layout.addWidget(self.status)
         row = QHBoxLayout()
         for title, action in [('Liste umbenennen', self.rename), ('Eintrag entfernen', self.remove_item),
-                              ('Liste entfernen', self.remove_list)]:
+                              ('Liste entfernen', self.remove_list), ('Als neue Liste kopieren', self.duplicate),
+                              ('Alle wieder öffnen', self.reset)]:
             button = QPushButton(title)
             button.clicked.connect(action)
             row.addWidget(button)
@@ -120,6 +134,30 @@ class ChecklistsPage(QWidget):
     def create(self):
         if self.change('create', text=self.name.text()):
             self.name.clear()
+
+    def preview_template(self, *_):
+        self.template_preview.setText(' · '.join(CHECKLIST_TEMPLATES[self.template_choice.currentText()]))
+
+    def from_template(self):
+        template = self.template_choice.currentText()
+        if self.change('from_template', template=template, text=self.name.text().strip() or template):
+            self.name.clear()
+
+    def duplicate(self):
+        record = self.selected_list()
+        if record:
+            name, accepted = QInputDialog.getText(self, 'Liste kopieren',
+                                                'Name der neuen Liste (alle Einträge offen):',
+                                                text=record['name'][:74] + ' Kopie')
+            if accepted:
+                self.change('duplicate', text=name)
+
+    def reset(self):
+        record = self.selected_list()
+        if record and any(item['done'] for item in record['items']):
+            if QMessageBox.question(self, 'Alle wieder öffnen',
+                                    f"Alle erledigten Einträge in {record['name']} wieder öffnen?") == QMessageBox.StandardButton.Yes:
+                self.change('reset')
 
     def add(self):
         if self.change('add', text=self.entry.text()):

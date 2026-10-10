@@ -4,6 +4,14 @@ import re
 import uuid
 from desktop.core.local_state import DATA_DIR, FileLease, read_json, write_json
 
+CHECKLIST_TEMPLATES = {
+    'Einkauf': ('Obst und Gemüse', 'Brot', 'Milch oder Alternative', 'Vorräte prüfen'),
+    'Reise': ('Ausweis oder Reisepass', 'Tickets und Buchungen', 'Ladegerät',
+              'Kleidung', 'Hygieneartikel', 'Schlüssel'),
+    'Arbeitsbeginn': ('Tagesplan ansehen', 'Wichtigste Aufgabe wählen',
+                      'Benötigte Unterlagen öffnen', 'Ablenkungen reduzieren'),
+}
+
 
 class ChecklistStore:
     def __init__(self, path=None):
@@ -36,10 +44,13 @@ class ChecklistStore:
                 ids.add(item['id'])
         return data
 
-    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None):
-        if operation not in {'create', 'rename', 'add', 'toggle', 'remove_item', 'remove_list'}:
+    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None):
+        if operation not in {'create', 'rename', 'add', 'toggle', 'remove_item', 'remove_list',
+                             'from_template', 'duplicate', 'reset'}:
             raise ValueError('Unbekannte Listenaktion.')
-        if operation in {'create', 'rename', 'add'}:
+        if operation == 'from_template' and (not isinstance(template, str) or template not in CHECKLIST_TEMPLATES):
+            raise ValueError('Bitte eine vorhandene Listenvorlage wählen.')
+        if operation in {'create', 'rename', 'add', 'from_template', 'duplicate'}:
             maximum = 240 if operation == 'add' else 80
             if not isinstance(text, str) or not 1 <= len(text.strip()) <= maximum or '\n' in text or '\r' in text:
                 raise ValueError(f'Bitte 1–{maximum} Zeichen in einer Zeile eingeben.')
@@ -50,16 +61,20 @@ class ChecklistStore:
                 raise ValueError('Die Liste wurde inzwischen geändert. Bitte den aktuellen Stand prüfen.')
             data = deepcopy(data)
             record = next((entry for entry in data['lists'] if entry['id'] == list_id), None)
-            if operation != 'create' and record is None:
+            creates_list = operation in {'create', 'from_template', 'duplicate'}
+            if operation not in {'create', 'from_template'} and record is None:
                 raise ValueError('Die ausgewählte Liste ist nicht mehr vorhanden.')
-            if operation in {'create', 'rename'} and any(
-                    entry['name'].casefold() == text.casefold() and (operation == 'create' or entry['id'] != list_id)
+            if (creates_list or operation == 'rename') and any(
+                    entry['name'].casefold() == text.casefold() and (creates_list or entry['id'] != list_id)
                     for entry in data['lists']):
                 raise ValueError('Eine Liste mit diesem Namen ist bereits vorhanden.')
-            if operation == 'create':
+            if creates_list:
                 if len(data['lists']) >= 20:
                     raise ValueError('Höchstens 20 Listen; bitte zuerst eine alte Liste entfernen.')
-                record = {'id': uuid.uuid4().hex, 'name': text, 'items': []}
+                texts = (CHECKLIST_TEMPLATES[template] if operation == 'from_template' else
+                         [item['text'] for item in record['items']] if operation == 'duplicate' else [])
+                record = {'id': uuid.uuid4().hex, 'name': text,
+                          'items': [{'id': uuid.uuid4().hex, 'text': value, 'done': False} for value in texts]}
                 data['lists'].append(record)
             elif operation == 'rename':
                 record['name'] = text
@@ -71,6 +86,9 @@ class ChecklistStore:
                 record['items'].append({'id': uuid.uuid4().hex, 'text': text, 'done': False})
             elif operation == 'remove_list':
                 data['lists'].remove(record)
+            elif operation == 'reset':
+                for item in record['items']:
+                    item['done'] = False
             else:
                 item = next((entry for entry in record['items'] if entry['id'] == item_id), None)
                 if item is None:

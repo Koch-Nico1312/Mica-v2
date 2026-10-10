@@ -75,6 +75,17 @@ Unter **Betrieb → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
 Einträge lassen sich abhaken und wieder öffnen. Zum Entfernen eines Eintrags
 oder einer ganzen Liste bestätigst du die Auswahl ausdrücklich.
 
+Für einen schnellen Einstieg wähle **Einkauf**, **Reise** oder **Arbeitsbeginn**.
+Die Einträge der Vorlage werden vor dem Anlegen angezeigt. **Vorlage als neue
+Liste** speichert sie unter dem eingegebenen Namen, andernfalls unter dem
+Vorlagennamen; vorhandene Listen werden dabei nicht überschrieben.
+
+**Als neue Liste kopieren** übernimmt die Einträge der ausgewählten Liste unter
+einem neuen Namen. Alle Einträge der Kopie sind offen; die ursprüngliche Liste
+bleibt erhalten. Für wiederkehrende Abläufe setzt **Alle wieder öffnen** nach
+Bestätigung alle Haken der ausgewählten Liste zurück. Beides benötigt den Modus
+mit Speicherung und bleibt auch nach einem Neustart erhalten.
+
 Die Listen bleiben lokal auf diesem Gerät gespeichert. Sie sind unabhängig von
 den Backend-Aufgaben und lösen keine Bestellungen oder andere Aktionen aus.
 Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
