@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 import threading
 import time
 from unittest.mock import patch
@@ -58,3 +59,32 @@ def test_ui_async_scan_and_cancelled_folder_picker(tmp_path):
     assert not page.busy
     assert 'Prüfung abgeschlossen' in page.status.text() and 'file.dat' in page.report.toPlainText()
     page.close()
+
+
+def test_queued_directory_replaced_by_link_is_not_traversed(tmp_path, monkeypatch):
+    root = tmp_path / 'root'
+    root.mkdir()
+    nested = root / 'nested'
+    nested.mkdir()
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    (outside / 'private.txt').write_bytes(b'private')
+    probe = tmp_path / 'probe'
+    try:
+        probe.symlink_to(outside, target_is_directory=True)
+        probe.unlink()
+    except OSError:
+        pytest.skip('Directory symlink creation unavailable')
+    real_scandir = os.scandir
+
+    @contextmanager
+    def changed_after_listing(directory):
+        with real_scandir(directory) as children:
+            yield children
+        if directory == root:
+            nested.rename(tmp_path / 'old_nested')
+            nested.symlink_to(outside, target_is_directory=True)
+
+    monkeypatch.setattr('desktop.core.folder_analysis.os.scandir', changed_after_listing)
+    result = analyze_folder(root)
+    assert result['files'] == 0 and result['skipped_links'] == 1

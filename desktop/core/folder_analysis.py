@@ -7,6 +7,12 @@ import threading
 import time
 
 
+def _is_link(info):
+    return (stat.S_ISLNK(info.st_mode) or
+            bool(getattr(info, 'st_file_attributes', 0) &
+                 getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 1024)))
+
+
 def analyze_folder(path, *, cancelled=None, max_entries=50000, max_seconds=30):
     if type(max_entries) is not int or not 1 <= max_entries <= 100000:
         raise ValueError('Ungültige Dateigrenze.')
@@ -31,6 +37,15 @@ def analyze_folder(path, *, cancelled=None, max_entries=50000, max_seconds=30):
             reason = 'time_limit'
             break
         try:
+            # A directory may have changed since it was added to the queue.
+            # Recheck without following links before opening its listing.
+            directory_info = directory.lstat()
+            if _is_link(directory_info):
+                skipped += 1
+                continue
+            if not stat.S_ISDIR(directory_info.st_mode):
+                errors += 1
+                continue
             with os.scandir(directory) as children:
                 for entry in children:
                     if cancelled.is_set():
@@ -42,7 +57,7 @@ def analyze_folder(path, *, cancelled=None, max_entries=50000, max_seconds=30):
                     entries += 1
                     try:
                         info = entry.stat(follow_symlinks=False)
-                        if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 1024):
+                        if _is_link(info):
                             skipped += 1
                             continue
                         if stat.S_ISDIR(info.st_mode):

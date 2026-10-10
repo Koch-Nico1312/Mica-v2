@@ -21,6 +21,10 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   Abschlusscheckpoint pushen, Abschlussmail senden, Heartbeat deaktivieren.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
+- Authentifizierte neue Mail-Instruktion am 11.10. um 00:27: Jira bis zum
+  Nachmittag zurückstellen. In dieser Nacht keine weitere Jira-Anmeldung,
+  OAuth- oder Integrationsarbeit; veröffentlichten Stand bewahren. Jira-Zugang
+  ist damit keine Voraussetzung für die übrige Nachtarbeit.
 
 ## Erster Zyklus: 10 von 10 Features lokal implementiert
 
@@ -182,3 +186,14 @@ behaupten. Gemeldete echte Befunde bearbeiten und erneute Prüfung dokumentieren
 Der nächste Feature-Zyklus beginnt erst nach dieser Prüfstufe. Bis dahin weitere
 Verifikation und Stabilisierung des vorhandenen Zyklus; Live-Jira und laufende
 Backend-/Desktop-Version weiterhin separat offen.
+
+## Stabilisierung nach dem ersten Zyklus
+
+- Eigener Regressionstest zeigte: ein nach der ersten Auflistung durch einen
+  Link ersetzter Unterordner wurde noch betreten. Vor jedem queued Ordner jetzt
+  erneute Metadatenprüfung ohne Linkverfolgung. Der vorher fehlschlagende Test
+  besteht; zusammen mit angrenzenden Ordner-/Listen-/Kennwort-/Aufgabenprüfungen
+  **30 Tests bestanden**, Ruff bestanden.
+- Das Dateisystem liefert keinen atomaren Schnappschuss; gleichzeitige externe
+  Änderungen können weiterhin eine Teilansicht ergeben. Der Test ist eine eigene
+  Verifikation und kein Bugbot-Befund. Die echte Bugbot-Prüfstufe bleibt offen.
