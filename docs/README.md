@@ -16,6 +16,7 @@ the operational and acceptance detail.
 - [Gespräche und Dokumente](dialog-improvements.md): gemeinsame Text-/Sprachbezüge, gezielte Rückfragen, Befehle ohne Sprachmodell, Dateiauswahl und Antwortlänge.
 - [Aufmerksamkeit und interne Zustände](cognition.md): CPU-Zusatzschicht neben dem lokalen Modell, relevantes Gedächtnis, Gesprächsfokus, beobachtbare Antwortfehler und bedienbare Zustände.
 - [Alltagshilfe](daily-assistance.md): bestätigte Programmstarts, Timerkorrekturen, Dateiänderungen, konfigurierbarer Arbeitsmodus und gezielte Fensterhilfe.
+- [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md): Aufgabenfilter und Export, Umrechnung, Rechner, Dokumentinfos/Suche, lokale Listen, Kennwörter und Dateigrößen.
 - [Projektassistenz](project-assistance.md): mehrere Projektstände, belegte Dokumenttextstellen, Dateivergleiche, Fenster-Bedienelemente, Timer bei geschlossener Oberfläche und Projektgedächtnis auf Zuruf.
 - [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): bedienbare Erinnerungen, Dokumentaufgaben, Routinen im Gespräch, Diktatkorrekturen, Lernkarten und Projektfortschritt.
 - [Tagesplanung, Offline und Ergebnisprüfung](planning-offline-results.md): Zeitfenster und Pausen, bearbeitbare Schrittfolgen, belegte Datei-/Fensterprüfung, geprüfter Offline-Abgleich und Projekt-Export als Markdown.

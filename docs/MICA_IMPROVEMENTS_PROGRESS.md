@@ -205,3 +205,9 @@ Backend-/Desktop-Version weiterhin separat offen.
   Dokumentationslinks**, **0 Fehler**. Das ist Syntax-/Link-Evidenz und keine
   vollständige Laufzeit- oder Bugbot-Abnahme.
 - Korrektur der Ordnerprüfung auf GitHub veröffentlicht: `35f2beb`.
+- Zusammengesetzte Alltag-Seiten prüfen die dynamische Speicherungsfreigabe,
+  den Kennwort-Lebenszyklus beim echten Tabwechsel und unterdrückte Backend-
+  Aktualisierung auf der lokalen Seite. Mit Hauptoberflächen-/Navigations-/
+  Startvertrag-Prüfungen **27 Tests bestanden**. Hauptoberfläche wurde im
+  Qt-Offscreen-Test konstruiert; dies ist keine Live-Dienst-/Audio-Abnahme.
+- Die Bedienhilfe zu den neuen Funktionen ist im Dokumentationsindex verlinkt.
