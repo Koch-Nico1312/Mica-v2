@@ -351,6 +351,9 @@ class ControlCenter(ApiPage):
         from desktop.evolution_page import EvolutionPage
         self.evolution_page = EvolutionPage(client_factory=client_factory)
         self.tabs.addTab(self.evolution_page, 'Weiterentwicklung')
+        from desktop.jira_page import JiraPage
+        self.jira_page = JiraPage()
+        self.tabs.addTab(self.jira_page, 'Jira')
         self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
