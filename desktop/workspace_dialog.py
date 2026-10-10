@@ -14,6 +14,7 @@ class WorkspaceDialog(QDialog):
         self.operation, self.documents = operation, documents
         self.store = store or ProjectWorkspaceStore()
         self.saved = None
+        self.busy = False
         self.setWindowTitle('Arbeitsstand speichern und weiterarbeiten')
         self.resize(520, 460)
         self.setStyleSheet(f'QDialog {{background:{C.PANEL};}} QLabel {{color:{C.TEXT};}} QPlainTextEdit,QPushButton {{background:{C.PANEL2};color:{C.TEXT};padding:8px;}}')
@@ -105,6 +106,8 @@ class WorkspaceDialog(QDialog):
                 self.status.setText('Export nicht verfügbar: ' + str(error))
 
     def run(self, action):
+        if self.busy:
+            return
         if action == 'save' and max(len(self.step.toPlainText()), len(self.last_step.toPlainText())) > 2000:
             self.status.setText('Der nächste Schritt darf höchstens 2.000 Zeichen enthalten.')
             return
@@ -113,6 +116,7 @@ class WorkspaceDialog(QDialog):
         for button in self.buttons:
             button.setEnabled(False)
         self.name.setEnabled(False)
+        self.busy = True
         self.status.setText('Arbeitsstand wird verarbeitet …')
         payload = {'documents': self.documents, 'next_step': self.step.toPlainText(), 'project': self.name.currentText(),
             'last_step': self.last_step.toPlainText(), 'remember_progress': self.remember_progress.isChecked()} if action == 'save' else {**self.saved, 'project': self.name.currentText()}
@@ -125,6 +129,7 @@ class WorkspaceDialog(QDialog):
         threading.Thread(target=worker, name='mica-workspace', daemon=True).start()
 
     def done_operation(self, action, result, error):
+        self.busy = False
         for button in self.buttons:
             button.setEnabled(True)
         self.name.setEnabled(True)
@@ -132,17 +137,21 @@ class WorkspaceDialog(QDialog):
             self.refresh()
             self.status.setText('Arbeitsstand nicht übernommen: ' + error)
             return
-        if action == 'load':
+        if action in {'load', 'sync'}:
             parent = self.parent()
             parent._open_attachments()
             parent._attachment_overlay.replace_documents(result['documents'])
             parent._input.setText(result['next_step'])
-            if result.get('offline'):
+            if hasattr(parent, '_log'):
+                parent._log.append_log('SYS: Projekt ' + self.name.currentText() + ' fortgesetzt. Hier warst du: ' +
+                    (result.get('last_step') or 'Noch kein letzter Schritt gespeichert.') + '\nNächster Schritt: ' +
+                    (result['next_step'] or 'Noch nicht festgelegt.'))
+            if action == 'sync':
+                self.status.setText('Geprüfter lokaler Projektstand mit dem Backend-Gespräch verbunden und in der Oberfläche geladen. Keine Aufgabe wurde ausgeführt oder angelegt.')
+            elif result.get('offline'):
                 self.status.setText('Offline geladen. Dokumente und nächste Schritte sind lokal nutzbar; das Backend-Gespräch ist noch nicht verbunden. Zum Abgleich diesen Projektstand prüfen und die Verbindung ausdrücklich bestätigen.')
             else:
                 self.accept()
-        elif action == 'sync':
-            self.status.setText('Geprüfter lokaler Projektstand mit dem Backend-Gespräch verbunden. Keine Aufgabe wurde ausgeführt oder angelegt.')
         else:
             name = self.store.name(self.name.currentText())
             if self.name.findText(name) == -1:
@@ -162,3 +171,15 @@ class WorkspaceDialog(QDialog):
             self.status.setText('Gespeicherter Arbeitsstand gelöscht.')
         except (OSError, ValueError) as error:
             self.status.setText(str(error))
+
+    def reject(self):
+        if self.busy:
+            self.status.setText('Arbeitsstand wird noch verarbeitet. Danach kannst du das Fenster schließen.')
+            return
+        super().reject()
+
+    def closeEvent(self, event):
+        if self.busy:
+            event.ignore()
+        else:
+            super().closeEvent(event)

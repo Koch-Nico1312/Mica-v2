@@ -105,6 +105,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
     _confirm_hide_sig = pyqtSignal()
     _backend_update_sig = pyqtSignal(str, bool, str)
     _workspace_sig = pyqtSignal(str)
+    _project_resume_sig = pyqtSignal(str)
     _project_sig = pyqtSignal(str)
     _memory_project_sig = pyqtSignal(str)
     _document_changes_sig = pyqtSignal()
@@ -163,6 +164,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         self.on_new_conversation = None
         self.on_workspace_operation = None
         self._workspace_sig.connect(self._open_workspace)
+        self._project_resume_sig.connect(self._resume_project)
         self._project_sig.connect(lambda name: self._open_workspace('workspace_resume', project=name))
         self._memory_project_sig.connect(self._open_project_memory)
         self._document_changes_sig.connect(self._open_document_changes)
@@ -1514,6 +1516,9 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         tools.setSpacing(8)
         self._workspace_button = QPushButton('Arbeitsstand')
         self._workspace_button.clicked.connect(lambda: self._open_workspace('workspace_save'))
+        self._resume_project_button = QPushButton('Projekt fortsetzen')
+        self._resume_project_button.setToolTip('Zuletzt gespeichertes Projekt samt Dokumenten, letzter Arbeit und nächster Aufgabe öffnen')
+        self._resume_project_button.clicked.connect(lambda: self._resume_project(''))
         self._selection_button = QPushButton('Textauswahl')
         self._selection_button.setToolTip('Strg+Alt+M im gewünschten Programm: markierten Text prüfen und bearbeiten')
         from PyQt6.QtWidgets import QMenu
@@ -1548,7 +1553,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         self._planning_button.clicked.connect(lambda: self._open_task_planning('plan'))
         self._outcome_button = QPushButton('Ergebnis prüfen')
         self._outcome_button.clicked.connect(self._open_outcome_check)
-        self._composer_tool_buttons = (self._attachments_button, self._routine_button, self._screen_help_button, self._workspace_button, self._selection_button, self._planning_button, self._outcome_button)
+        self._composer_tool_buttons = (self._attachments_button, self._routine_button, self._screen_help_button, self._workspace_button, self._resume_project_button, self._selection_button, self._planning_button, self._outcome_button)
         for index, button in enumerate(self._composer_tool_buttons):
             button.setFont(QFont("Segoe UI", 8))
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1596,8 +1601,8 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             return
         try:
             from desktop.task_planning_dialog import TaskPlanningDialog
-            dialog = TaskPlanningDialog(self, operation, page=page)
-            if title:
+            dialog = TaskPlanningDialog(self, operation, page='plan' if page == 'adjust' else page, adjustment=title if page == 'adjust' else '')
+            if title and page != 'adjust':
                 dialog.title.setText(title)
             dialog.exec()
         except (OSError, ValueError) as error:
@@ -1632,6 +1637,19 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         popup.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         popup.show()
 
+    def _resume_project(self, project=''):
+        from desktop.core.workspace import ProjectWorkspaceStore
+        try:
+            if not project:
+                projects = ProjectWorkspaceStore().all()
+                versions = [(datetime.fromisoformat(data[-1]['saved_at']), name) for name, data in projects.items() if data]
+                if not versions:
+                    raise ValueError('Zuerst einen Projektstand unter Arbeitsstand speichern.')
+                project = max(versions)[1]
+            self._open_workspace('workspace_continue', project=project)
+        except (OSError, ValueError, KeyError) as error:
+            self._log.append_log('SYS: Projekt nicht fortgesetzt: ' + str(error))
+
     def _open_workspace(self, kind, project=None):
         if not self.remember_conversations:
             self._log.append_log('SYS: Arbeitsstände benötigen den Modus mit Speicherung.')
@@ -1640,7 +1658,10 @@ class MainWindow(LocalPagesMixin, QMainWindow):
             return
         from desktop.workspace_dialog import WorkspaceDialog
         documents = self._attachment_overlay.checkpoint_documents() if self._attachment_overlay else []
-        WorkspaceDialog(self, self.on_workspace_operation, documents, prefer_load=kind == 'workspace_resume', project=project).exec()
+        dialog = WorkspaceDialog(self, self.on_workspace_operation, documents, prefer_load=kind in {'workspace_resume', 'workspace_continue'}, project=project)
+        if kind == 'workspace_continue' and dialog.saved:
+            QTimer.singleShot(0, lambda: dialog.run('load'))
+        dialog.exec()
 
     def _open_project_memory(self, query):
         if hasattr(self, '_backend_memory_page'):

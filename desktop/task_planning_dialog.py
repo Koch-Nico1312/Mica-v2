@@ -6,10 +6,10 @@ from zoneinfo import ZoneInfo
 from PyQt6.QtCore import Qt, QDate, pyqtSignal
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel, QLineEdit,
     QPlainTextEdit, QPushButton, QTabWidget, QWidget, QTableWidget, QTableWidgetItem,
-    QSpinBox, QComboBox, QDateEdit, QMessageBox)
+    QSpinBox, QComboBox, QDateEdit, QMessageBox, QCheckBox, QFileDialog)
 from desktop.core.offline_tasks import OfflineTasks
-from desktop.core.day_planner import build_day_plan
-from desktop.core.local_state import DATA_DIR, read_json, write_json
+from desktop.core.local_state import DATA_DIR, FileLease, read_json, write_json
+from desktop.core.planning_extensions import block_id, calendar_busy, extended_plan, fingerprint_plan, parse_adjustment, study_tasks
 
 STATUSES = {'open': 'Offen', 'in_progress': 'In Arbeit', 'completed': 'Erledigt', 'cancelled': 'Abgebrochen'}
 PRIORITIES = {'low': 'Niedrig', 'normal': 'Normal', 'high': 'Hoch'}
@@ -52,12 +52,13 @@ class StepsDialog(QDialog):
 class TaskPlanningDialog(QDialog):
     _done = pyqtSignal(str, object, str)
 
-    def __init__(self, parent, operation, *, store=None, page='tasks'):
+    def __init__(self, parent, operation, *, store=None, page='tasks', adjustment=''):
         super().__init__(parent)
         self.operation, self.store = operation, store or OfflineTasks()
         self.busy, self.tasks, self.plan, self.review = False, [], None, []
+        self.previous, self.preview_now = None, None
         self.setWindowTitle('Aufgaben und Tagesplanung · auch offline')
-        self.resize(820, 740)
+        self.resize(900, 900)
         layout = QVBoxLayout(self)
         self.status = QLabel()
         self.status.setWordWrap(True)
@@ -77,6 +78,8 @@ class TaskPlanningDialog(QDialog):
         self._done.connect(self.finished_operation)
         self.refresh_local()
         self.tabs.setCurrentIndex(1 if page == 'plan' else 2 if page == 'sync' else 0)
+        if adjustment:
+            self.adjustment.setText(adjustment)
 
     def build_tasks(self):
         layout = QVBoxLayout(self.task_tab)
@@ -113,11 +116,26 @@ class TaskPlanningDialog(QDialog):
             button.clicked.connect(callback)
             row.addWidget(button)
         layout.addLayout(row)
+        criteria = QPushButton('Erledigt, wenn … · Prüfung für gewählte Aufgabe')
+        criteria.clicked.connect(self.open_criteria)
+        layout.addWidget(criteria)
         self.new_task()
+
+    def open_criteria(self):
+        if not self.editing_id:
+            self.status.setText('Zuerst eine lokal gespeicherte Aufgabe auswählen.')
+            return
+        from desktop.task_criteria_dialog import TaskCriteriaDialog
+        try:
+            TaskCriteriaDialog(self, self.editing_id, self.operation, self.store).exec()
+        except (OSError, ValueError) as error:
+            self.status.setText('Aufgabenprüfung nicht lesbar: ' + str(error))
+            return
+        self.refresh_local()
 
     def build_plan(self):
         layout = QVBoxLayout(self.plan_tab)
-        note = QLabel('Wähle unter Aufgaben die zu planenden Aufgaben. Gib nur freie Zeitfenster an; feste Termine und bereits belegte Zeiten aussparen. Der Plan berücksichtigt Fristen, Priorität, Voraussetzungen und Pausen. Nicht passende Aufgaben bleiben sichtbar.')
+        note = QLabel('Wähle unter Aufgaben die zu planenden Aufgaben und deine verfügbaren Zeiten. Aus einer ausgewählten Kalenderdatei werden belegte Termine abgezogen. Vorschläge und Anpassungen werden erst nach deiner Übernahme gespeichert.')
         note.setWordWrap(True)
         layout.addWidget(note)
         self.date = QDateEdit(QDate.currentDate())
@@ -127,6 +145,26 @@ class TaskPlanningDialog(QDialog):
         self.windows.setMaximumHeight(75)
         layout.addWidget(QLabel('Freie Zeitfenster, je Zeile HH:MM-HH:MM (Europe/Vienna):'))
         layout.addWidget(self.windows)
+        calendar_row = QHBoxLayout()
+        self.calendar_path = QLineEdit()
+        self.calendar_path.setPlaceholderText('Optional: lokale Kalenderdatei (.ics), nur lesend')
+        calendar_row.addWidget(self.calendar_path)
+        choose = QPushButton('Kalender auswählen')
+        choose.clicked.connect(self.choose_calendar)
+        calendar_row.addWidget(choose)
+        layout.addLayout(calendar_row)
+        self.include_cards = QCheckBox('Fällige und zuletzt schwierige Lernkarten als kurze Lernblöcke einplanen')
+        layout.addWidget(self.include_cards)
+        self.adjustment = QLineEdit()
+        self.adjustment.setMaxLength(240)
+        self.adjustment.setPlaceholderText('Gespeicherten Plan anpassen: Ich habe erst ab 15 Uhr Zeit')
+        layout.addWidget(self.adjustment)
+        layout.addWidget(QLabel('Auch: Aufgabe Bericht dauert 60 Minuten. Gemeint ist die offene Restdauer.'))
+        self.progress_blocks = QComboBox()
+        layout.addWidget(self.progress_blocks)
+        done = QPushButton('Gewählten Arbeitsblock als abgeschlossen merken')
+        done.clicked.connect(self.complete_block)
+        layout.addWidget(done)
         form = QFormLayout()
         self.focus, self.pause = QSpinBox(), QSpinBox()
         self.focus.setRange(5, 120)
@@ -146,13 +184,67 @@ class TaskPlanningDialog(QDialog):
         self.accept_plan.setEnabled(False)
         self.accept_plan.clicked.connect(self.save_plan)
         layout.addWidget(self.accept_plan)
+        self.study_blocks = QComboBox()
+        layout.addWidget(self.study_blocks)
+        learn = QPushButton('Lernkarten des gewählten Blocks wiederholen')
+        learn.clicked.connect(self.open_study_block)
+        layout.addWidget(learn)
         try:
             saved = read_json(DATA_DIR / 'day-plan.json', limit=2 * 1024 * 1024)
+            self.previous = saved
+            inputs = saved.get('request', saved.get('inputs', {}))
+            if inputs.get('windows'):
+                from desktop.core.planning_extensions import ZONE
+                self.date.setDate(QDate(datetime.fromisoformat(inputs['windows'][0][0]).astimezone(ZONE).date()))
+                self.windows.setPlainText('\n'.join(datetime.fromisoformat(s).astimezone(ZONE).strftime('%H:%M') + '-' + datetime.fromisoformat(e).astimezone(ZONE).strftime('%H:%M') for s, e in inputs['windows']))
+                self.focus.setValue(inputs['focus_minutes'])
+                self.pause.setValue(inputs['break_minutes'])
+                self.calendar_path.setText((saved.get('calendar') or {}).get('path', ''))
+                self.include_cards.setChecked(any(t.get('card_ids') for t in inputs.get('tasks', [])))
             self.plan_text.setPlainText('Zuletzt übernommener Plan:\n' + self.format_plan(saved))
+            self.fill_progress_blocks()
         except (OSError, ValueError, TypeError, KeyError):
             pass
-        for signal in (self.windows.textChanged, self.date.dateChanged, self.focus.valueChanged, self.pause.valueChanged, self.table.itemChanged):
+        for signal in (self.windows.textChanged, self.date.dateChanged, self.focus.valueChanged, self.pause.valueChanged, self.table.itemChanged,
+                       self.calendar_path.textChanged, self.include_cards.toggled, self.adjustment.textChanged):
             signal.connect(self.invalidate_plan)
+
+    def choose_calendar(self):
+        path, _ = QFileDialog.getOpenFileName(self, 'Kalender lesen', '', 'Kalender (*.ics)')
+        if path:
+            self.calendar_path.setText(path)
+
+    def fill_progress_blocks(self):
+        self.progress_blocks.clear()
+        for block in (self.previous or {}).get('blocks', []):
+            if block['kind'] == 'task' and block_id(block) not in (self.previous or {}).get('completed_blocks', []):
+                self.progress_blocks.addItem(datetime.fromisoformat(block['start']).strftime('%H:%M') + ' · ' + block['title'], block_id(block))
+
+    def complete_block(self):
+        identifier = self.progress_blocks.currentData()
+        if not identifier or not self.previous:
+            return
+        try:
+            with FileLease(str(DATA_DIR / 'day-plan.json') + '.lock', label='Der Tagesplan'):
+                latest = read_json(DATA_DIR / 'day-plan.json', limit=2 * 1024 * 1024)
+                if latest['fingerprint'] != self.previous['fingerprint']:
+                    raise ValueError('Plan änderte sich. Bitte das Fenster neu öffnen.')
+                latest['completed_blocks'] = [*latest.get('completed_blocks', []), identifier]
+                latest['fingerprint'] = fingerprint_plan(latest)
+                write_json(DATA_DIR / 'day-plan.json', latest)
+                self.previous = latest
+            self.invalidate_plan()
+            self.fill_progress_blocks()
+            self.status.setText('Arbeitsblock abgeschlossen. Der Aufgabenstatus wurde nicht verändert.')
+        except (OSError, ValueError, KeyError) as error:
+            self.status.setText(str(error))
+
+    def open_study_block(self):
+        identifiers = self.study_blocks.currentData()
+        if identifiers:
+            from desktop.flashcards_dialog import FlashcardsDialog
+            FlashcardsDialog(self, card_ids=identifiers).exec()
+            self.invalidate_plan()
 
     def build_sync(self):
         layout = QVBoxLayout(self.sync_tab)
@@ -321,6 +413,33 @@ class TaskPlanningDialog(QDialog):
         self.plan = None
         self.accept_plan.setEnabled(False)
 
+    def current_plan(self):
+        tasks, windows = self.planning_input()
+        day = self.date.date().toPyDate()
+        if self.include_cards.isChecked():
+            from desktop.core.flashcards import FlashcardStore
+            tasks += study_tasks(FlashcardStore().all(), day)
+        calendar = calendar_busy(self.calendar_path.text(), day) if self.calendar_path.text().strip() else None
+        change = parse_adjustment(self.adjustment.text()) if self.adjustment.text().strip() else None
+        previous = self.previous if change else None
+        if change:
+            if not previous:
+                raise ValueError('Zuerst einen Tagesplan übernehmen; danach dessen offene Blöcke anpassen.')
+            first = (previous.get('request') or previous['inputs'])['windows'][0][0]
+            from desktop.core.planning_extensions import ZONE
+            if datetime.fromisoformat(first).astimezone(ZONE).date() != day:
+                raise ValueError('Anpassungen gelten für den Tag des gespeicherten Plans.')
+            if change['kind'] == 'duration':
+                matches = [t for t in tasks if t['title'].casefold() == change['title'].casefold()] if change['title'] else [t for t in tasks if t['id'] == self.editing_id]
+                if len(matches) != 1:
+                    raise ValueError('Aufgabe eindeutig benennen oder unter Aufgaben auswählen.')
+                consumed = sum(b['minutes'] for b in previous['blocks'] if b.get('task_id') == matches[0]['id'] and
+                    (block_id(b) in previous.get('completed_blocks', []) or datetime.fromisoformat(b['start']) < self.preview_now < datetime.fromisoformat(b['end'])))
+                total = previous.get('duration_overrides', {}).get(matches[0]['id'], matches[0]['minutes'])
+                change.update(task_id=matches[0]['id'], minutes=change['minutes'] or max(0, total - consumed) + 15)
+        return extended_plan(tasks, windows, busy=(calendar or {}).get('busy', []), calendar=calendar,
+            previous=previous, change=change, now=self.preview_now, break_minutes=self.pause.value(), focus_minutes=self.focus.value())
+
     def planning_input(self):
         day = self.date.date().toPyDate()
         zone = ZoneInfo('Europe/Vienna')
@@ -345,17 +464,33 @@ class TaskPlanningDialog(QDialog):
 
     def preview_plan(self):
         try:
-            tasks, windows = self.planning_input()
-            self.plan = build_day_plan(tasks, windows, break_minutes=self.pause.value(), focus_minutes=self.focus.value())
+            self.preview_now = datetime.now(UTC)
+            self.plan = self.current_plan()
             self.plan_text.setPlainText(self.format_plan(self.plan))
+            self.study_blocks.clear()
+            for task in self.plan['request']['tasks']:
+                if task.get('card_ids'):
+                    self.study_blocks.addItem(task['title'] + f" · {len(task['card_ids'])} Karten", task['card_ids'])
             self.accept_plan.setEnabled(True)
-        except (ValueError, KeyError) as error:
+            self.status.setText('Neue Vorschau. Erst Geprüften Tagesplan übernehmen speichert die Änderungen.')
+        except (OSError, ValueError, KeyError, ImportError) as error:
             self.invalidate_plan()
             self.plan_text.setPlainText('Plan nicht erstellt: ' + str(error))
 
     @staticmethod
     def format_plan(plan):
         rows = ['Vorschau · keine Aufgabe oder Erinnerung wird gestartet.']
+        if plan.get('adjustment'):
+            rows.append('Anpassung: abgeschlossene und aktuell laufende Blöcke bleiben erhalten. Verpasste Arbeit wird neu geplant.')
+            for item in plan.get('changes', []):
+                before = ', '.join(datetime.fromisoformat(b['start']).strftime('%H:%M') for b in item['before']) or 'nicht eingeplant'
+                after = ', '.join(datetime.fromisoformat(b['start']).strftime('%H:%M') for b in item['after']) or 'nicht eingeplant'
+                rows.append(item['title'] + ': vorher ' + before + ' → jetzt ' + after)
+        if plan.get('calendar'):
+            rows.append('Kalender gelesen: ' + plan['calendar']['path'])
+            from desktop.core.planning_extensions import ZONE
+            rows += ['Belegt: ' + event['title'] + ' · ' + datetime.fromisoformat(event['start']).astimezone(ZONE).strftime('%H:%M') + '–' +
+                datetime.fromisoformat(event['end']).astimezone(ZONE).strftime('%H:%M') for event in plan['calendar']['busy']]
         for block in plan['blocks']:
             rows.append(datetime.fromisoformat(block['start']).strftime('%d.%m. %H:%M') + '–' + datetime.fromisoformat(block['end']).strftime('%H:%M') + ' · ' + block['title'])
         rows += ['', 'Noch nicht eingeplant:'] + [item['title'] + ' · ' + str(item['minutes']) + ' Minuten · ' + item['reason'] for item in plan['unplanned']]
@@ -366,11 +501,20 @@ class TaskPlanningDialog(QDialog):
         if not self.plan:
             return
         try:
-            tasks, windows = self.planning_input()
-            current = build_day_plan(tasks, windows, break_minutes=self.pause.value(), focus_minutes=self.focus.value())
+            current = self.current_plan()
             if current['fingerprint'] != self.plan['fingerprint']:
                 raise ValueError('Eingaben änderten sich. Bitte erneut einen Plan vorschlagen.')
-            write_json(DATA_DIR / 'day-plan.json', self.plan | {'accepted_at': datetime.now().astimezone().isoformat()})
+            with FileLease(str(DATA_DIR / 'day-plan.json') + '.lock', label='Der Tagesplan'):
+                try:
+                    latest = read_json(DATA_DIR / 'day-plan.json', limit=2 * 1024 * 1024)
+                except FileNotFoundError:
+                    latest = None
+                if (latest or {}).get('fingerprint') != (self.previous or {}).get('fingerprint'):
+                    raise ValueError('Gespeicherter Plan änderte sich. Fenster neu öffnen und erneut prüfen.')
+                write_json(DATA_DIR / 'day-plan.json', self.plan | {'accepted_at': datetime.now().astimezone().isoformat()})
+            self.previous = self.plan
+            self.fill_progress_blocks()
+            self.adjustment.clear()
             self.status.setText('Geprüfter Tagesplan lokal übernommen. Es wird keine Aufgabe automatisch ausgeführt.')
-        except (ValueError, OSError) as error:
+        except (ValueError, OSError, ImportError) as error:
             self.status.setText(str(error))

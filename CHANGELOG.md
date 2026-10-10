@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-08 – Flexible Planung und Projektfortsetzung
+
+- Änderungs-Vorschau für spätere Verfügbarkeit und verlängerte Restarbeit;
+  abgeschlossene Blöcke bleiben erhalten, verpasste Arbeit wird neu geplant.
+- Projektfortsetzung mit einem Klick samt Dokumenten, letztem und nächstem Schritt.
+- Lesender ICS-Kalender mit Wiederholungen, Ausnahmen und ganztägigen Terminen.
+- Gespeicherte Dateikriterien an Aufgaben; erneuter Nachweis vor ausdrücklicher
+  lokaler Erledigt-Vormerkung und späterem Backend-Abgleich.
+- Kurze Lernblöcke aus fälligen und zuletzt schwierigen Karten, mit gezielter Wiederholung.
+
 ## 2026-10-07 – Tagesplanung, Offline und Ergebnisprüfung
 
 - Geprüfte Tagespläne aus Dauer, Fristen, freien Zeitfenstern, Voraussetzungen

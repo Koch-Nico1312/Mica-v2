@@ -1,6 +1,8 @@
 # Windows desktop and local host-agent runtime only.
 # Legacy Gemini/QR packages intentionally do not belong to this production set.
 PyQt6
+icalendar>=6.3,<8
+recurring-ical-events>=3.8,<4
 sounddevice
 websocket-client
 keyring

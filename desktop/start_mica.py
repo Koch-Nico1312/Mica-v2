@@ -185,16 +185,22 @@ def start_core(progress: Callable[[str], None] = print) -> dict:
     return health
 
 
-def main(*, console: bool = False) -> int:
+def main(*, console: bool = False, offline: bool = False) -> int:
     try:
-        if console:
+        if offline:
+            pass
+        elif console:
             start_core()
         else:
             from desktop.startup_window import run_startup
-            if not run_startup(start_core, ROOT):
+            outcome = run_startup(start_core, ROOT, return_outcome=True)
+            if not outcome:
                 return 1
+            offline = outcome == 'offline'
         # Keep exactly the interpreter and entrypoint used by the working PS command.
-        return subprocess.run([sys.executable, str(ROOT / "desktop/local_main.py")], cwd=ROOT / "desktop").returncode
+        environment = dict(os.environ)
+        environment['MICA_START_OFFLINE'] = '1' if offline else '0'
+        return subprocess.run([sys.executable, str(ROOT / "desktop/local_main.py")], cwd=ROOT / "desktop", env=environment).returncode
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         # Subprocess exceptions may contain credential-bearing command arguments.
         print(f"MICA konnte nicht gestartet werden ({type(error).__name__}).", file=sys.stderr)
@@ -202,4 +208,4 @@ def main(*, console: bool = False) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(console="--console" in sys.argv))
+    raise SystemExit(main(console="--console" in sys.argv, offline='--offline' in sys.argv))

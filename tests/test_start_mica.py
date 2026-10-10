@@ -45,10 +45,10 @@ class StartMicaTests(unittest.TestCase):
         with patch('desktop.startup_window.run_startup', return_value=True), patch.object(start_mica.subprocess, 'run') as run:
             run.return_value.returncode = 0
             self.assertEqual(start_mica.main(), 0)
-            run.assert_called_once_with(
-                [start_mica.sys.executable, str(start_mica.ROOT / 'desktop/local_main.py')],
-                cwd=start_mica.ROOT / 'desktop',
-            )
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], [start_mica.sys.executable, str(start_mica.ROOT / 'desktop/local_main.py')])
+            self.assertEqual(run.call_args.kwargs['cwd'], start_mica.ROOT / 'desktop')
+            self.assertEqual(run.call_args.kwargs['env']['MICA_START_OFFLINE'], '0')
 
 
 if __name__ == '__main__':

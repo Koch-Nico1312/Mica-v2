@@ -33,6 +33,9 @@ corrections, source-linked flashcards and optional project progress notes.
 The [planning and offline workflows](docs/planning-offline-results.md) add reviewed
 day plans with pauses, editable task steps, file/window evidence checks, explicit
 offline reconciliation and portable project exports as Markdown.
+The [adaptive planning extensions](docs/planning-extensions.md) add reviewed plan
+changes, one-click project resume, read-only ICS availability, saved task checks
+and study blocks from due or difficult flashcards.
 
 > Deployment status: code and local acceptance checks do not prove that a
 > particular Windows, ZimaOS, or Proxmox installation is ready. Target-host,

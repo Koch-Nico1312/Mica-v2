@@ -20,6 +20,7 @@ click==8.5.0
     # via
     #   ddgs
     #   uvicorn
+    #   x-wr-timezone
 cloudpickle==3.1.2
     # via joblib
 colorama==0.4.6
@@ -43,6 +44,11 @@ h11==0.16.0
     # via uvicorn
 httptools==0.8.0
     # via uvicorn
+icalendar==7.3.0
+    # via
+    #   -r requirements-phase0.in
+    #   recurring-ical-events
+    #   x-wr-timezone
 idna==3.19
     # via
     #   anyio
@@ -130,6 +136,10 @@ pyrect==0.2.0
     # via pygetwindow
 pyscreeze==1.0.1
     # via pyautogui
+python-dateutil==2.9.0.post0
+    # via
+    #   icalendar
+    #   recurring-ical-events
 python-dotenv==1.2.3
     # via uvicorn
 pytweening==1.2.0
@@ -145,6 +155,8 @@ pywinauto==0.6.9
     # via -r requirements-phase0.in
 pyyaml==6.0.3
     # via uvicorn
+recurring-ical-events==3.8.2
+    # via -r requirements-phase0.in
 requests==2.34.2
     # via
     #   -r requirements-phase0.in
@@ -161,7 +173,9 @@ send2trash==2.1.0
 setuptools==84.0.0
     # via win10toast
 six==1.17.0
-    # via pywinauto
+    # via
+    #   python-dateutil
+    #   pywinauto
 sounddevice==0.5.6
     # via -r requirements-phase0.in
 soupsieve==2.9.2
@@ -186,7 +200,11 @@ typing-inspection==0.4.4
     #   fastapi
     #   pydantic
 tzdata==2026.5
-    # via -r requirements-phase0.in
+    # via
+    #   -r requirements-phase0.in
+    #   icalendar
+    #   recurring-ical-events
+    #   x-wr-timezone
 urllib3==2.8.0
     # via
     #   -r requirements-phase0.in
@@ -201,5 +219,7 @@ websockets==17.1
     # via uvicorn
 win10toast==0.9
     # via -r requirements-phase0.in
+x-wr-timezone==2.0.1
+    # via recurring-ical-events
 youtube-transcript-api==1.2.4
     # via -r requirements-phase0.in

@@ -1,0 +1,8 @@
+{
+  "https_verified": true,
+  "phase0_status": "blocked",
+  "native_routes": 6,
+  "shared_source_sha256": "f2f9a851708ef87421b3ac41126ddda981261f844d60945e341eab338bbe4c82",
+  "task_mutations": false,
+  "calendar_mutations": false
+}

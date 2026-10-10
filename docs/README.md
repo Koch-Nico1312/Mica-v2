@@ -18,6 +18,7 @@ the operational and acceptance detail.
 - [Projektassistenz](project-assistance.md): mehrere Projektstände, belegte Dokumenttextstellen, Dateivergleiche, Fenster-Bedienelemente, Timer bei geschlossener Oberfläche und Projektgedächtnis auf Zuruf.
 - [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): bedienbare Erinnerungen, Dokumentaufgaben, Routinen im Gespräch, Diktatkorrekturen, Lernkarten und Projektfortschritt.
 - [Tagesplanung, Offline und Ergebnisprüfung](planning-offline-results.md): Zeitfenster und Pausen, bearbeitbare Schrittfolgen, belegte Datei-/Fensterprüfung, geprüfter Offline-Abgleich und Projekt-Export als Markdown.
+- [Flexible Planung und Projektfortsetzung](planning-extensions.md): Änderungs-Vorschau, direkte Projektfortsetzung, lesender ICS-Kalender, Aufgabenprüfkriterien und Lernblöcke aus Wiederholungsbedarf.
 - [Arbeitsstände und Tageshilfe](productivity-extensions.md): gespeicherte Arbeitsstände, Textauswahl per Tastenkürzel, Timer über Neustarts, benannte Abläufe mit Dokumenten, Tagesübersicht und bestätigte Gesprächskorrekturen.
 - [Backend implementation audit](../backend/IMPLEMENTATION_STATUS.md): dated evidence snapshot and target-host work that remains. Treat its results as historical evidence for the date shown, not as proof of a currently running deployment.
 - [Dream-RSI and Laya](dream-rsi.md): optional self-improvement evaluation and local semantic scoring.

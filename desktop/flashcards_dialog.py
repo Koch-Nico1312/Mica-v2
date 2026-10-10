@@ -4,10 +4,12 @@ from desktop.core.flashcards import FlashcardStore
 
 
 class FlashcardsDialog(QDialog):
-    def __init__(self, parent=None, *, store=None):
+    def __init__(self, parent=None, *, store=None, card_ids=None):
         super().__init__(parent)
         self.store = store or FlashcardStore()
         self.current = None
+        self.card_ids = set(card_ids) if card_ids is not None else None
+        self.reviewed_ids = set()
         self.setWindowTitle('Lernkarten wiederholen')
         self.resize(620, 500)
         layout = QVBoxLayout(self)
@@ -36,7 +38,8 @@ class FlashcardsDialog(QDialog):
 
     def next_card(self):
         try:
-            due = self.store.due()
+            due = self.store.due() if self.card_ids is None else [card for card in self.store.all()
+                if card['id'] in self.card_ids and card['id'] not in self.reviewed_ids]
             self.current = due[0] if due else None
             self.question.setText(self.current['question'] if self.current else 'Für jetzt sind alle Karten wiederholt.')
             self.answer.clear()
@@ -62,6 +65,7 @@ class FlashcardsDialog(QDialog):
         if self.current:
             try:
                 self.store.rate(self.current['id'], value)
+                self.reviewed_ids.add(self.current['id'])
                 self.next_card()
             except (OSError, ValueError) as error:
                 self.status.setText(str(error))

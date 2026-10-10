@@ -11,7 +11,7 @@ def aware(value):
     return result
 
 
-def build_day_plan(tasks, windows, *, break_minutes=10, focus_minutes=45):
+def build_day_plan(tasks, windows, *, break_minutes=10, focus_minutes=45, allow_short_remainder=False):
     if type(break_minutes) is not int or not 0 <= break_minutes <= 60 or type(focus_minutes) is not int or not 5 <= focus_minutes <= 120:
         raise ValueError('Fokus: 5–120 Minuten; Pause: 0–60 Minuten.')
     if not 1 <= len(windows) <= 20 or len(tasks) > 200:
@@ -34,7 +34,7 @@ def build_day_plan(tasks, windows, *, break_minutes=10, focus_minutes=45):
         if task.get('status') in {'completed', 'cancelled'}:
             continue
         duration = task.get('minutes')
-        if type(duration) is not int or not 5 <= duration <= 1440:
+        if type(duration) is not int or not (1 if allow_short_remainder else 5) <= duration <= 1440:
             raise ValueError('Jede Aufgabe braucht eine Dauer von 5–1.440 Minuten.')
         dependencies = task.get('depends_on', [])
         if not isinstance(dependencies, list) or identifier in dependencies:

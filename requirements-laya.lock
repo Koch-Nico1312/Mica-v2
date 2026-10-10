@@ -37,6 +37,7 @@ click==8.5.0
     #   ddgs
     #   huggingface-hub
     #   uvicorn
+    #   x-wr-timezone
 cloudpickle==3.1.2
     # via
     #   -r requirements-phase0.lock
@@ -93,6 +94,11 @@ huggingface-hub==1.33.0
     #   laya
     #   tokenizers
     #   transformers
+icalendar==7.3.0
+    # via
+    #   -r requirements-phase0.lock
+    #   recurring-ical-events
+    #   x-wr-timezone
 idna==3.19
     # via
     #   -r requirements-phase0.lock
@@ -217,6 +223,8 @@ pymsgbox==2.0.1
     # via
     #   -r requirements-phase0.lock
     #   pyautogui
+pypdf==6.19.0
+    # via -r requirements-phase0.lock
 pyperclip==1.11.0
     # via
     #   -r requirements-phase0.lock
@@ -243,6 +251,11 @@ pyscreeze==1.0.1
     # via
     #   -r requirements-phase0.lock
     #   pyautogui
+python-dateutil==2.9.0.post0
+    # via
+    #   -r requirements-phase0.lock
+    #   icalendar
+    #   recurring-ical-events
 python-dotenv==1.2.3
     # via -r requirements-phase0.lock
 pytweening==1.2.0
@@ -265,6 +278,8 @@ pyyaml==6.0.3
     #   -r requirements-phase0.lock
     #   huggingface-hub
     #   transformers
+recurring-ical-events==3.8.2
+    # via -r requirements-phase0.lock
 regex==2026.9.10
     # via transformers
 requests==2.34.2
@@ -299,6 +314,7 @@ shellingham==1.5.4
 six==1.17.0
     # via
     #   -r requirements-phase0.lock
+    #   python-dateutil
     #   pywinauto
 sounddevice==0.5.6
     # via -r requirements-phase0.lock
@@ -347,6 +363,12 @@ typing-inspection==0.4.4
     #   -r requirements-phase0.lock
     #   fastapi
     #   pydantic
+tzdata==2026.5
+    # via
+    #   -r requirements-phase0.lock
+    #   icalendar
+    #   recurring-ical-events
+    #   x-wr-timezone
 urllib3==2.8.0
     # via
     #   -r requirements-phase0.lock
@@ -361,5 +383,9 @@ websockets==17.1
     # via -r requirements-phase0.lock
 win10toast==0.9
     # via -r requirements-phase0.lock
+x-wr-timezone==2.0.1
+    # via
+    #   -r requirements-phase0.lock
+    #   recurring-ical-events
 youtube-transcript-api==1.2.4
     # via -r requirements-phase0.lock

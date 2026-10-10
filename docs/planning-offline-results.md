@@ -15,7 +15,8 @@ und eine Voraussetzung. **Änderung lokal vormerken** bewahrt diese Eingaben auc
 
 Wähle die Aufgaben über **Planen** aus, gib ein Datum und freie Zeitfenster je
 Zeile als `09:00-12:00` an. Feste Termine und belegte Zeiten müssen ausgespart
-werden; es gibt keine automatische Kalenderanbindung. Zeiten verwenden
+werden; für einen lesenden ICS-Kalender und spätere Anpassungen siehe
+[Flexible Planung](planning-extensions.md). Zeiten verwenden
 Europe/Vienna. Die Voreinstellung ist 45 Minuten Fokus und zehn Minuten Pause;
 beides ist einstellbar. Dauern sind Schätzungen, keine Messung deiner Leistung.
 
@@ -88,6 +89,12 @@ verbunden ist. Du kannst den Projektstand lokal bearbeiten und erneut speichern,
 Lernkarten wiederholen und Aufgaben lokal vormerken. KI-Antworten und neue
 KI-Vorschläge benötigen weiterhin das Backend.
 
+Auch bei geschlossener Oberfläche kannst du offline starten: **Start MICA offline.cmd**
+öffnet dieselbe MICA-Oberfläche direkt und startet keine Backend-Dienste. Bei einem
+fehlgeschlagenen normalen Start bietet das Startfenster nach Ende des Startversuchs
+ebenfalls **Offline weiterarbeiten**. Dieser ausdrückliche Offline-Start führt keinen
+Verbindungstest und startet kein Aktivierungswort-Mikrofon.
+
 Zum späteren Verbinden prüfe den gespeicherten Stand im Arbeitsstand-Fenster und
 klicke **Lokalen Projektstand mit Gespräch im Backend verbinden**. Die gespeicherte
 Aufgabe wird im Backend neu geprüft; gelöschte Aufgaben werden nicht wiederbelebt.
@@ -111,9 +118,22 @@ bereits gesendete, ungeklärte Änderung bleibt bis zum Abgleich unveränderbar.
 Erfolgreiche Teilübernahmen bleiben gespeichert, verbleibende Änderungen gehen
 nicht verloren. Verbindung oder Laden lösen niemals einen automatischen Abgleich aus.
 
-Die lokale Aufgabenübersicht umfasst den vom Backend gelieferten aktuellen
-Aufgabenbestand, standardmäßig bis 200 Einträge. Sie ist ein datierter Snapshot,
-kein vollständiges Backup. Bis 200 Änderungen können vorgemerkt werden.
+Die lokale Aufgabenübersicht hält höchstens 500 zuletzt bekannte Aufgaben. Die
+Backend-Liste liefert standardmäßig bis 200 Einträge; bekannte Aufgaben und
+Voraussetzungen außerhalb dieser Liste werden beim Aktualisieren zusätzlich nach
+Kennung geprüft. Fehlende Listeneinträge gelten nicht als gelöscht. Vorgemerkte
+Aufgaben, benötigte Voraussetzungen und Schrittstrukturen bleiben geschützt.
+Bei Platzbedarf können ältere ungeschützte Cacheeinträge verdrängt werden; ihre
+Backend-Aufgaben bleiben bestehen. Ist jeder Platz geschützt, wird ein neuer
+Abgleich vor dem Senden abgelehnt. Es ist ein datierter Cache, kein vollständiges
+Backup. Bis 200 Änderungen können vorgemerkt werden.
+
+Bearbeiten erhält die Zuordnung zu übergeordneten Aufgaben und die Schrittnummer.
+Zum Verwerfen einer Schrittfolge zuerst die letzten Schritte verwerfen; eine
+noch benötigte Voraussetzung kann nicht verschwinden. Ohne verbleibende Schritte
+wird die Hauptaufgabe wieder standardmäßig zum Planen ausgewählt. Fristen und
+Texte werden beim Vormerken genauso wie im Backend normalisiert, damit nach
+verlorenen Antworten bereits gespeicherte Änderungen wiedererkannt werden.
 Gespeicherte Funktionen benötigen den Modus mit Speicherung.
 
 ## Projekt als Markdown exportieren

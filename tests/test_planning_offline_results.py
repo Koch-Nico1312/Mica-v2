@@ -138,7 +138,7 @@ def test_offline_edits_survive_restart_and_read_only_reconnection(tmp_path):
     assert reopened.view()[0]['title'] == 'Offline geändert'
     reopened.refresh(client)
     preview = reopened.preview(client)
-    assert client.store.get_task(original['id'])['title'] == 'Alt' and not client.calls
+    assert client.store.get_task(original['id'])['title'] == 'Alt' and all(method == 'GET' for method, _ in client.calls)
     reopened.apply(client, preview)
     assert client.store.get_task(original['id'])['title'] == 'Offline geändert'
     assert reopened.read()['pending'] == [] and reopened.view()[0]['minutes'] == 50
@@ -209,6 +209,155 @@ def test_step_batch_is_atomic_and_does_not_mark_parent_complete(tmp_path):
     assert local.view() == []
     local.stage_steps([{'title': 'Lesen', 'minutes': 20}, {'title': 'Rechnen', 'minutes': 30}], {'title': 'Prüfung', 'id': None})
     assert len(local.view()) == 2 and all(task['status'] == 'open' for task in local.view())
+
+
+def test_sync_fetches_old_tasks_by_id_even_when_the_list_does_not_contain_them(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    original = client.store.create_task('Ältere Aufgabe')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    local.stage({**original, 'title': 'Lokale Änderung'})
+    client.task_items = lambda: {'tasks': []}  # The bounded list omits this still-existing task.
+    reviewed = local.preview(client)[0]
+    assert reviewed['remote']['id'] == original['id'] and not reviewed['conflict']
+    with pytest.raises(ValueError):
+        local.accept_remote(client, reviewed | {'remote': None, 'conflict': True})
+    assert local.read()['pending'] and local.view()[0]['title'] == 'Lokale Änderung'
+    local.apply(client, [reviewed])
+    assert client.store.get_task(original['id'])['title'] == 'Lokale Änderung'
+
+
+def test_successful_creation_keeps_a_full_cache_readable_and_preserves_pending(tmp_path):
+    from desktop.core.local_state import write_json
+    client = StoreClient(tmp_path / 'server.db')
+    local = OfflineTasks(tmp_path / 'local.json')
+    records = [task(f'{index:032x}', title=f'Cache {index}') | {'id': f'{index:032x}'} for index in range(500)]
+    write_json(local.path, {'version': 1, 'tasks': records, 'pending': [], 'metadata': {}, 'fetched_at': None})
+    queued = task('f', 'Neue Aufgabe')
+    local.stage(queued)
+    local.apply(client, local.preview(client))
+    data = local.read()
+    assert len(data['tasks']) == 500 and not data['pending']
+    assert any(entry['title'] == 'Neue Aufgabe' for entry in data['tasks'])
+    assert len(client.store.list_tasks()) == 1
+
+
+def test_cache_capacity_is_checked_before_remote_write_if_every_slot_is_protected(tmp_path):
+    from desktop.core.local_state import write_json
+    client = StoreClient(tmp_path / 'server.db')
+    local = OfflineTasks(tmp_path / 'local.json')
+    identifiers = [f'{index:032x}' for index in range(500)]
+    records = [task('a', title=f'Cache {index}') | {'id': identifier} for index, identifier in enumerate(identifiers)]
+    metadata = {identifier: {'minutes': 30, 'depends_on': [identifiers[(index + 1) % 500]]} for index, identifier in enumerate(identifiers)}
+    write_json(local.path, {'version': 1, 'tasks': records, 'pending': [], 'metadata': metadata, 'fetched_at': None})
+    local.stage(task('f', 'Neue Aufgabe'))
+    with pytest.raises(ValueError):
+        local.apply(client, local.preview(client))
+    assert not client.store.list_tasks() and not client.calls
+    assert len(local.read()['tasks']) == 500 and len(local.read()['pending']) == 1
+
+
+def test_editing_titles_and_minutes_preserves_parent_and_step_structure(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    original = client.store.create_task('Prüfung')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    local.stage_steps([{'title': 'Lesen', 'minutes': 20}, {'title': 'Rechnen', 'minutes': 30}], original)
+    local.stage({**original, 'title': 'Neue Prüfung'}, minutes=70)
+    first = next(entry for entry in local.view() if entry['title'] == 'Lesen')
+    local.stage({**first, 'title': 'Unterlagen lesen'}, minutes=25)
+    parent = next(entry for entry in local.view() if entry['id'] == original['id'])
+    step = next(entry for entry in local.view() if entry['title'] == 'Unterlagen lesen')
+    assert parent['container'] and parent['minutes'] == 70
+    assert step['parent_id'] == parent['id'] and step['step'] == 1 and step['minutes'] == 25
+
+
+def test_discarding_a_step_protects_dependencies_and_all_steps_restore_parent_planning(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    original = client.store.create_task('Prüfung')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    local.stage_steps([{'title': 'Lesen', 'minutes': 20}, {'title': 'Rechnen', 'minutes': 30}], original)
+    pending = local.read()['pending']
+    with pytest.raises(ValueError):
+        local.discard(pending[0]['key'])
+    assert len(local.read()['pending']) == 2
+    local.discard(pending[1]['key'])
+    local.discard(pending[0]['key'])
+    assert not local.read()['pending'] and len(local.view()) == 1
+    assert not local.view()[0].get('container')
+    assert len(local.read()['metadata']) == 1
+
+
+def test_lost_normalized_update_response_is_recognized_as_already_applied(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    original = client.store.create_task('Prüfung')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    local.stage({**original, 'title': '  Prüfung neu  ', 'description': '  Quelle  ', 'due_at': '2026-10-08T18:00:00+02:00'})
+    reviewed = local.preview(client)
+    real_request = client._request
+    def lost_response(method, path, **kwargs):
+        result = real_request(method, path, **kwargs)
+        if method == 'PATCH':
+            raise LocalCoreUnavailable('Antwort verloren')
+        return result
+    client._request = lost_response
+    with pytest.raises(LocalCoreUnavailable):
+        local.apply(client, reviewed)
+    client._request = real_request
+    before_count = sum(method == 'PATCH' for method, _ in client.calls)
+    preview = local.preview(client)
+    assert preview[0]['applied'] and not preview[0]['conflict']
+    local.apply(client, preview)
+    assert not local.read()['pending']
+    assert sum(method == 'PATCH' for method, _ in client.calls) == before_count
+    assert client.store.get_task(original['id'])['due_at'] == '2026-10-08T16:00:00+00:00'
+
+
+def test_refresh_retains_completed_prerequisites_and_old_step_metadata_outside_the_list(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    prerequisite = client.store.create_task('Unterlagen gelesen')
+    prerequisite = client.store.update_task(prerequisite['id'], {'status': 'completed'})
+    parent = client.store.create_task('Prüfung')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    local.stage_steps([{'title': 'Üben', 'minutes': 20}, {'title': 'Kontrollieren', 'minutes': 20}], parent)
+    local.apply(client, local.preview(client))
+    step_before = next(entry for entry in local.view() if entry['title'] == 'Üben')
+    queued = task('f', 'Folgeschritt')
+    local.stage(queued, depends_on=[prerequisite['id']])
+    client.task_items = lambda: {'tasks': []}  # All cached tasks fell out of the bounded list.
+    local.refresh(client)
+    after = local.view()
+    assert next(entry for entry in after if entry['id'] == prerequisite['id'])['status'] == 'completed'
+    step_after = next(entry for entry in after if entry['id'] == step_before['id'])
+    assert step_after['parent_id'] == parent['id'] and step_after['step'] == 1
+    assert next(entry for entry in after if entry['id'] == parent['id'])['container']
+    plan = build_day_plan([entry for entry in after if entry['id'] in {prerequisite['id'], queued['id']}],
+        [(START, START + timedelta(hours=1))])
+    assert not plan['unplanned'] and plan['blocks'][0]['task_id'] == queued['id']
+
+
+def test_refresh_connection_failure_and_concurrent_local_edit_preserve_the_snapshot(tmp_path):
+    client = StoreClient(tmp_path / 'server.db')
+    original = client.store.create_task('Aufgabe')
+    local = OfflineTasks(tmp_path / 'local.json')
+    local.refresh(client)
+    before = local.path.read_bytes()
+    client.task_items = lambda: {'tasks': []}
+    request = client._request
+    client._request = Mock(side_effect=LocalCoreUnavailable('Verbindung unterbrochen'))
+    with pytest.raises(LocalCoreUnavailable):
+        local.refresh(client)
+    assert local.path.read_bytes() == before
+    def edit_during_read(method, path, **kwargs):
+        local.stage({**original, 'title': 'Währenddessen bearbeitet'})
+        return request(method, path, **kwargs)
+    client._request = edit_during_read
+    with pytest.raises(ValueError):
+        local.refresh(client)
+    assert local.view()[0]['title'] == 'Währenddessen bearbeitet' and local.read()['pending']
 
 
 @pytest.fixture
@@ -296,6 +445,60 @@ def test_saving_offline_without_loading_preserves_the_saved_project_task(tmp_pat
     assert mica._offline_workspace
 
 
+def test_offline_launcher_opens_the_canonical_ui_without_starting_services(monkeypatch):
+    import desktop.start_mica as launcher
+    start = Mock(side_effect=AssertionError('Must not start services'))
+    run = Mock(return_value=SimpleNamespace(returncode=0))
+    monkeypatch.setattr(launcher, 'start_core', start)
+    monkeypatch.setattr(launcher.subprocess, 'run', run)
+    assert launcher.main(offline=True) == 0
+    start.assert_not_called()
+    assert run.call_args.args[0][1] == str(launcher.ROOT / 'desktop/local_main.py')
+    assert run.call_args.kwargs['env']['MICA_START_OFFLINE'] == '1'
+
+
+def test_offline_start_window_continues_only_after_finished_failure(qt):
+    from pathlib import Path
+    from desktop.startup_window import StartupWindow
+    window = StartupWindow(lambda progress: (_ for _ in ()).throw(RuntimeError('Controlled offline')), Path.cwd())
+    window.begin()
+    until(qt, lambda: window.worker and not window.worker.isRunning() and window.outcome == 'failed')
+    qt.processEvents()
+    assert not window.offline_button.isHidden()
+    window.offline_button.click()
+    assert window.outcome == 'offline' and window.result() == window.DialogCode.Accepted
+    window.close()
+
+
+def test_explicit_offline_start_performs_no_backend_or_microphone_request():
+    from desktop.local_main import LocalMica
+    mica = LocalMica.__new__(LocalMica)
+    mica._offline_start, mica.client, mica.ui = True, Mock(), Mock()
+    mica.wake_word = Mock()
+    mica.start()
+    mica.client.health.assert_not_called()
+    mica.wake_word.start.assert_not_called()
+    mica.ui.set_state.assert_called_once_with('OFFLINE')
+
+
+def test_explicit_offline_project_save_load_stay_local_until_confirmed_sync(tmp_path):
+    from desktop.local_main import LocalMica
+    store = ProjectWorkspaceStore(tmp_path / 'projects.json', tmp_path / 'absent')
+    checkpoint = store.save([], 'a' * 32, 'Weiter', name='schule')
+    mica = LocalMica.__new__(LocalMica)
+    mica._request_lock, mica._restoring, mica._offline_start = threading.RLock(), False, True
+    mica.ui, mica.client = SimpleNamespace(remember_conversations=True), Mock()
+    assert mica._workspace_operation('load', checkpoint | {'project': 'schule'}, store)['offline']
+    mica._workspace_operation('save', {'documents': [], 'next_step': 'Neuer Schritt', 'project': 'schule'}, store)
+    mica.client.resume_workspace.assert_not_called()
+    mica.client.workspace_context.assert_not_called()
+    saved = store.load('schule')
+    assert saved['task_id'] == 'a' * 32
+    result = mica._workspace_operation('sync', saved | {'project': 'schule'}, store)
+    assert not result['offline'] and not mica._offline_start
+    mica.client.resume_workspace.assert_called_once()
+
+
 @pytest.fixture
 def qt(monkeypatch):
     monkeypatch.setenv('QT_QPA_PLATFORM', 'offscreen')
@@ -377,3 +580,62 @@ def test_markdown_dialog_task_selection_and_source_cards_are_explicit(qt, tmp_pa
     dialog.list.item(row).setCheckState(Qt.CheckState.Unchecked)
     assert 'Projektaufgabe' not in dialog.preview.toPlainText()
     dialog.close()
+
+
+def test_syncing_another_project_replaces_ui_context_and_only_records_its_progress(qt, tmp_path, monkeypatch):
+    from PyQt6.QtWidgets import QWidget, QLineEdit
+    from desktop.attachment_overlay import AttachmentOverlay
+    from desktop.workspace_dialog import WorkspaceDialog
+    from desktop.local_main import LocalMica
+    import desktop.core.workspace as workspace
+    monkeypatch.setattr(workspace, 'DATA_DIR', tmp_path)
+    store = workspace.ProjectWorkspaceStore()
+    doc_a = {'id': 'a' * 32, 'title': 'A.md', 'body': 'Inhalt von Projekt A', 'source': 'text'}
+    doc_b = {'id': 'b' * 32, 'title': 'B.md', 'body': 'Inhalt von Projekt B', 'source': 'text'}
+    store.save([doc_a], None, 'Schritt A', name='a', last_step='Unverändert A', remember_progress=True)
+    store.save([doc_b], None, 'Schritt B', name='b', remember_progress=True)
+    parent = QWidget()
+    parent._attachment_overlay, parent._input, parent._open_attachments = AttachmentOverlay(), QLineEdit(), Mock()
+    parent.selected_documents = parent._attachment_overlay.snapshot
+    mica = LocalMica.__new__(LocalMica)
+    mica._request_lock, mica._restoring, mica._offline_start = threading.RLock(), False, True
+    mica.ui = SimpleNamespace(_win=parent, remember_conversations=True, muted=True, write_log=Mock(), set_state=Mock(), show_content=Mock())
+    mica.client, mica.conversation_mode = Mock(), 'personal'
+    dialog = WorkspaceDialog(parent, mica._workspace_operation, [], store=store, prefer_load=True, project='a')
+    dialog.run('load')
+    until(qt, lambda: parent._input.text() == 'Schritt A')
+    assert parent.selected_documents()[0]['id'] == doc_a['id']
+    dialog.name.setCurrentText('b')
+    dialog.run('sync')
+    until(qt, lambda: parent._input.text() == 'Schritt B')
+    assert parent.selected_documents() == [doc_b] and mica._active_project == 'b'
+    assert not mica._offline_workspace and not mica._offline_start
+    mica.client.turn.return_value = {'state': 'completed', 'reply': 'Erklärung zu B'}
+    mica.handle_text('Erkläre den Inhalt')
+    mica.client.select_documents.assert_called_once_with([doc_b])
+    assert 'Erkläre den Inhalt' in store.load('b')['last_step']
+    assert store.load('a')['last_step'] == 'Unverändert A'
+    dialog.close()
+    parent._attachment_overlay.close()
+    parent.close()
+
+
+def test_project_dialog_cannot_close_mid_save_and_resume_ui_before_completion(qt, tmp_path):
+    from desktop.workspace_dialog import WorkspaceDialog
+    store = ProjectWorkspaceStore(tmp_path / 'projects.json', tmp_path / 'absent')
+    released = threading.Event()
+    def operation(action, payload, store):
+        assert released.wait(3)
+        return store.save(payload['documents'], None, payload['next_step'], name=payload['project'])
+    dialog = WorkspaceDialog(None, operation, [], store=store)
+    dialog.show()
+    dialog.run('save')
+    assert dialog.busy
+    dialog.reject()
+    dialog.close()
+    qt.processEvents()
+    assert dialog.isVisible() and dialog.busy
+    released.set()
+    until(qt, lambda: not dialog.busy)
+    dialog.close()
+    assert not dialog.isVisible() and store.load()['next_step'] == ''

@@ -100,10 +100,14 @@ class StartupWindow(QDialog):
         self.continue_button.clicked.connect(self.accept)
         buttons.addWidget(self.continue_button)
         layout.addLayout(buttons)
+        self.offline_button = QPushButton('Offline weiterarbeiten')
+        self.offline_button.clicked.connect(self.open_offline)
+        layout.addWidget(self.offline_button)
         self.set_stage("docker")
         self.retry.hide()
         self.help_button.hide()
         self.continue_button.hide()
+        self.offline_button.hide()
 
     def begin(self):
         if self.worker and self.worker.isRunning():
@@ -114,6 +118,7 @@ class StartupWindow(QDialog):
         self.retry.hide()
         self.help_button.hide()
         self.continue_button.hide()
+        self.offline_button.hide()
         self.set_stage("docker")
         self.worker = StartupWorker(self.starter, self)
         self.worker.progress.connect(self.set_stage)
@@ -162,6 +167,13 @@ class StartupWindow(QDialog):
         else:
             self.retry.show()
             self.help_button.show()
+            self.offline_button.show()
+
+    def open_offline(self):
+        if self.worker and self.worker.isRunning():
+            return
+        self.outcome = 'offline'
+        self.accept()
 
     def open_help(self):
         if self.stage in {"docker", "services"}:
@@ -181,15 +193,16 @@ class StartupWindow(QDialog):
             super().reject()
 
 
-def run_startup(starter: Callable, root: Path) -> bool:
+def run_startup(starter: Callable, root: Path, *, return_outcome=False):
     app = QApplication.instance() or QApplication(sys.argv)
     ensure_ui_font()
     window = StartupWindow(starter, root)
     QTimer.singleShot(0, window.begin)
     result = window.exec() == QDialog.DialogCode.Accepted
+    outcome = window.outcome if result else None
     # Keep the application alive until the startup worker has finished.
     if window.worker:
         window.worker.wait()
     window.deleteLater()
     app.processEvents()
-    return result
+    return outcome if return_outcome else result

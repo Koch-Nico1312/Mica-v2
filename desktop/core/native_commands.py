@@ -236,6 +236,9 @@ class NativeCommands:
         kind = command["kind"]
         if kind == 'task_planning':
             return self.task_planning_handler(command['page'], command['title']) if self.task_planning_handler else 'Öffne Aufgaben und Tagesplanung.'
+        if kind == 'workspace_continue':
+            handler = getattr(self, 'project_resume_handler', None)
+            return handler(command['name']) if handler else 'Projektfortsetzung ist in dieser Oberfläche nicht eingerichtet.'
         if kind == 'outcome_check':
             return self.outcome_handler() if self.outcome_handler else 'Öffne Ergebnis prüfen und wähle Datei oder Fenster.'
         if kind == 'dictation':

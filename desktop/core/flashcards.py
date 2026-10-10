@@ -26,6 +26,8 @@ class FlashcardStore:
             raise ValueError('Ungültige Lernkartenkennung.')
         if type(card.get('interval')) is not int or not 0 <= card['interval'] <= 365 or type(card.get('reviews')) is not int or card['reviews'] < 0:
             raise ValueError('Ungültige Wiederholungsdaten.')
+        if card.get('last_rating') is not None and card['last_rating'] not in {'again', 'hard', 'good', 'easy'}:
+            raise ValueError('Ungültige letzte Bewertung.')
         try:
             if not isinstance(card['due_at'], str) or len(card['due_at']) > 64 or datetime.fromisoformat(card['due_at']).tzinfo is None:
                 raise ValueError('Zeitpunkt ohne Zeitzone.')
@@ -79,6 +81,7 @@ class FlashcardStore:
             card['interval'] = min(365, interval)
             card['due_at'] = (now + (timedelta(minutes=10) if rating == 'again' else timedelta(days=card['interval']))).isoformat()
             card['reviews'] += 1
+            card['last_rating'] = rating
             write_json(self.path, {'version': 1, 'cards': cards})
             return card
 

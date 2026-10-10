@@ -44,6 +44,7 @@ class LocalMica:
         self._active_project = None
         self._local_workspace = None
         self._offline_workspace = False
+        self._offline_start = os.getenv('MICA_START_OFFLINE', '0') == '1'
         self._last_voice_request = ''
         self._dictating = False
         self.quiet = QuietPeriod()
@@ -73,6 +74,7 @@ class LocalMica:
         self.ui._win.on_dictation_record = self._record_dictation
         self.native_commands.quiet_end = self._quiet_ended
         self.native_commands.workspace_handler = self._workspace_requested
+        self.native_commands.project_resume_handler = self._project_resume_requested
         self.native_commands.project_handler = self._project_requested
         self.native_commands.memory_handler = self._memory_requested
         self.native_commands.changes_handler = self._changes_requested
@@ -132,6 +134,10 @@ class LocalMica:
         self.ui._win._workspace_sig.emit(kind)
         return 'Arbeitsstand-Fenster geöffnet. Bitte Speichern oder Laden dort bestätigen.'
 
+    def _project_resume_requested(self, name):
+        self.ui._win._project_resume_sig.emit(name)
+        return 'Gespeicherter Projektstand wird geladen. Dokumente und nächster Schritt erscheinen nach erfolgreichem Laden.'
+
     def _task_planning_requested(self, page, title=''):
         self.ui._win._task_planning_sig.emit(page, title)
         return 'Aufgaben und Tagesplanung geöffnet. Prüfe Dauern, freie Zeitfenster und Vorschläge. Offline-Änderungen werden erst nach deinem Abgleich übernommen.'
@@ -144,8 +150,22 @@ class LocalMica:
         with self._request_lock:
             if self._restoring or not self.ui.remember_conversations:
                 raise ValueError('Aufgaben sind während Wiederherstellung oder ohne Speicherung gesperrt.')
+            if action.startswith('criteria_'):
+                criteria = payload['criteria_store']
+                identifier = payload['identifier']
+                if action == 'criteria_set':
+                    return criteria.set(identifier, payload['path'], payload['expected_text'], payload['require_changed'])
+                if action == 'criteria_remove':
+                    return criteria.remove(identifier)
+                if action == 'criteria_check':
+                    return criteria.check(identifier)
+                if action == 'criteria_complete':
+                    return criteria.complete(identifier, store)
+                raise ValueError('Unbekannte Aufgabenprüfung.')
             if action == 'refresh':
-                return store.refresh(self.client)
+                result = store.refresh(self.client)
+                self._offline_start = False
+                return result
             if action == 'preview':
                 return store.preview(self.client)
             if action == 'stage':
@@ -277,7 +297,7 @@ class LocalMica:
             if self._restoring or not self.ui.remember_conversations:
                 raise ValueError('Arbeitsstände sind während Wiederherstellung oder ohne Speicherung gesperrt.')
             if action == 'save':
-                offline = getattr(self, '_offline_workspace', False)
+                offline = getattr(self, '_offline_workspace', False) or getattr(self, '_offline_start', False)
                 def cached_context():
                     if getattr(self, '_active_project', None) == store.name(payload['project']) and getattr(self, '_local_workspace', None):
                         return self._local_workspace
@@ -303,16 +323,20 @@ class LocalMica:
                 return {**data, 'offline': offline}
             data = store.validate(payload)
             # Resolve the current task first: deleted/disabled tasks must not be resurrected.
-            try:
-                self.client.resume_workspace(data['task_id'], data['next_step'], [
-                    {key: doc[key] for key in ('id', 'title', 'body', 'source')} for doc in data['documents']])
-                self._offline_workspace = False
-            except LocalCoreError as error:
-                if not isinstance(error, LocalCoreUnavailable) and error.status_code not in {502, 503, 504}:
-                    raise
-                if action == 'sync':
-                    raise
+            if action != 'sync' and getattr(self, '_offline_start', False):
                 self._offline_workspace = True
+            else:
+                try:
+                    self.client.resume_workspace(data['task_id'], data['next_step'], [
+                        {key: doc[key] for key in ('id', 'title', 'body', 'source')} for doc in data['documents']])
+                    self._offline_workspace = False
+                    self._offline_start = False
+                except LocalCoreError as error:
+                    if not isinstance(error, LocalCoreUnavailable) and error.status_code not in {502, 503, 504}:
+                        raise
+                    if action == 'sync':
+                        raise
+                    self._offline_workspace = True
             self._active_project = store.name(payload.get('project', 'standard'))
             self._local_workspace = data
             return {**data, 'offline': self._offline_workspace}
@@ -381,7 +405,7 @@ class LocalMica:
 
     def _sync_attachments(self):
         with self._request_lock:
-            if getattr(self, '_offline_workspace', False):
+            if getattr(self, '_offline_workspace', False) or getattr(self, '_offline_start', False):
                 raise ValueError('Projekt ist offline geladen. Zuerst unter Arbeitsstand den lokalen Projektstand ausdrücklich mit dem Backend-Gespräch verbinden.')
             selected = getattr(self.ui._win, "selected_documents", lambda: [])()
             self.client.select_documents(selected)
@@ -524,6 +548,10 @@ class LocalMica:
             self._last_voice_request = ''
 
     def start(self) -> None:
+        if getattr(self, '_offline_start', False):
+            self.ui.set_state('OFFLINE')
+            self.ui.write_log('SYS: Offline gestartet. Lokale Projektstände, Lernkarten und Tagesplanung sind verfügbar. Backend-Anfragen benötigen eine Verbindung und einen ausdrücklichen Abgleich.')
+            return
         self.ui.set_state("CONNECTING")
         recommendation = current_provider_recommendation()
         if recommendation:
@@ -558,7 +586,7 @@ class LocalMica:
             try:
                 from mica_shared.quick_commands import parse_quick_command
                 quick = parse_quick_command(text)
-                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'project_switch', 'review_cards'}
+                local_openers = {'task_planning', 'outcome_check', 'workspace_save', 'workspace_resume', 'workspace_continue', 'project_switch', 'review_cards'}
                 if quick and quick['kind'] in local_openers:
                     if not self.ui.remember_conversations and quick['kind'] != 'outcome_check':
                         raise ValueError('Lokale gespeicherte Funktionen benötigen den Modus mit Speicherung.')
@@ -568,6 +596,8 @@ class LocalMica:
                     return
                 if getattr(self, '_offline_workspace', False):
                     raise ValueError('Projekt ist offline geladen. Unter Arbeitsstand erst die Verbindung mit dem Backend-Gespräch bestätigen; lokale Aufgaben und Lernkarten bleiben nutzbar.')
+                if getattr(self, '_offline_start', False):
+                    raise ValueError('MICA wurde offline gestartet. Lokale Aufgaben und Lernkarten sind nutzbar. Zum Verbinden unter Tagesplanung den Backend-Stand laden oder unter Arbeitsstand den Projektstand ausdrücklich verbinden.')
                 selected = getattr(self.ui._win, "selected_documents", lambda: [])()
                 self.client.select_documents(selected)
                 result = self.client.turn(text, self.conversation_mode, remember=self.ui.remember_conversations)
@@ -591,7 +621,7 @@ class LocalMica:
                 self.ui.show_content("Fehler", str(exc))
             finally:
                 if not self.ui.muted:
-                    self.ui.set_state("LISTENING")
+                    self.ui.set_state('OFFLINE' if getattr(self, '_offline_start', False) or getattr(self, '_offline_workspace', False) else 'LISTENING')
 
 
 def main() -> None:

@@ -23,6 +23,14 @@ def parse_quick_command(message: str) -> dict | None:
     text = re.sub(r"^(?:(?:hallo|hey)\s+)?mica[,\s]+", "", message.strip(), flags=re.I)
     original = re.sub(r"^bitte\s+", "", text, flags=re.I).rstrip(".!?")
     text = original.casefold()
+    adjustment = re.fullmatch(r'(?:ich habe |ich kann )?erst ab \d{1,2}(?::\d{2})?\s*(?:uhr)?(?: zeit)?|(?:die )?aufgabe(?: .+?)? dauert (?:länger|(?:jetzt )?\d{1,4} minuten)', original, flags=re.I)
+    if adjustment:
+        return {'kind': 'task_planning', 'page': 'adjust', 'title': original}
+    if text in {'tagesplan anpassen', 'lernkarten einplanen', 'kalender einlesen'}:
+        return {'kind': 'task_planning', 'page': 'plan', 'title': ''}
+    resume = re.fullmatch(r'projekt(?: ([\w][\w .-]{0,49}))? fortsetzen', original, flags=re.I)
+    if resume:
+        return {'kind': 'workspace_continue', 'name': resume[1] or ''}
     if text in {'tagesplanung', 'plane meinen tag', 'tagesplan erstellen'}:
         return {'kind': 'task_planning', 'page': 'plan', 'title': ''}
     if text in {'aufgaben verwalten', 'aufgaben offline bearbeiten'}:
