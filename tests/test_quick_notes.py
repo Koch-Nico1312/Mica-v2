@@ -8,6 +8,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
 from desktop.quick_notes_page import QuickNotesPage
+from desktop.core.checklists import ChecklistStore
 
 
 def test_save_update_search_restart_and_stale_writer(tmp_path):
@@ -259,5 +260,34 @@ def test_ui_trash_switch_draft_confirmation_restore_and_purge_privacy(tmp_path):
     with patch('desktop.quick_notes_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
         page.remove()
     assert store.read()['notes'] == [] and page.notes.count() == 0
+    page.close()
+    app.processEvents()
+
+
+def test_note_to_list_confirmed_atomic_creation_preserves_unsaved_note(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    notes = QuickNotesStore(tmp_path / 'notes.json')
+    lists = ChecklistStore(tmp_path / 'lists.json')
+    page = QuickNotesPage(store=notes, checklist_store=lists)
+    page.title.setText('Einkauf')
+    page.body.setPlainText('- Milch\n- [x] Brot')
+    with patch('desktop.quick_notes_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.No):
+        page.list_button.click()
+    assert not lists.path.exists()
+    with patch('desktop.quick_notes_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.Yes):
+        page.list_button.click()
+    data = lists.read()
+    assert data['revision'] == 1 and data['lists'][0]['name'] == 'Einkauf'
+    assert [item['done'] for item in data['lists'][0]['items']] == [False, True]
+    assert not notes.path.exists() and page.dirty()
+    before = lists.path.read_bytes()
+    with patch('desktop.quick_notes_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.Yes):
+        page.list_button.click()
+    assert lists.path.read_bytes() == before and 'bereits' in page.status.text()
+    page.title.setText('Andere')
+    with patch('desktop.quick_notes_page.QMessageBox.exec', return_value=QMessageBox.StandardButton.Yes), \
+         patch('desktop.core.local_state.os.replace', side_effect=PermissionError):
+        page.list_button.click()
+    assert lists.path.read_bytes() == before and page.dirty()
     page.close()
     app.processEvents()

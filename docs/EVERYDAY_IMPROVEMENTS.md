@@ -167,6 +167,15 @@ Texte werden in der Kopie als Entwurf gekennzeichnet. MICA prüft die übernomme
 Textkopie, bevor es Erfolg meldet. Die Zwischenablage wird anschließend nicht
 automatisch geleert.
 
+**Notiz als neue Checkliste** übernimmt den sichtbaren Titel als Listennamen und
+jede Textzeile als Eintrag. Aufzählungen und Markdown-Haken werden erkannt.
+Prüfe die Vorschau und ihre Details, bevor du bestätigst. Erst danach wird die
+Liste vollständig angelegt und ist unter **Listen** auswählbar. Die Notiz und
+ein ungespeicherter Entwurf bleiben unverändert. Namenskonflikte, Duplikate,
+ungültige Zeilen oder ein inzwischen geänderter Listenstand werden abgelehnt;
+es wird keine leere oder teilweise Liste hinterlassen. Speicherung ist nötig,
+Notizen im Papierkorb müssen zuerst wiederhergestellt werden.
+
 ## Rechner
 
 Im Chat funktionieren `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder

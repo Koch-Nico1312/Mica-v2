@@ -72,13 +72,14 @@ class ChecklistStore:
                 ids.add(item['id'])
         return data
 
-    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None, items=None):
+    def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None, items=None, lines=None):
         if operation not in {'create', 'rename', 'add', 'toggle', 'remove_item', 'remove_list',
-                             'from_template', 'duplicate', 'reset', 'add_many', 'edit'}:
+                             'from_template', 'duplicate', 'reset', 'add_many', 'edit', 'from_text'}:
             raise ValueError('Unbekannte Listenaktion.')
         if operation == 'from_template' and (not isinstance(template, str) or template not in CHECKLIST_TEMPLATES):
             raise ValueError('Bitte eine vorhandene Listenvorlage wählen.')
-        if operation in {'create', 'rename', 'add', 'from_template', 'duplicate', 'edit'}:
+        parsed_items = parse_checklist_lines(lines) if operation == 'from_text' else None
+        if operation in {'create', 'rename', 'add', 'from_template', 'duplicate', 'edit', 'from_text'}:
             maximum = 240 if operation in {'add', 'edit'} else 80
             if not isinstance(text, str) or not 1 <= len(text.strip()) <= maximum or '\n' in text or '\r' in text:
                 raise ValueError(f'Bitte 1–{maximum} Zeichen in einer Zeile eingeben.')
@@ -89,8 +90,8 @@ class ChecklistStore:
                 raise ValueError('Die Liste wurde inzwischen geändert. Bitte den aktuellen Stand prüfen.')
             data = deepcopy(data)
             record = next((entry for entry in data['lists'] if entry['id'] == list_id), None)
-            creates_list = operation in {'create', 'from_template', 'duplicate'}
-            if operation not in {'create', 'from_template'} and record is None:
+            creates_list = operation in {'create', 'from_template', 'duplicate', 'from_text'}
+            if operation not in {'create', 'from_template', 'from_text'} and record is None:
                 raise ValueError('Die ausgewählte Liste ist nicht mehr vorhanden.')
             if (creates_list or operation == 'rename') and any(
                     entry['name'].casefold() == text.casefold() and (creates_list or entry['id'] != list_id)
@@ -103,6 +104,8 @@ class ChecklistStore:
                          [item['text'] for item in record['items']] if operation == 'duplicate' else [])
                 record = {'id': uuid.uuid4().hex, 'name': text,
                           'items': [{'id': uuid.uuid4().hex, 'text': value, 'done': False} for value in texts]}
+                if parsed_items is not None:
+                    record['items'] = [{'id': uuid.uuid4().hex, **item} for item in parsed_items]
                 data['lists'].append(record)
             elif operation == 'rename':
                 record['name'] = text

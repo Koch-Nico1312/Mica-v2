@@ -1,17 +1,21 @@
 """Local scratchpad with explicit save and protected drafts."""
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                             QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
 from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
 from desktop.core.markdown_export import note_markdown, save_markdown
+from desktop.core.checklists import ChecklistStore, parse_checklist_lines
 
 
 class QuickNotesPage(QWidget):
-    def __init__(self, parent=None, store=None, can_save=lambda: True):
+    checklist_created = pyqtSignal(str)
+
+    def __init__(self, parent=None, store=None, can_save=lambda: True, checklist_store=None):
         super().__init__(parent)
         self.store = store or QuickNotesStore()
         self.can_save = can_save
+        self.checklist_store = checklist_store or ChecklistStore()
         self.snapshot = {'revision': 0, 'notes': []}
         self.note_id = None
         self.saved_fields = ('', '')
@@ -67,6 +71,9 @@ class QuickNotesPage(QWidget):
         self.copy_button = QPushButton('Notiz als Markdown kopieren')
         self.copy_button.clicked.connect(self.copy_markdown)
         layout.addWidget(self.copy_button)
+        self.list_button = QPushButton('Notiz als neue Checkliste')
+        self.list_button.clicked.connect(self.create_checklist)
+        layout.addWidget(self.list_button)
         self.reload()
 
     def dirty(self):
@@ -108,6 +115,7 @@ class QuickNotesPage(QWidget):
         self.pin_button.setEnabled(note is not None and not self.trash.isChecked())
         self.pin_button.setText('Notiz lösen' if note and note.get('pinned', False) else 'Notiz anheften')
         self.restore_button.setEnabled(note is not None and self.trash.isChecked())
+        self.list_button.setEnabled(not self.trash.isChecked())
         self.remove_button.setText('Endgültig entfernen' if self.trash.isChecked() else 'In Papierkorb')
 
     def switch_trash(self, checked):
@@ -214,6 +222,34 @@ class QuickNotesPage(QWidget):
             self.status.setText('Nicht kopiert: ' + str(error))
             return
         self.status.setText('Sichtbare Notiz als Markdown kopiert. Der Entwurf wurde nicht gespeichert.')
+
+    def create_checklist(self):
+        if not self.can_save() or self.trash.isChecked():
+            self.status.setText('Eine neue Checkliste benötigt Speicherung und eine Notiz außerhalb des Papierkorbs.')
+            return
+        title, body = self.title.text().strip(), self.body.toPlainText()
+        try:
+            if not title:
+                raise ValueError('Bitte einen Titel für die neue Liste eingeben.')
+            items = parse_checklist_lines(body)
+            revision = self.checklist_store.read()['revision']
+            preview = QMessageBox(self)
+            preview.setWindowTitle('Neue Checkliste prüfen')
+            preview.setTextFormat(Qt.TextFormat.PlainText)
+            preview.setText(f"Neue Liste {title} mit {len(items)} Einträgen anlegen? Die Notiz bleibt erhalten.")
+            preview.setDetailedText('\n'.join(('☑ ' if item['done'] else '☐ ') + item['text'] for item in items))
+            preview.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            preview.setDefaultButton(QMessageBox.StandardButton.No)
+            if preview.exec() != QMessageBox.StandardButton.Yes:
+                return
+            if not self.can_save():
+                raise ValueError('Speicherung wurde inzwischen deaktiviert.')
+            _, identifier = self.checklist_store.change('from_text', revision=revision, text=title, lines=body)
+        except (ValueError, OSError) as error:
+            self.status.setText('Liste nicht angelegt: ' + str(error))
+            return
+        self.checklist_created.emit(identifier)
+        self.status.setText('Neue Checkliste angelegt. Die Notiz und ihr Entwurf bleiben unverändert.')
 
     def export(self):
         if not self.can_save():

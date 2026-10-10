@@ -143,6 +143,17 @@ Zwischenablage und belegt ausdrückliche Übernahme, Datenschutzmodus, Ablehnung
 leerer Inhalte, Speicherfehler und fehlgeschlagene Rückprüfung. Sie ersetzt
 keine Abnahme der physischen Windows-Zwischenablage.
 
+**Notiz in neue Checkliste übernehmen:** Sichtbarer Titel und Text bilden nach
+Vorschau/Bestätigung eine neue lokale Liste. Markdown-Haken bleiben erhalten.
+Eine einzige atomare Änderung verhindert leere/teilweise Listen bei Fehlern;
+die Notiz und offene Entwürfe bleiben unverändert. Die Listenansicht wird nach
+Erfolg aktualisiert. Speicherungsfreigabe, Namenskonflikte, Grenzen und Revision
+gelten auch für diesen Übergang.
+
+**42 Tests bestanden** für Notizen, Checklisten, Exporte und integrierte Seiten;
+Ruff bestanden. Der neue Übergangstest deckt Abbruch, bestätigte Erstellung,
+Haken, Namenskonflikt, Speicherfehler und den erhaltenen Notizentwurf ab.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
