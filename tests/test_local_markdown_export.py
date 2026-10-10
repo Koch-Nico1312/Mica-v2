@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -121,4 +121,34 @@ def test_list_export_contains_only_visible_entries_and_filter_description(tmp_pa
     assert 'Alternative' not in text and 'Brot' not in text
     assert store.path.read_bytes() == before
     page.close()
+    app.processEvents()
+
+
+def test_note_copy_is_explicit_works_without_storage_and_preserves_draft(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = QuickNotesStore(tmp_path / 'notes.json')
+    clipboard = Mock()
+    value = {'text': 'Vorheriger fremder Text'}
+    clipboard.setText.side_effect = lambda text: value.update(text=text)
+    clipboard.text.side_effect = lambda: value['text']
+    with patch('desktop.quick_notes_page.QApplication.clipboard', return_value=clipboard):
+        page = QuickNotesPage(store=store, can_save=lambda: False)
+        page.title.setText('Idee')
+        page.body.setPlainText('Mein Entwurf')
+        clipboard.setText.assert_not_called()
+        page.copy_button.click()
+        assert 'Mein Entwurf' in value['text'] and 'noch nicht' in value['text']
+        assert page.dirty() and not store.path.exists() and 'kopiert' in page.status.text()
+        previous = value['text']
+        page.body.clear()
+        page.copy_markdown()
+        assert value['text'] == previous and 'Nicht kopiert' in page.status.text()
+        page.body.setPlainText('Anderer Entwurf')
+        clipboard.setText.side_effect = OSError('locked')
+        page.copy_markdown()
+        assert value['text'] == previous and 'Nicht kopiert' in page.status.text()
+        clipboard.setText.side_effect = None
+        page.copy_markdown()
+        assert 'Nicht kopiert' in page.status.text() and page.dirty()
+        page.close()
     app.processEvents()

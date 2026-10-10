@@ -131,6 +131,18 @@ Ruff bestanden. Neue Prüfungen belegen den Erhalt von Identität und Haken sowi
 korrektes Bearbeiten einer gefilterten Zeile. Dokumentationslinks werden nach
 jeder Ergänzung erneut geprüft.
 
+**Notiz als Markdown kopieren:** Eine ausdrückliche Schaltfläche kopiert die
+sichtbare Notiz einschließlich Entwurfshinweis, ohne die Notizdatei zu schreiben.
+Das funktioniert auch ohne Speicherung. Leere/zu lange Inhalte werden abgelehnt;
+Speicherfehler der Zwischenablage erhalten den Entwurf. Erfolg wird erst nach
+dem Rücklesen derselben Textkopie gemeldet.
+
+**22 Tests bestanden** für Notizen, Markdown-Übernahme/Export und integrierte
+Seiten; Ruff bestanden. Die Kopierprüfung verwendet eine kontrollierte
+Zwischenablage und belegt ausdrückliche Übernahme, Datenschutzmodus, Ablehnung
+leerer Inhalte, Speicherfehler und fehlgeschlagene Rückprüfung. Sie ersetzt
+keine Abnahme der physischen Windows-Zwischenablage.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.

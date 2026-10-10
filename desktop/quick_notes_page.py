@@ -1,6 +1,6 @@
 """Local scratchpad with explicit save and protected drafts."""
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                             QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
 from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, note_excerpt, search_notes
@@ -64,6 +64,9 @@ class QuickNotesPage(QWidget):
         self.restore_button = QPushButton('Notiz wiederherstellen')
         self.restore_button.clicked.connect(self.restore)
         layout.addWidget(self.restore_button)
+        self.copy_button = QPushButton('Notiz als Markdown kopieren')
+        self.copy_button.clicked.connect(self.copy_markdown)
+        layout.addWidget(self.copy_button)
         self.reload()
 
     def dirty(self):
@@ -194,15 +197,30 @@ class QuickNotesPage(QWidget):
         if note:
             self.change('pin', pinned=not note.get('pinned', False))
 
+    def markdown_snapshot(self):
+        if len(self.body.toPlainText()) > MAX_BODY:
+            raise ValueError('Der Notiztext ist zu lang (höchstens 20.000 Zeichen).')
+        return note_markdown(self.title.text(), self.body.toPlainText(),
+                             saved=self.note_id is not None and not self.dirty())
+
+    def copy_markdown(self):
+        try:
+            text = self.markdown_snapshot()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            if clipboard.text() != text:
+                raise ValueError('Der Text konnte nicht in die Zwischenablage übernommen werden.')
+        except (ValueError, RuntimeError, OSError) as error:
+            self.status.setText('Nicht kopiert: ' + str(error))
+            return
+        self.status.setText('Sichtbare Notiz als Markdown kopiert. Der Entwurf wurde nicht gespeichert.')
+
     def export(self):
         if not self.can_save():
             self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
             return
         try:
-            if len(self.body.toPlainText()) > MAX_BODY:
-                raise ValueError('Der Notiztext ist zu lang (höchstens 20.000 Zeichen).')
-            text = note_markdown(self.title.text(), self.body.toPlainText(),
-                                 saved=self.note_id is not None and not self.dirty())
+            text = self.markdown_snapshot()
             path, _ = QFileDialog.getSaveFileName(self, 'Notiz exportieren', 'MICA-Notiz.md', 'Markdown (*.md)')
             if not path:
                 return

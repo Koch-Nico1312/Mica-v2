@@ -160,6 +160,13 @@ Export wörtlich: HTML, Bild- und Linksyntax werden maskiert. Beide Dateiexporte
 benötigen den Modus mit Speicherung. Abbruch und fehlgeschlagener Dateiaustausch
 erhalten bestehende Dateien.
 
+**Notiz als Markdown kopieren** übernimmt Titel und den sichtbaren Text erst
+auf deinen Klick in die Zwischenablage. Das funktioniert auch im Modus ohne
+Speicherung; ein Entwurf wird dabei nicht im Notizblock gespeichert. Ungespeicherte
+Texte werden in der Kopie als Entwurf gekennzeichnet. MICA prüft die übernommene
+Textkopie, bevor es Erfolg meldet. Die Zwischenablage wird anschließend nicht
+automatisch geleert.
+
 ## Rechner
 
 Im Chat funktionieren `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder
