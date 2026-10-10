@@ -231,7 +231,7 @@ class ControlCenter(ApiPage):
     restore_busy = pyqtSignal(bool)
     open_settings = pyqtSignal()
 
-    def __init__(self, parent=None, client_factory=LocalCoreClient):
+    def __init__(self, parent=None, client_factory=LocalCoreClient, can_save=lambda: True):
         super().__init__(parent)
         self.client_factory = client_factory
         self._items = []
@@ -437,7 +437,7 @@ class ControlCenter(ApiPage):
         self.evolution_page = EvolutionPage(client_factory=client_factory)
         self.tabs.addTab(self.evolution_page, 'Weiterentwicklung')
         from desktop.jira_page import JiraPage
-        self.jira_page = JiraPage()
+        self.jira_page = JiraPage(can_save=can_save)
         self.tabs.addTab(self.jira_page, 'Jira')
         self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)

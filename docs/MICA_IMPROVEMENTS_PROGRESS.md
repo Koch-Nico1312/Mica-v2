@@ -21,7 +21,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 5 von 10 Features lokal implementiert
+## Erster Zyklus: 6 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -83,7 +83,22 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   Desktop-UI auch offline und ohne Speicherung erreichbar.
 - Fünf zusätzliche Tests für Zählung, wörtliche Suche, Grenzen, sichtbare
   Oberfläche und den tatsächlichen Offline-Desktop-Pfad bestanden. Zusammen mit
-  angrenzenden neuen Funktionen: 57 Tests bestanden; Ruff-Prüfung folgt im Checkpoint.
+  angrenzenden neuen Funktionen: 57 Tests und Ruff-Prüfung bestanden.
+
+### 6. Jira-Vorgänge als lokale Aufgaben übernehmen
+
+- Nach Lesen eines einzelnen Vorgangs bietet die Jira-Seite einen lokalen
+  Aufgabenimport mit vollständiger Vorschau und Bestätigung an.
+- Quelle/Website, Vorgangsnummer, Titel und Text werden übernommen, keine
+  Jira-Schreibaktion. Status wird offen, Frist bleibt leer; die anfängliche
+  30-Minuten-Dauer ist als anpassbarer Platzhalter im Dialog sichtbar.
+- Feste Identität aus Website/Vorgangsnummer verhindert doppelte Übernahmen.
+  Bereits vorhandene lokale Änderungen werden atomisch erhalten.
+- Im Modus ohne Speicherung wird der Import abgelehnt. Wechsel von Vorgangsnummer
+  oder Website verwirft die Importvorschau. Text und ADF-Beschreibung unterstützt,
+  unbekannte/uneindeutige Antworten führen nicht zu einem geratenen Import.
+- Drei neue Tests sowie angrenzende Jira-, Dokument-, Aufgaben- und Offline-
+  Planungsprüfungen bestanden: **80 Tests**, Ruff und Diff-Prüfung bestanden.
 
 ### Checkpoints und Prüfstand (Fortsetzung)
 
@@ -98,7 +113,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
 - Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
   pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–5 als lokal implementiert;
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–6 als lokal implementiert;
   externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
 
 ## Nächste Auswahl

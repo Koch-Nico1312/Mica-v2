@@ -139,7 +139,7 @@ class OfflineTasks:
             tasks[item['desired']['id']] = {**item['desired'], 'pending': True}
         return [{**task, **data['metadata'].get(identifier, {})} for identifier, task in tasks.items()]
 
-    def stage(self, task, *, minutes=30, depends_on=None, expected_view=None):
+    def stage(self, task, *, minutes=30, depends_on=None, expected_view=None, create_only=False):
         task = {'description': '', 'status': 'open', 'priority': 'normal', 'due_at': None, **task}
         validate_task(task)
         task = {**task, **canonical_fields(task)}
@@ -150,6 +150,9 @@ class OfflineTasks:
             raise ValueError('Ungültige Voraussetzungen.')
         with FileLease(str(self.path) + '.lock', label='Die Offline-Aufgaben'):
             data = self.read()
+            if create_only and (any(entry['id'] == task['id'] for entry in data['tasks'])
+                                or any(entry['desired']['id'] == task['id'] for entry in data['pending'])):
+                raise ValueError('Dieser Vorgang wurde bereits als lokale Aufgabe übernommen. Bestehende Änderungen bleiben erhalten.')
             if expected_view is not None:
                 current = next((entry for entry in self.view() if entry['id'] == task['id']), None)
                 if current != expected_view:

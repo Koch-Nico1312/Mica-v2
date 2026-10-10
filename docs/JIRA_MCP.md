@@ -18,6 +18,13 @@ Zugriffsschlüssel. Browser-OAuth ist in dieser ersten Anbindung noch nicht eing
 Die Anbindung führt nur fest freigegebene Lesewerkzeuge aus; Änderungen an Jira
 sind über diesen Bereich noch nicht möglich. Ergebnisse werden als Text angezeigt.
 
+Nach **Vorgang lesen** kannst du den Vorgang **als lokale Aufgabe übernehmen**.
+Prüfe Titel und Beschreibung im Bestätigungsdialog. Die Aufgabe bleibt zunächst
+lokal vorgemerkt; unter Tagesplanung kannst du die anfängliche 30-Minuten-Dauer
+anpassen und den Backend-Abgleich ausdrücklich ausführen. Jira selbst wird dabei
+nicht geändert. Doppelte Übernahmen überschreiben keine bestehende lokale Aufgabe.
+Der Import benötigt den Modus mit Speicherung.
+
 **Zugang entfernen** löscht die lokal gespeicherten Zugangsdaten. Zum Widerrufen
 des Tokens selbst verwende deine Atlassian-Kontoeinstellungen.
 Bei 401/403 prüfe Token, Scopes, MCP-Freigabe und die IP-Regeln deiner Organisation.

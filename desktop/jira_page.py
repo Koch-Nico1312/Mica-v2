@@ -15,10 +15,12 @@ from desktop.core.secure_store import SecureStoreUnavailable, get_secret
 class JiraPage(QWidget):
     completed = pyqtSignal(str, object, str)
 
-    def __init__(self, parent=None, client_factory=JiraMcpClient.from_saved_account):
+    def __init__(self, parent=None, client_factory=JiraMcpClient.from_saved_account, task_store=None, can_save=lambda: True):
         super().__init__(parent)
         self.client_factory = client_factory
         self.busy = False
+        self.task_store, self.can_save = task_store, can_save
+        self.import_draft, self._issue_context = None, None
         self.completed.connect(self._receive)
         layout = QVBoxLayout(self)
         intro = QLabel('Verbinde dein Atlassian-Konto, um Jira-Vorgänge in MICA zu lesen und zu suchen. '
@@ -72,6 +74,11 @@ class JiraPage(QWidget):
         self.report = QTextEdit()
         self.report.setReadOnly(True)
         layout.addWidget(self.report, 1)
+        self.import_button = QPushButton('Gelesenen Vorgang als lokale Aufgabe übernehmen …')
+        self.import_button.clicked.connect(self._import_task)
+        layout.addWidget(self.import_button)
+        self.issue_key.textChanged.connect(self._clear_import)
+        self.sites.currentIndexChanged.connect(self._clear_import)
         self._set_busy(False)
 
     def _set_busy(self, busy):
@@ -82,6 +89,31 @@ class JiraPage(QWidget):
         available = not busy and bool(self.sites.currentData())
         self.search_button.setEnabled(available)
         self.issue_button.setEnabled(available)
+        self.import_button.setEnabled(not busy and self.import_draft is not None)
+
+    def _clear_import(self, *_):
+        self.import_draft = None
+        self.import_button.setEnabled(False)
+
+    def _import_task(self):
+        if self.busy or self.import_draft is None:
+            return
+        if not self.can_save():
+            self.status.setText('Lokale Aufgaben benötigen den Modus mit Speicherung.')
+            return
+        draft = dict(self.import_draft)
+        text = draft['title'] + '\n\n' + draft['description'] + '\n\nAls offene lokale Aufgabe übernehmen? Kein Jira-Vorgang wird geändert. Dauer zunächst 30 Minuten; bitte unter Tagesplanung anpassen. Dort erfolgt später auch der ausdrückliche Backend-Abgleich.'
+        if QMessageBox.question(self, 'Lokale Aufgabe prüfen', text) != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            from desktop.core.offline_tasks import OfflineTasks
+            store = self.task_store or OfflineTasks()
+            store.stage(draft, create_only=True)
+        except (ValueError, OSError) as error:
+            self.status.setText('Lokale Aufgabe nicht übernommen: ' + str(error))
+            return
+        self.status.setText('Als offene lokale Aufgabe vorgemerkt. Unter Tagesplanung prüfen und ausdrücklich abgleichen.')
+        self._clear_import()
 
     def _save(self):
         if self.busy:
@@ -120,11 +152,13 @@ class JiraPage(QWidget):
 
     def _issue(self):
         cloud_id, key = self.sites.currentData(), self.issue_key.text()
+        self._issue_context = (cloud_id, key)
         self._run('issue', lambda client: client.issue(cloud_id, key))
 
     def _run(self, kind, action):
         if self.busy:
             return
+        self._clear_import()
         self._set_busy(True)
         self.status.setText('Atlassian wird abgefragt …')
         self.report.clear()
@@ -162,4 +196,10 @@ class JiraPage(QWidget):
             texts = [item['text'] for item in value.get('content', [])
                      if isinstance(item, dict) and item.get('type') == 'text' and isinstance(item.get('text'), str)]
             self.report.setPlainText('\n\n'.join(texts) if texts else json.dumps(value, ensure_ascii=False, indent=2))
+            if kind == 'issue' and self._issue_context:
+                from desktop.core.jira_task_import import issue_task_draft
+                try:
+                    self.import_draft = issue_task_draft(value, *self._issue_context)
+                except ValueError:
+                    self.status.setText('Vorgang geladen. Das Antwortformat ist für den lokalen Aufgabenimport nicht eindeutig.')
         self._set_busy(False)

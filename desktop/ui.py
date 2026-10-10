@@ -275,7 +275,7 @@ class MainWindow(LocalPagesMixin, QMainWindow):
         self._settings_page = self._build_settings_page()
         self._view_stack.addWidget(self._settings_page)
         from desktop.control_center import ControlCenter
-        self._control_center = ControlCenter()
+        self._control_center = ControlCenter(can_save=lambda: self.remember_conversations)
         self._control_center.open_settings.connect(lambda: self._activate_navigation('settings'))
         self._control_center.restore_busy.connect(lambda busy: self.centralWidget().setEnabled(not busy))
         self._view_stack.addWidget(self._control_center)
