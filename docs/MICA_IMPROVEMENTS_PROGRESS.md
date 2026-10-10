@@ -6,7 +6,8 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 
 ## Organisation
 
-- Heartbeat-ID: `mica-verbesserungen-bis-09-uhr`, alle 20 Minuten in diesem Chat.
+- Heartbeat-ID: `mica-verbesserungen-bis-09-uhr`, Prüfung jede Minute in diesem
+  Chat; Statusmails nur alle 20 Minuten nach gespeichertem Versandzeitpunkt.
 - Verifiziertes Gmail-Konto und Status-Empfänger: `kochnico1312@gmail.com`.
 - Autorisierter Instruktionsabsender: `kochn8322@gmail.com`.
 - Nur neue Mails seit `2026-10-10T22:02:00Z` verarbeiten. Tatsächliche Absender und
@@ -103,6 +104,8 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 ### Checkpoints und Prüfstand (Fortsetzung)
 
 - Erster GitHub-Checkpoint: `c2cb11a`, Jira-Implementierung.
+- Weitere veröffentlichte Checkpoints: `3bdac36` (Aufgaben/Export/Umrechnung),
+  `0b498b9` (Dokumentinfos/Suche), `b724ecc` (Jira-Aufgabenimport).
 - Erweiterter kombinierter Prüfstand: **160 bestanden**, dazu ein separat
   hinzugefügter Test der kanonischen Desktop-Umrechnung im Offline-Modus ohne
   Speicherung: **1 bestanden**. Insgesamt 161 unterschiedliche geprüfte Tests.
