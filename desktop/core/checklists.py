@@ -74,12 +74,12 @@ class ChecklistStore:
 
     def change(self, operation, *, revision, list_id=None, item_id=None, text='', done=None, template=None, items=None):
         if operation not in {'create', 'rename', 'add', 'toggle', 'remove_item', 'remove_list',
-                             'from_template', 'duplicate', 'reset', 'add_many'}:
+                             'from_template', 'duplicate', 'reset', 'add_many', 'edit'}:
             raise ValueError('Unbekannte Listenaktion.')
         if operation == 'from_template' and (not isinstance(template, str) or template not in CHECKLIST_TEMPLATES):
             raise ValueError('Bitte eine vorhandene Listenvorlage wählen.')
-        if operation in {'create', 'rename', 'add', 'from_template', 'duplicate'}:
-            maximum = 240 if operation == 'add' else 80
+        if operation in {'create', 'rename', 'add', 'from_template', 'duplicate', 'edit'}:
+            maximum = 240 if operation in {'add', 'edit'} else 80
             if not isinstance(text, str) or not 1 <= len(text.strip()) <= maximum or '\n' in text or '\r' in text:
                 raise ValueError(f'Bitte 1–{maximum} Zeichen in einer Zeile eingeben.')
             text = text.strip()
@@ -141,6 +141,11 @@ class ChecklistStore:
                     if type(done) is not bool:
                         raise ValueError('Ungültiger Erledigt-Zustand.')
                     item['done'] = done
+                elif operation == 'edit':
+                    if any(other['id'] != item_id and other['text'].casefold() == text.casefold()
+                           for other in record['items']):
+                        raise ValueError('Dieser Eintrag ist bereits in der Liste.')
+                    item['text'] = text
                 else:
                     record['items'].remove(item)
             data['revision'] += 1

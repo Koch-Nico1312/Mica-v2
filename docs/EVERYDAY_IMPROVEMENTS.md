@@ -74,6 +74,9 @@ Zählung auch im Offline-Desktop und im Modus ohne Speicherung an.
 Unter **Betrieb → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
 Einträge lassen sich abhaken und wieder öffnen. Zum Entfernen eines Eintrags
 oder einer ganzen Liste bestätigst du die Auswahl ausdrücklich.
+Markiere eine Tabellenzeile und wähle **Ausgewählten Eintrag bearbeiten**, um
+ihren Text zu korrigieren. Der Erledigt-Haken bleibt erhalten. Doppelte Texte,
+ungültige Eingaben und ein inzwischen geänderter Stand werden abgelehnt.
 
 Für einen schnellen Einstieg wähle **Einkauf**, **Reise** oder **Arbeitsbeginn**.
 Die Einträge der Vorlage werden vor dem Anlegen angezeigt. **Vorlage als neue

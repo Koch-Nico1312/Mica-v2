@@ -286,3 +286,47 @@ def test_filtered_rows_keep_checkbox_and_removal_bound_to_item_identity(tmp_path
     assert page.table.rowCount() == 2
     page.close()
     app.processEvents()
+
+
+def test_item_edit_preserves_id_and_done_and_rejects_duplicates_or_stale_state(tmp_path):
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    data, _ = store.change('add_many', revision=1, list_id=identifier,
+                         items=parse_checklist_lines('- [x] Milhc\nBrot'))
+    item_id = data['lists'][0]['items'][0]['id']
+    data, _ = store.change('edit', revision=2, list_id=identifier, item_id=item_id, text='Milch')
+    assert data['lists'][0]['items'][0] == {'id': item_id, 'text': 'Milch', 'done': True}
+    before = store.path.read_bytes()
+    with pytest.raises(ValueError, match='bereits'):
+        store.change('edit', revision=3, list_id=identifier, item_id=item_id, text='BROT')
+    with pytest.raises(ValueError, match='inzwischen'):
+        store.change('edit', revision=2, list_id=identifier, item_id=item_id, text='Andere')
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError), pytest.raises(PermissionError):
+        store.change('edit', revision=3, list_id=identifier, item_id=item_id, text='Andere')
+    assert store.path.read_bytes() == before
+
+
+def test_ui_edit_filtered_item_cancel_privacy_and_filter_change(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    store.change('add_many', revision=1, list_id=identifier, items=parse_checklist_lines('Brot\n- [x] Milhc'))
+    page = ChecklistsPage(store=store)
+    page.search.setText('Milhc')
+    page.table.selectRow(0)
+    before = store.path.read_bytes()
+    with patch('desktop.checklists_page.QInputDialog.getText', return_value=('Milch', False)):
+        page.edit_button.click()
+    assert store.path.read_bytes() == before
+    with patch('desktop.checklists_page.QInputDialog.getText', return_value=('Milch', True)):
+        page.can_save = lambda: False
+        page.edit_item()
+        assert store.path.read_bytes() == before
+        page.can_save = lambda: True
+        page.table.selectRow(0)
+        page.edit_item()
+    assert page.table.rowCount() == 0
+    items = store.read()['lists'][0]['items']
+    assert items[0]['text'] == 'Brot' and items[1]['text'] == 'Milch' and items[1]['done']
+    page.close()
+    app.processEvents()

@@ -85,6 +85,9 @@ class ChecklistsPage(QWidget):
             button.clicked.connect(action)
             row.addWidget(button)
         layout.addLayout(row)
+        self.edit_button = QPushButton('Ausgewählten Eintrag bearbeiten')
+        self.edit_button.clicked.connect(self.edit_item)
+        layout.addWidget(self.edit_button)
         self.export_button = QPushButton('Sichtbare Einträge als Markdown exportieren')
         self.export_button.clicked.connect(self.export)
         layout.addWidget(self.export_button)
@@ -239,6 +242,21 @@ class ChecklistsPage(QWidget):
         if item:
             if QMessageBox.question(self, 'Eintrag entfernen', item['text']) == QMessageBox.StandardButton.Yes:
                 self.change('remove_item', item_id=item['id'])
+
+    def edit_item(self):
+        record, checked = self.selected_list(), self.table.item(self.table.currentRow(), 0)
+        identifier = checked.data(Qt.ItemDataRole.UserRole) if checked else None
+        item = next((item for item in record['items'] if item['id'] == identifier), None) if record else None
+        if item is None:
+            self.status.setText('Bitte zuerst einen Eintrag auswählen.')
+            return
+        revision = self.snapshot['revision']
+        text, accepted = QInputDialog.getText(self, 'Eintrag bearbeiten', 'Neuer Text:', text=item['text'])
+        if accepted:
+            if self.choice.currentData() != record['id'] or self.snapshot['revision'] != revision:
+                self.status.setText('Auswahl oder Stand inzwischen geändert; bitte erneut prüfen.')
+                return
+            self.change('edit', item_id=identifier, text=text)
 
     def remove_list(self):
         record = self.selected_list()

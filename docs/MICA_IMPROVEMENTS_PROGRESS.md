@@ -121,6 +121,16 @@ Ruff bestanden. Neue Prüfungen belegen korrektes Abhaken/Entfernen in gefiltert
 Zeilen und einen Export ohne ausgeblendete Inhalte. Die Quellcode-/Linkprüfung
 bleibt separat vom Nachweis einer laufenden Desktop-Version.
 
+**Listeneinträge bearbeiten:** Eine eigene Schaltfläche korrigiert den Text der
+ausgewählten Zeile, ohne ID oder Erledigt-Zustand zu verändern. Auch gefilterte
+Zeilen bleiben korrekt zugeordnet. Abbruch, Datenschutzsperre, Duplikate,
+veralteter Stand und Speicherfehler erhalten den bisherigen Eintrag.
+
+**25 Tests bestanden** für Checklisten, Markdown-Exporte und integrierte Seiten;
+Ruff bestanden. Neue Prüfungen belegen den Erhalt von Identität und Haken sowie
+korrektes Bearbeiten einer gefilterten Zeile. Dokumentationslinks werden nach
+jeder Ergänzung erneut geprüft.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
