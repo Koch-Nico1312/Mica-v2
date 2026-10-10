@@ -211,3 +211,18 @@ Backend-/Desktop-Version weiterhin separat offen.
   Startvertrag-Prüfungen **27 Tests bestanden**. Hauptoberfläche wurde im
   Qt-Offscreen-Test konstruiert; dies ist keine Live-Dienst-/Audio-Abnahme.
 - Die Bedienhilfe zu den neuen Funktionen ist im Dokumentationsindex verlinkt.
+- Breiter aktueller Lauf: gesamtes `tests/` plus Backend-TTS-, Docker-Lern-
+  und Deployment-Unitprüfungen, ohne separat erforderlichen Integrationstest:
+  **953 Tests und 79 Untertests bestanden**, **1 Test ausgeschlossen**.
+  Laufzeit 224,96 Sekunden; vorhandene Starlette-Testclient-DeprecationWarning.
+- Der erste breite Lauf hatte 940 bestandene Tests und einen Fehler, weil in
+  der isolierten Testumgebung `sounddevice` fehlte. Die Abhängigkeit steht bereits
+  im Projektmanifest. Der betroffene Empfangs-Timeout-Test bestand mit ihr;
+  anschließend bestand der gesamte Wiederholungslauf. Kein Produktcode dafür geändert.
+- Chonkie-/CodeChunker-Runtime mit exakt `chonkie[code]==1.7.0` und
+  `tree-sitter-language-pack==1.8.1`: **2 Tests separat bestanden** unter Windows.
+  Keine Docker-Runtime-Abnahme: lokaler Docker-Daemon war nicht erreichbar.
+- Ruff über sämtliche im Branch geänderten Python-Dateien bestanden; aktuelle
+  Konsistenzprüfung: **377 Python-Dateien, 151 lokale Dokumentationslinks, 0 Fehler**.
+- Regelmäßige Statusmail um 00:42 Uhr gesendet. Echte Bugbot-Abnahme weiterhin
+  offen; die erfolgreichen Prüfungen ersetzen diesen Reviewer nicht.
