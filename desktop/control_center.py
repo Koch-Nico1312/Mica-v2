@@ -4,6 +4,8 @@ from __future__ import annotations
 import threading
 import os
 import json
+import re
+import tempfile
 from statistics import median
 from pathlib import Path
 
@@ -93,6 +95,73 @@ def task_identity(item):
 def task_timestamp(value):
     timestamp = QDateTime.fromString(value or '', Qt.DateFormat.ISODate)
     return timestamp.toTimeZone(QTimeZone(b'Europe/Vienna')).toString('dd.MM. HH:mm') if timestamp.isValid() else ''
+
+
+def task_deadline(item, now=None):
+    """Describe open task deadlines in Vienna, without changing their status."""
+    if item.get('kind') != 'task' or item.get('status') not in {'open', 'in_progress'}:
+        return {'category': '', 'label': '', 'timestamp': None}
+    value = item.get('due_at')
+    if not isinstance(value, str) or not value:
+        return {'category': '', 'label': '', 'timestamp': None}
+    zone = QTimeZone(b'Europe/Vienna')
+    due = QDateTime.fromString(value, Qt.DateFormat.ISODate)
+    if not due.isValid():
+        return {'category': 'invalid', 'label': 'Termin prüfen', 'timestamp': None}
+    if not re.search(r'(?:Z|[+-]\d\d:\d\d)$', value, re.IGNORECASE):
+        due.setTimeZone(zone)
+    due = due.toTimeZone(zone)
+    now = (now or QDateTime.currentDateTimeUtc()).toTimeZone(zone)
+    category = 'overdue' if due < now else 'today' if due.date() == now.date() else 'later'
+    prefix = {'overdue': 'Überfällig: ', 'today': 'Heute: ', 'later': ''}[category]
+    return {'category': category, 'label': prefix + due.toString('dd.MM. HH:mm'),
+            'timestamp': due.toMSecsSinceEpoch()}
+
+
+def task_snapshot_markdown(items, *, fresh, generated_at=None):
+    """Export displayed task metadata, never action parameters or execution output."""
+    timestamp = generated_at or QDateTime.currentDateTimeUtc()
+    lines = ['# MICA Aufgaben', '', 'Stand: ' + timestamp.toTimeZone(QTimeZone(b'Europe/Vienna')).toString('dd.MM.yyyy HH:mm'),
+             'Zeitzone: Europe/Vienna', '']
+    if not fresh:
+        lines.extend(['Hinweis: Der Backend-Stand ist nicht aktuell. Dies ist die zuletzt geladene Ansicht.', ''])
+    def escape(value):
+        text = str(value or '').replace('\r', ' ').replace('\n', ' ')
+        return re.sub(r'([\\`*_{}\[\]()<>#!|])', r'\\\1', text)
+    for item in items:
+        title = item.get('goal', item.get('title', item.get('action', '')))
+        presentation = task_presentation(item)
+        lines.extend(['## ' + escape(title), '', 'Status: ' + escape(presentation['label'])])
+        if item.get('priority'):
+            lines.append('Priorität: ' + {'high': 'Hoch', 'normal': 'Normal', 'low': 'Niedrig'}.get(item['priority'], escape(item['priority'])))
+        deadline = task_deadline(item, timestamp)
+        if deadline['label']:
+            lines.append('Fällig: ' + escape(deadline['label']))
+        if presentation['unresolved']:
+            lines.append('Ergebnis einer bereits gestarteten Aktion ist ungeklärt. Vor Fortsetzung prüfen.')
+        if item.get('description'):
+            lines.extend(['', escape(item['description'])])
+        lines.append('')
+    if not items:
+        lines.extend(['Keine Aufgaben in dieser Ansicht.', ''])
+    return '\n'.join(lines)
+
+
+def save_task_snapshot(path, text):
+    """Publish complete UTF-8 contents atomically; failed writes keep the old file."""
+    target = Path(path)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='\n',
+                                         dir=target.parent, prefix='.mica-export-', suffix='.tmp', delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 class ApiPage(QWidget):
@@ -194,6 +263,13 @@ class ControlCenter(ApiPage):
             self.task_filter.addItem(label, key)
         self.task_filter.currentIndexChanged.connect(self._render_tasks)
         row.addWidget(self.task_filter)
+        self.task_sort = QComboBox()
+        for label, key in [('Bisherige Reihenfolge', 'original'), ('Dringlichkeit', 'urgency'),
+                           ('Fälligkeit', 'deadline'), ('Titel', 'title')]:
+            self.task_sort.addItem(label, key)
+        self.task_sort.setToolTip('Aufgaben sortieren; Freigaben und Ausführungen bleiben unverändert.')
+        self.task_sort.currentIndexChanged.connect(self._render_tasks)
+        row.addWidget(self.task_sort)
         self.refresh_button = QPushButton()
         self.refresh_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
         self.refresh_button.setToolTip('Aufgaben aktualisieren')
@@ -203,13 +279,22 @@ class ControlCenter(ApiPage):
         task_layout.addLayout(row)
         self.task_count = QLabel('Noch keine Aufgaben geladen.')
         task_layout.addWidget(self.task_count)
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(['Aufgabe / Aktion', 'Typ', 'Status', 'Schritte', 'Geändert'])
+        self.deadline_filter = QComboBox()
+        for label, key in [('Alle Termine', 'all'), ('Heute fällig oder überfällig', 'today'),
+                           ('Überfällig', 'overdue'), ('Hohe Priorität', 'high')]:
+            self.deadline_filter.addItem(label, key)
+        self.deadline_filter.currentIndexChanged.connect(self._render_tasks)
+        task_layout.addWidget(self.deadline_filter)
+        self.export_tasks_button = QPushButton('Sichtbare Aufgaben als Markdown speichern …')
+        self.export_tasks_button.clicked.connect(self.export_tasks)
+        task_layout.addWidget(self.export_tasks_button)
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(['Aufgabe / Aktion', 'Typ', 'Status', 'Schritte', 'Geändert', 'Priorität', 'Fällig'])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for column in range(1, 5):
+        for column in range(1, 7):
             self.table.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         self.table.verticalHeader().hide()
         self.table.itemSelectionChanged.connect(self._show_detail)
@@ -569,6 +654,18 @@ class ControlCenter(ApiPage):
         if self.isVisible() and self.tabs.currentIndex() == 0:
             self.refresh()
 
+    def export_tasks(self):
+        snapshot = task_snapshot_markdown(list(self._items), fresh=self._activity_fresh)
+        path, _ = QFileDialog.getSaveFileName(self, 'Sichtbare Aufgaben speichern', 'MICA-Aufgaben.md', 'Markdown (*.md)')
+        if not path:
+            return
+        try:
+            save_task_snapshot(path, snapshot)
+        except OSError:
+            self.status.setText('Aufgabenexport konnte nicht gespeichert werden. Speicherort und Zugriffsrechte prüfen.')
+            return
+        self.status.setText('Sichtbare Aufgaben lokal als Markdown gespeichert.')
+
     def selected(self):
         row = self.table.currentRow()
         return self._items[row] if 0 <= row < len(self._items) else None
@@ -630,10 +727,41 @@ class ControlCenter(ApiPage):
         selected_id = task_identity(selected) if selected else None
         query = self.task_search.text().strip().casefold()
         category = self.task_filter.currentData()
+        deadline_filter = self.deadline_filter.currentData()
+        now = QDateTime.currentDateTimeUtc()
+        deadlines = {task_identity(item): task_deadline(item, now) for item in self._all_items}
+        def matches_deadline(item):
+            deadline = deadlines[task_identity(item)]['category']
+            if deadline_filter == 'all':
+                return True
+            if deadline_filter == 'high':
+                return (item['kind'] == 'task' and item.get('status') in {'open', 'in_progress'}
+                        and item.get('priority') == 'high')
+            return deadline in {'today', 'overdue'} if deadline_filter == 'today' else deadline == 'overdue'
         self._items = [item for item in self._all_items
                        if (category == 'all' or task_presentation(item)['category'] == category)
+                       and matches_deadline(item)
                        and (not query or query in ' '.join(str(item.get(field, ''))
                             for field in ('goal', 'title', 'action', 'description')).casefold())]
+        order = self.task_sort.currentData()
+        def title(item):
+            return str(item.get('goal', item.get('title', item.get('action', '')))).casefold()
+        def due_key(item):
+            value = deadlines[task_identity(item)]['timestamp']
+            return (value is None, value or 0)
+        if order == 'title':
+            self._items.sort(key=title)
+        elif order == 'deadline':
+            self._items.sort(key=due_key)
+        elif order == 'urgency':
+            def urgency(item):
+                presentation = task_presentation(item)
+                deadline = deadlines[task_identity(item)]['category']
+                return (0 if presentation['unresolved'] else 1 if deadline == 'overdue' else
+                        2 if deadline == 'today' else 3 if presentation['category'] != 'done' else 4,
+                        {'high': 0, 'normal': 1, 'low': 2}.get(item.get('priority', 'normal'), 1),
+                        due_key(item), title(item))
+            self._items.sort(key=urgency)
         self.table.blockSignals(True)
         try:
             self.table.clearSelection()
@@ -644,7 +772,9 @@ class ControlCenter(ApiPage):
                 presentation = task_presentation(item)
                 values = [item.get('goal', item.get('title', item.get('action', ''))),
                           {'plan': 'Plan', 'task': 'Aufgabe', 'execution': 'Ausführung'}[item['kind']],
-                          presentation['label'], presentation['progress'], task_timestamp(item.get('updated_at'))]
+                          presentation['label'], presentation['progress'], task_timestamp(item.get('updated_at')),
+                          {'high': 'Hoch', 'normal': 'Normal', 'low': 'Niedrig'}.get(item.get('priority'), ''),
+                          deadlines[task_identity(item)]['label']]
                 for col, text in enumerate(values):
                     cell = QTableWidgetItem(str(text))
                     cell.setToolTip(presentation['hint'] if col == 2 else str(text))
@@ -654,13 +784,16 @@ class ControlCenter(ApiPage):
                         cell.setForeground(QColor(color))
                     if col == 4:
                         cell.setToolTip(item.get('updated_at', ''))
+                    if col == 6 and deadlines[task_identity(item)]['category'] in {'overdue', 'invalid'}:
+                        cell.setForeground(QColor('#b53b50'))
                     self.table.setItem(row, col, cell)
                 if task_identity(item) == selected_id:
                     self.table.selectRow(row)
         finally:
             self.table.blockSignals(False)
         attention = sum(task_presentation(item)['category'] == 'attention' for item in self._all_items)
-        self.task_count.setText(f'{len(self._items)} von {len(self._all_items)} Einträgen · {attention} mit Handlungsbedarf'
+        overdue = sum(value['category'] == 'overdue' for value in deadlines.values())
+        self.task_count.setText(f'{len(self._items)} von {len(self._all_items)} Einträgen · {attention} mit Handlungsbedarf · {overdue} überfällig'
                                if self._activity_fresh else 'Stand nicht aktuell. Aufgaben erneut laden.')
         self.task_empty.setVisible(not self._items)
         self.task_empty.setText('Keine passenden Aufgaben.' if self._all_items else 'Keine Aufgaben vorhanden.')
@@ -779,6 +912,11 @@ class ControlCenter(ApiPage):
         reason = item.get('last_error', '')
         lines = [title, 'Status: ' + presentation['label'], item.get('description', ''),
                  TASK_REASONS.get(reason, reason), item.get('detail', '')]
+        deadline = task_deadline(item)
+        if deadline['label']:
+            lines.append('Fällig: ' + deadline['label'])
+        if item.get('priority'):
+            lines.append('Priorität: ' + {'high': 'Hoch', 'normal': 'Normal', 'low': 'Niedrig'}.get(item['priority'], item['priority']))
         if item.get('params') is not None:
             lines.append(json.dumps(item['params'], ensure_ascii=False, indent=2))
         if item.get('needs_reconciliation'):

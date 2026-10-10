@@ -234,6 +234,9 @@ class NativeCommands:
         if cancelled is not None and cancelled.is_set():
             return "Befehl abgebrochen."
         kind = command["kind"]
+        if kind == 'unit_convert':
+            from mica_shared.unit_conversion import conversion_reply
+            return conversion_reply(command)
         if kind == 'task_planning':
             return self.task_planning_handler(command['page'], command['title']) if self.task_planning_handler else 'Öffne Aufgaben und Tagesplanung.'
         if kind == 'workspace_continue':

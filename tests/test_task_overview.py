@@ -8,8 +8,10 @@ import pytest
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import QDateTime, Qt
 
-from desktop.control_center import ControlCenter, task_presentation, task_timestamp
+from desktop.control_center import (ControlCenter, save_task_snapshot, task_deadline,
+                                    task_presentation, task_snapshot_markdown, task_timestamp)
 from desktop.core.local_core_client import LocalCoreClient
 
 APP = QApplication.instance() or QApplication([])
@@ -227,3 +229,75 @@ def test_already_confirmed_reconciliation_is_reported_accurately(view):
     with patch.object(view, 'refresh'):
         view._received('reconcile', {'resolved': False, 'status': 'succeeded'}, '')
     assert 'Ergebnis bestätigt' in view._task_notice
+
+
+def test_deadlines_use_vienna_day_and_ignore_closed_tasks():
+    now = QDateTime.fromString('2026-10-10T22:30:00Z', Qt.DateFormat.ISODate)
+    task = {'kind': 'task', 'status': 'open', 'due_at': '2026-10-11T01:00:00+02:00'}
+    assert task_deadline(task, now)['category'] == 'today'
+    assert task_deadline({**task, 'due_at': '2026-10-11T00:00:00+02:00'}, now)['category'] == 'overdue'
+    assert task_deadline({**task, 'due_at': '2026-10-11T01:00:00'}, now)['category'] == 'today'
+    assert task_deadline({**task, 'due_at': '2026-10-12T01:00:00+02:00'}, now)['category'] == 'later'
+    assert task_deadline({**task, 'due_at': 'invalid'}, now)['label'] == 'Termin prüfen'
+    for state in ('completed', 'cancelled'):
+        assert task_deadline({**task, 'status': state}, now)['label'] == ''
+
+
+def test_sorting_and_due_filters_keep_action_bound_to_selected_identity(view):
+    tasks = [{'id': 'late', 'title': 'Später', 'status': 'open', 'priority': 'high',
+              'due_at': '2099-10-11T01:00:00+02:00'},
+             {'id': 'old', 'title': 'Überfällig', 'status': 'open', 'priority': 'normal',
+              'due_at': '2000-01-01T12:00:00+01:00'},
+             {'id': 'done', 'title': 'Erledigt', 'status': 'completed', 'priority': 'high',
+              'due_at': '2000-01-01T12:00:00+01:00'}]
+    activity(view, tasks=tasks)
+    view.table.selectRow(0)
+    view.task_sort.setCurrentIndex(view.task_sort.findData('deadline'))
+    assert [item['id'] for item in view._items] == ['old', 'late', 'done']
+    assert view.selected()['id'] == 'late'
+    assert view.table.currentRow() == 1
+    assert view.table.item(0, 6).text().startswith('Überfällig:')
+    client = Mock()
+    with patch.object(view, '_run', side_effect=lambda kind, action: action(client)):
+        view.task_start_button.click()
+    client.update_task.assert_called_once_with('late', 'in_progress')
+    view.deadline_filter.setCurrentIndex(view.deadline_filter.findData('overdue'))
+    assert [item['id'] for item in view._items] == ['old']
+    assert view.selected() is None
+    view.deadline_filter.setCurrentIndex(view.deadline_filter.findData('high'))
+    assert [item['id'] for item in view._items] == ['late']
+    view.deadline_filter.setCurrentIndex(view.deadline_filter.findData('today'))
+    assert [item['id'] for item in view._items] == ['old']
+
+
+def test_task_export_preserves_filter_warns_about_stale_data_and_excludes_parameters(view, tmp_path):
+    tasks = [{'id': 'one', 'title': 'Notizen [prüfen]', 'status': 'open', 'description': '<script>text</script>'},
+             {'id': 'two', 'title': 'Privat', 'status': 'completed'}]
+    activity(view, tasks=tasks, executions=[{'key': 'secret', 'action': 'mail', 'status': 'uncertain',
+                                           'params': {'token': 'SECRET'}, 'result': {'output': 'PRIVATE'}}])
+    view.task_search.setText('Notizen')
+    view._activity_fresh = False
+    path = tmp_path / 'Aufgaben.md'
+    with patch('desktop.control_center.QFileDialog.getSaveFileName', return_value=(str(path), 'Markdown')):
+        view.export_tasks_button.click()
+    text = path.read_text(encoding='utf-8')
+    assert 'nicht aktuell' in text
+    assert 'Notizen \\[prüfen\\]' in text
+    assert '\\<script\\>' in text
+    assert 'Privat' not in text and 'SECRET' not in text and 'PRIVATE' not in text
+    with patch.object(view, '_run') as run, \
+         patch('desktop.control_center.QFileDialog.getSaveFileName', return_value=('', '')):
+        view.export_tasks_button.click()
+    run.assert_not_called()
+
+
+def test_export_records_uncertain_outcome_and_failed_publish_preserves_existing_file(tmp_path):
+    text = task_snapshot_markdown([{'kind': 'execution', 'key': 'one', 'action': 'files.move',
+                                   'status': 'uncertain', 'params': {'token': 'SECRET'}}], fresh=True)
+    assert 'ungeklärt' in text and 'SECRET' not in text
+    target = tmp_path / 'tasks.md'
+    target.write_text('previous', encoding='utf-8')
+    with patch('desktop.control_center.Path.replace', side_effect=PermissionError), pytest.raises(PermissionError):
+        save_task_snapshot(target, text)
+    assert target.read_text(encoding='utf-8') == 'previous'
+    assert list(tmp_path.glob('.mica-export-*.tmp')) == []

@@ -23,6 +23,10 @@ def parse_quick_command(message: str) -> dict | None:
     text = re.sub(r"^(?:(?:hallo|hey)\s+)?mica[,\s]+", "", message.strip(), flags=re.I)
     original = re.sub(r"^bitte\s+", "", text, flags=re.I).rstrip(".!?")
     text = original.casefold()
+    from mica_shared.unit_conversion import parse_conversion
+    conversion = parse_conversion(original)
+    if conversion:
+        return conversion
     adjustment = re.fullmatch(r'(?:ich habe |ich kann )?erst ab \d{1,2}(?::\d{2})?\s*(?:uhr)?(?: zeit)?|(?:die )?aufgabe(?: .+?)? dauert (?:länger|(?:jetzt )?\d{1,4} minuten)', original, flags=re.I)
     if adjustment:
         return {'kind': 'task_planning', 'page': 'adjust', 'title': original}

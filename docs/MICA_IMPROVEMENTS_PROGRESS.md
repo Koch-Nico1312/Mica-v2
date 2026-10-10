@@ -21,7 +21,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 1 von 10 Features lokal implementiert
+## Erster Zyklus: 4 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -38,6 +38,52 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   mangels benutzereigener Zugangsdaten noch unbestätigt. Browser-OAuth sowie
   Jira-Schreibaktionen sind noch nicht eingebaut. Diese Ergänzungen dürfen nicht
   als bereits erledigt ausgegeben werden.
+
+### 2. Aufgaben nach Dringlichkeit und Fälligkeit ordnen
+
+- Aufgabenübersicht zeigt Priorität und Termin in Wiener Zeit, markiert
+  überfällige offene Aufgaben und bietet Filter für heute/überfällig/hohe Priorität.
+- Sortierung nach Dringlichkeit, Fälligkeit oder Titel; ursprüngliche Reihenfolge
+  bleibt auswählbar. Ungeklärte Ausführungen stehen bei Dringlichkeit zuerst.
+- Selektion bleibt an Aufgaben-ID gebunden; Statusaktionen greifen auch nach
+  Umsortierung auf die richtige Aufgabe. Abgeschlossene Aufgaben gelten nicht als
+  überfällig. Ungültige Termine werden sichtbar, nicht still umgedeutet.
+
+### 3. Sichtbare Aufgaben als Markdown exportieren
+
+- Exportknopf in der Aufgabenübersicht speichert genau den gefilterten/sortierten
+  Stand lokal. Veralteter Backend-Stand wird im Dokument kenntlich gemacht.
+- Keine Aktionsparameter oder Ausführungsergebnisse; Text wird Markdown-sicher
+  maskiert. Ungeklärte Ergebnisse bleiben als Hinweis sichtbar.
+- Atomisches Speichern; bei Fehler bleibt vorhandene Datei unverändert.
+
+### 4. Einheiten lokal und ohne Sprachmodell umrechnen
+
+- Chatbefehle wie `2,5 kg in gramm`, `12 zoll in cm`, `32 fahrenheit in celsius`.
+- Länge, Masse, Volumen, Fläche, Zeit und Temperatur; Dezimalkomma, exakte
+  definierte Faktoren und kontrollierte Ergebnisdarstellung.
+- Kanonische Desktop-UI kann Umrechnungen auch offline und ohne Speicherung
+  beantworten. Backend-Chat beantwortet dieselben Befehle direkt für alle Clients.
+- Keine Modell-/Netzwerkanfrage für die Berechnung, kein Ausdrucks-Eval. Gemischte
+  Dimensionen und Temperaturen unter dem absoluten Nullpunkt erzeugen klare Fehler.
+- Neue Backend-Grammatik braucht für den bereits laufenden API-Dienst einen
+  Neubau/Neustart. Bisher Source-/Test-Beleg, keine Aktualisierung des laufenden Dienstes.
+
+### Checkpoints und Prüfstand
+
+- Erster GitHub-Checkpoint: `c2cb11a`, Jira-Implementierung.
+- Erweiterter kombinierter Prüfstand: **160 bestanden**, dazu ein separat
+  hinzugefügter Test der kanonischen Desktop-Umrechnung im Offline-Modus ohne
+  Speicherung: **1 bestanden**. Insgesamt 161 unterschiedliche geprüfte Tests.
+- Abgedeckt: neue Funktionen, Dialoge, native Befehle, tägliche Operationen,
+  Aufgabenübersicht, Credential-Manager-Grenze und Antwortzeitmessung. Der API-Pfad
+  der Umrechnung ist über den echten FastAPI-Testclient geprüft.
+- Ruff und Git-Diff-Prüfung bestanden. Eine vorhandene Starlette-Testclient-
+  DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
+- Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
+  pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–4 als lokal implementiert;
+  externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
 
 ## Nächste Auswahl
 

@@ -46,6 +46,17 @@ def document(identifier=DOC, title="Docker.md", body="Docker läuft lokal.\nWeit
     return {"id": identifier, "title": title, "body": body, "source": "text"}
 
 
+def test_unit_conversion_completes_for_all_clients_without_model_or_persistent_storage(dialog):
+    client, runtime = dialog
+    for native in (False, True):
+        answer = turn(client, '2,5 kg in gramm', native_commands=native)
+        assert answer['state'] == 'completed'
+        assert answer['reply'] == '2,5 kg = 2500 g'
+        assert 'command' not in answer
+    runtime._local_completion.assert_not_called()
+    assert runtime.brain.documents() == []
+
+
 def test_selected_document_search_follow_up_and_ambiguous_file_choice(dialog):
     client, runtime = dialog
     select(client, [document(), document("c" * 32, "Docker Server.md", "Docker auf Proxmox")])
