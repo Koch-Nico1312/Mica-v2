@@ -439,6 +439,9 @@ class ControlCenter(ApiPage):
         from desktop.jira_page import JiraPage
         self.jira_page = JiraPage(can_save=can_save)
         self.tabs.addTab(self.jira_page, 'Jira')
+        from desktop.checklists_page import ChecklistsPage
+        self.checklists_page = ChecklistsPage(can_save=can_save)
+        self.tabs.addTab(self.checklists_page, 'Listen')
         self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)
         self.timer.setInterval(5000)

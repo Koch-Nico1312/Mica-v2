@@ -47,3 +47,15 @@ Es werden weder zusätzliche Dateien gelesen noch Texte an ein Modell gesendet.
 
 Die Befehle `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` zeigen die
 Zählung auch im Offline-Desktop und im Modus ohne Speicherung an.
+
+## Lokale Listen
+
+Unter **MICA im Alltag → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
+Einträge lassen sich abhaken und wieder öffnen. Zum Entfernen eines Eintrags
+oder einer ganzen Liste bestätigst du die Auswahl ausdrücklich.
+
+Die Listen bleiben lokal auf diesem Gerät gespeichert. Sie sind unabhängig von
+den Backend-Aufgaben und lösen keine Bestellungen oder andere Aktionen aus.
+Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
+MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
+den neuen Stand vor einem erneuten Änderungsversuch.

@@ -22,7 +22,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 6 von 10 Features lokal implementiert
+## Erster Zyklus: 7 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -103,6 +103,19 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 
 ### Checkpoints und Prüfstand (Fortsetzung)
 
+### 7. Lokale Einkaufs-, Pack- und Checklisten
+
+- Unter MICA im Alltag → Listen: benannte Listen erstellen/umbenennen,
+  Einträge hinzufügen, abhaken/wieder öffnen und nach Bestätigung entfernen.
+- Listen liegen ausschließlich im lokalen Datenbereich und überstehen Neustarts.
+  Keine externe Ausführung, automatische Bestellung oder Versandaktion.
+- Prozesssperre, atomisches Schreiben und Revision verhindern überschreibende
+  Änderungen durch veraltete Fenster. Duplikate werden sichtbar abgelehnt.
+- Im Modus ohne Speicherung wird keine Änderung übernommen. Beschädigter
+  gespeicherter Stand wird nicht still ersetzt.
+- Vier neue Persistenz-/Fehler-/UI-Tests, zusammen mit angrenzenden Seiten
+  **32 Tests bestanden**; Ruff und Diff-Prüfung bestanden.
+
 - Erster GitHub-Checkpoint: `c2cb11a`, Jira-Implementierung.
 - Weitere veröffentlichte Checkpoints: `3bdac36` (Aufgaben/Export/Umrechnung),
   `0b498b9` (Dokumentinfos/Suche), `b724ecc` (Jira-Aufgabenimport).
@@ -116,7 +129,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
 - Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
   pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–6 als lokal implementiert;
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–7 als lokal implementiert;
   externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
 
 ## Nächste Auswahl
