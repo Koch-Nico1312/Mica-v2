@@ -6,12 +6,15 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtWidgets import QApplication
 from desktop.control_center import ControlCenter
 from desktop.core.checklists import ChecklistStore
+from desktop.core.quick_notes import QuickNotesStore
 
 
 def test_local_pages_follow_dynamic_privacy_and_clear_password_when_leaving(tmp_path, monkeypatch):
     app = QApplication.instance() or QApplication([])
     store = ChecklistStore(tmp_path / 'lists.json')
+    notes_store = QuickNotesStore(tmp_path / 'notes.json')
     monkeypatch.setattr('desktop.checklists_page.ChecklistStore', lambda: store)
+    monkeypatch.setattr('desktop.quick_notes_page.QuickNotesStore', lambda: notes_store)
     clipboard = Mock()
     clipboard.text.return_value = ''
     monkeypatch.setattr('desktop.password_page.QApplication.clipboard', lambda: clipboard)
@@ -35,6 +38,18 @@ def test_local_pages_follow_dynamic_privacy_and_clear_password_when_leaving(tmp_
         lists.entry.setText('Reisepass')
         lists.add_button.click()
         assert store.read()['lists'][0]['items'] == []
+
+        notes = page.quick_notes_page
+        page.tabs.setCurrentWidget(notes)
+        notes.title.setText('Idee')
+        notes.body.setPlainText('Lokal behalten')
+        notes.save_button.click()
+        assert not notes_store.path.exists() and notes.dirty()
+        page._refresh_visible()
+        client_factory.assert_not_called()
+        privacy['save'] = True
+        notes.save_button.click()
+        assert notes_store.read()['notes'][0]['body'] == 'Lokal behalten'
 
         password = page.password_page
         page.tabs.setCurrentWidget(password)

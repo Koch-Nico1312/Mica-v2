@@ -38,6 +38,23 @@ Speicherfehler, Bestätigungsabbruch und dynamischem Datenschutz. Die Prüfung
 verwendet Qt-Offscreen; eine sichtbare laufende Desktop-Abnahme steht aus.
 Die folgenden breiten Ergebnisse beziehen sich auf den vorherigen Checkpoint.
 
+**Lokaler Notizblock:** Betrieb → Notizblock bietet neue Notizen, Bearbeiten,
+wörtliche Suche in Titel und Text, ausdrückliches Speichern und bestätigtes
+Entfernen. Ungespeicherte Entwürfe bleiben bei Filterwechsel, Speicherfehlern und
+Revisionkonflikten erhalten. Vor dem Wechsel der Notiz und dem Neuladen muss das
+Verwerfen bestätigt werden. Gespeicherte Notizen bleiben über Neustarts erhalten;
+ungespeicherte Entwürfe gehen beim Beenden verloren. Keine Backend-/Modellanfrage;
+Speicherungsfreigabe wird bei jedem Schreibvorgang neu geprüft.
+
+Prüfung nach diesem Paket: **20 Tests bestanden** für Notizblock, Checklisten und
+integrierte Alltag-Seiten. Neue Prüfungen decken Größen-/Anzahlgrenzen, Neustart,
+Suche, Revisionkonflikt, atomaren Speicherfehler, beschädigte Daten,
+Bestätigungsabbruch und den integrierten Datenschutzwechsel ab. Ruff und
+Konsistenzprüfung bestanden: 380 Python-Dateien, 164 lokale Links, keine Fehler.
+Die anschließende Prüfung des Notizblocks zusammen mit integrierten Seiten,
+Aufgabenübersicht und Startfenster bestand mit **34 Tests**. Die beiden Läufe
+überschneiden sich; ihre Testzahlen werden nicht addiert.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.

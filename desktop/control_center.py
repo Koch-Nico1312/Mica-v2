@@ -442,6 +442,9 @@ class ControlCenter(ApiPage):
         from desktop.checklists_page import ChecklistsPage
         self.checklists_page = ChecklistsPage(can_save=can_save)
         self.tabs.addTab(self.checklists_page, 'Listen')
+        from desktop.quick_notes_page import QuickNotesPage
+        self.quick_notes_page = QuickNotesPage(can_save=can_save)
+        self.tabs.addTab(self.quick_notes_page, 'Notizblock')
         from desktop.password_page import PasswordPage
         self.password_page = PasswordPage()
         self.tabs.addTab(self.password_page, 'Kennwort')

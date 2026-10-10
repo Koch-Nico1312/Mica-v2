@@ -92,6 +92,25 @@ Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
 MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
 den neuen Stand vor einem erneuten Änderungsversuch.
 
+## Lokaler Notizblock
+
+Unter **Betrieb → Notizblock** sammelst du kurze Ideen und Arbeitsnotizen.
+Wähle **Neue Notiz**, gib Titel und Text ein und klicke **Speichern**.
+Die Suche findet wörtliche Zeichenfolgen in Titel und Text, unabhängig von
+Groß-/Kleinschreibung. Sie verändert den geöffneten Entwurf nicht.
+
+Es gibt keine automatische Speicherung. Beim Wechsel zu einer anderen Notiz,
+bei **Neue Notiz** und bei **Neu laden** bestätigst du das Verwerfen eines
+ungespeicherten Entwurfs. Beim Beenden von MICA gehen ungespeicherte Entwürfe
+verloren; speichere sie vorher. **Notiz entfernen** benötigt eine Bestätigung.
+
+Bis zu 100 Notizen mit jeweils 80 Zeichen Titel und 20.000 Zeichen Text bleiben
+lokal gespeichert. Der Notizblock sendet sie nicht an das Backend oder ein Modell.
+Im Modus ohne Speicherung bleiben Entwürfe bearbeitbar; Speichern und Entfernen
+werden abgelehnt. Ein veralteter Stand oder Speicherfehler erhält den Entwurf
+und überschreibt keine neueren Notizen. Vor **Neu laden** kannst du den Entwurf
+im Textfeld markieren und kopieren, um ihn anschließend erneut einzufügen.
+
 ## Rechner
 
 Im Chat funktionieren `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder
