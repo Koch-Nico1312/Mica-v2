@@ -1,5 +1,8 @@
 import json
 import os
+from pathlib import Path
+import subprocess
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -8,6 +11,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from desktop.core.checklists import ChecklistStore
+from desktop.core.local_state import FileLease
 from desktop.checklists_page import ChecklistsPage
 
 
@@ -75,3 +79,46 @@ def test_ui_check_uncheck_cancel_removal_and_privacy(tmp_path):
     assert page.table.item(0, 0).checkState() == Qt.CheckState.Unchecked
     page.close()
     app.processEvents()
+
+
+def test_second_process_cannot_write_during_storage_lease(tmp_path):
+    path = tmp_path / 'lists.json'
+    store = ChecklistStore(path)
+    store.change('create', revision=0, text='Einkauf')
+    before = path.read_bytes()
+    code = (
+        'import sys\n'
+        'from pathlib import Path\n'
+        'from desktop.core.checklists import ChecklistStore\n'
+        'try:\n'
+        ' ChecklistStore(Path(sys.argv[1])).change("create", revision=1, text="Urlaub")\n'
+        'except ValueError as error:\n'
+        ' print(error)\n'
+        'else:\n'
+        ' raise SystemExit("Unexpected concurrent write")\n'
+    )
+    with FileLease(str(path) + '.lock'):
+        result = subprocess.run([sys.executable, '-c', code, str(path)],
+                                cwd=Path(__file__).resolve().parents[1],
+                                text=True, encoding='utf-8', capture_output=True, timeout=10,
+                                env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+        assert result.returncode == 0, result.stderr
+        assert 'anderen Mica-Instanz' in result.stdout
+        assert path.read_bytes() == before
+    data, _ = store.change('create', revision=1, text='Urlaub')
+    assert len(data['lists']) == 2
+
+
+def test_atomic_replace_failure_keeps_state_and_removes_temporary_file(tmp_path):
+    path = tmp_path / 'lists.json'
+    store = ChecklistStore(path)
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    before = path.read_bytes()
+    existing = set(tmp_path.iterdir())
+    with patch('desktop.core.local_state.os.replace', side_effect=PermissionError('locked')):
+        with pytest.raises(PermissionError):
+            store.change('rename', revision=data['revision'], list_id=identifier, text='Urlaub')
+    assert path.read_bytes() == before
+    assert set(tmp_path.iterdir()) == existing
+    data, _ = store.change('rename', revision=data['revision'], list_id=identifier, text='Urlaub')
+    assert data['lists'][0]['name'] == 'Urlaub'

@@ -197,3 +197,11 @@ Backend-/Desktop-Version weiterhin separat offen.
 - Das Dateisystem liefert keinen atomaren Schnappschuss; gleichzeitige externe
   Änderungen können weiterhin eine Teilansicht ergeben. Der Test ist eine eigene
   Verifikation und kein Bugbot-Befund. Die echte Bugbot-Prüfstufe bleibt offen.
+- Checklisten zusätzlich mit echtem zweitem Python-Prozess geprüft: Schreiben
+  während aktiver Dateisperre wird abgelehnt, nach Freigabe gelingt es wieder.
+  Fehler beim atomaren Dateiaustausch erhält den bisherigen Stand und entfernt
+  die temporäre Datei. Beide neuen Prüfungen mit Ordner/Kennwort: **12 bestanden**.
+- Projektweite Konsistenzprüfung: **376 Python-Dateien**, **150 lokale
+  Dokumentationslinks**, **0 Fehler**. Das ist Syntax-/Link-Evidenz und keine
+  vollständige Laufzeit- oder Bugbot-Abnahme.
+- Korrektur der Ordnerprüfung auf GitHub veröffentlicht: `35f2beb`.
