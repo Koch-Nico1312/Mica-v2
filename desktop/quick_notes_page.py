@@ -1,9 +1,10 @@
 """Local scratchpad with explicit save and protected drafts."""
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+from PyQt6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                             QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
 from desktop.core.quick_notes import MAX_BODY, QuickNotesStore, search_notes
+from desktop.core.markdown_export import note_markdown, save_markdown
 
 
 class QuickNotesPage(QWidget):
@@ -47,7 +48,9 @@ class QuickNotesPage(QWidget):
         self.remove_button.clicked.connect(self.remove)
         self.refresh_button = QPushButton('Neu laden')
         self.refresh_button.clicked.connect(self.reload)
-        for button in (self.new_button, self.save_button, self.remove_button, self.refresh_button):
+        self.export_button = QPushButton('Als Markdown exportieren')
+        self.export_button.clicked.connect(self.export)
+        for button in (self.new_button, self.save_button, self.remove_button, self.refresh_button, self.export_button):
             row.addWidget(button)
         layout.addLayout(row)
         self.reload()
@@ -139,6 +142,27 @@ class QuickNotesPage(QWidget):
 
     def save(self):
         self.change('save', title=self.title.text(), body=self.body.toPlainText())
+
+    def export(self):
+        if not self.can_save():
+            self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
+            return
+        try:
+            if len(self.body.toPlainText()) > MAX_BODY:
+                raise ValueError('Der Notiztext ist zu lang (höchstens 20.000 Zeichen).')
+            text = note_markdown(self.title.text(), self.body.toPlainText(),
+                                 saved=self.note_id is not None and not self.dirty())
+            path, _ = QFileDialog.getSaveFileName(self, 'Notiz exportieren', 'MICA-Notiz.md', 'Markdown (*.md)')
+            if not path:
+                return
+            if not self.can_save():
+                self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
+                return
+            save_markdown(path, text)
+        except (ValueError, OSError) as error:
+            self.status.setText('Notiz nicht exportiert: ' + str(error))
+            return
+        self.status.setText('Sichtbarer Text als Markdown exportiert. Die Notiz in MICA wurde nicht verändert.')
 
     def remove(self):
         if self.note_id is not None and QMessageBox.question(

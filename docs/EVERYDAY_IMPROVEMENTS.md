@@ -92,6 +92,11 @@ Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
 MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
 den neuen Stand vor einem erneuten Änderungsversuch.
 
+**Ausgewählte Liste als Markdown exportieren** speichert die sichtbaren Einträge
+mit ihren Haken in einer selbst gewählten Datei. Hat eine andere MICA-Instanz
+inzwischen Änderungen gespeichert, enthält der Export einen Hinweis auf die
+ältere Ansicht. Die gespeicherte Liste wird durch den Export nicht verändert.
+
 ## Lokaler Notizblock
 
 Unter **Betrieb → Notizblock** sammelst du kurze Ideen und Arbeitsnotizen.
@@ -110,6 +115,13 @@ Im Modus ohne Speicherung bleiben Entwürfe bearbeitbar; Speichern und Entfernen
 werden abgelehnt. Ein veralteter Stand oder Speicherfehler erhält den Entwurf
 und überschreibt keine neueren Notizen. Vor **Neu laden** kannst du den Entwurf
 im Textfeld markieren und kopieren, um ihn anschließend erneut einzufügen.
+
+**Als Markdown exportieren** speichert Titel und den sichtbaren Text in einer
+selbst gewählten Datei. Ungespeicherte Änderungen werden als Entwurf markiert;
+der Export speichert sie nicht zusätzlich im MICA-Notizblock. Text bleibt beim
+Export wörtlich: HTML, Bild- und Linksyntax werden maskiert. Beide Dateiexporte
+benötigen den Modus mit Speicherung. Abbruch und fehlgeschlagener Dateiaustausch
+erhalten bestehende Dateien.
 
 ## Rechner
 

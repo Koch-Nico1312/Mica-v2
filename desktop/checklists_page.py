@@ -1,8 +1,9 @@
 """Shopping/packing/checklists explicitly saved on this Windows device."""
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QComboBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+from PyQt6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 from desktop.core.checklists import CHECKLIST_TEMPLATES, ChecklistStore
+from desktop.core.markdown_export import checklist_markdown, save_markdown
 
 
 class ChecklistsPage(QWidget):
@@ -71,6 +72,9 @@ class ChecklistsPage(QWidget):
             button.clicked.connect(action)
             row.addWidget(button)
         layout.addLayout(row)
+        self.export_button = QPushButton('Ausgewählte Liste als Markdown exportieren')
+        self.export_button.clicked.connect(self.export)
+        layout.addWidget(self.export_button)
         self.refresh()
 
     def selected_list(self):
@@ -186,3 +190,27 @@ class ChecklistsPage(QWidget):
         if record and QMessageBox.question(self, 'Liste entfernen',
                                           f"Liste {record['name']} mit allen Einträgen entfernen?") == QMessageBox.StandardButton.Yes:
             self.change('remove_list')
+
+    def export(self):
+        record = self.selected_list()
+        revision = self.snapshot['revision']
+        if record is None:
+            self.status.setText('Bitte zuerst eine Liste auswählen.')
+            return
+        if not self.can_save():
+            self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
+            return
+        try:
+            path, _ = QFileDialog.getSaveFileName(self, 'Liste exportieren', 'MICA-Liste.md', 'Markdown (*.md)')
+            if not path:
+                return
+            if not self.can_save():
+                self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
+                return
+            fresh = self.store.read()['revision'] == revision
+            save_markdown(path, checklist_markdown(record, fresh=fresh))
+        except (ValueError, OSError) as error:
+            self.status.setText('Liste nicht exportiert: ' + str(error))
+            return
+        self.status.setText('Sichtbare Liste als Markdown exportiert.' if fresh else
+                            'Ältere Ansicht exportiert; der Hinweis steht auch in der Datei.')

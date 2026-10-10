@@ -55,6 +55,21 @@ Die anschließende Prüfung des Notizblocks zusammen mit integrierten Seiten,
 Aufgabenübersicht und Startfenster bestand mit **34 Tests**. Die beiden Läufe
 überschneiden sich; ihre Testzahlen werden nicht addiert.
 
+**Markdown-Export für Listen und Notizen:** Eigene Schaltflächen speichern den
+sichtbaren Stand in einer gewählten Datei. Listen behalten ihre Haken und warnen
+bei veraltetem Stand. Notizen kennzeichnen ungespeicherte Entwürfe, ohne sie
+zusätzlich im Notizblock zu speichern. HTML, Bilder und Links werden als
+wörtlicher Text maskiert. Der Modus ohne Speicherung sperrt auch den Export;
+die Freigabe wird nach dem Dateidialog erneut geprüft. Atomarer Dateiaustausch
+erhält alte Dateien bei Fehlern.
+
+Prüfung dieses Pakets: **24 Tests bestanden** für Export, Notizen, Checklisten
+und integrierte Alltagsseiten; Ruff bestanden. Neue Tests decken sichtbare
+Entwürfe, Revisionhinweise, Abbruch, Freigabewechsel während des Dateidialogs,
+Textmaskierung und gescheiterten Dateiaustausch ab. Diese Prüfung ist eine lokale
+Quellcode-/Qt-Offscreen-Prüfung; der laufende Desktop muss die Änderungen durch
+einen Neustart laden.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
