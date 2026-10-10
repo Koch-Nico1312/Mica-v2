@@ -22,7 +22,7 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
 - Checkpoints nur ausgewählte Source-/Test-/Dokumentdateien committen. Keine
   Secrets, Datenbanken, Modelle, privaten Mails oder Laufzeitdaten veröffentlichen.
 
-## Erster Zyklus: 9 von 10 Features lokal implementiert
+## Erster Zyklus: 10 von 10 Features lokal implementiert
 
 ### 1. Direkte Atlassian-Jira-MCP-Verbindung
 
@@ -149,8 +149,20 @@ Goal bleibt bis zum geprüften Abschluss aktiv.
   DeprecationWarning bleibt; keine fehlgeschlagenen Tests im vollständigen Lauf.
 - Der erste erweiterte Lauf hatte vier fehlende Testabhängigkeiten (numpy,
   pypdf, uvicorn); diese waren im erfolgreichen isolierten Wiederholungslauf vorhanden.
-- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–9 als lokal implementiert;
+- Für den Zehn-Feature-Bugbot-Gate zählen Funktionen 1–10 als lokal implementiert;
   externe Konto-/Hardware-/Live-Dienst-Abnahmen bleiben separat offen.
+
+### 10. Ordner auf große Dateien prüfen
+
+- MICA im Alltag → Dateigrößen: ausgewählten lokalen Ordner im Hintergrund
+  durchlaufen, logische Dateigrößen summieren und die größten 20 Dateien anzeigen.
+- Nur Metadaten lesen; keine Inhalte öffnen, verschieben oder löschen. Links und
+  Windows-Reparse-Punkte überspringen. Abbruch, Eintrags-/Tiefen-/Zeitbudget und
+  nicht lesbare Bereiche ergeben sichtbar eine Teilprüfung.
+- Drei neue Tests für Inventar, Abbruch/Grenzen, Links und den erreichbaren UI-Pfad.
+- Gemeinsamer aktueller Lauf über alle zehn Erweiterungen und angrenzende
+  Alltags-, Offline-, API- und Credential-Prüfungen: **231 Tests bestanden**.
+  Ruff für die neue Funktion bestanden. Vorhandene Testclient-DeprecationWarning.
 
 ## Nächste Auswahl
 
@@ -163,7 +175,10 @@ Jede Funktion braucht einen erreichbaren UI-/Chat-Pfad und passende Prüfungen.
 ## Offene Prüfstufe
 
 Der spezielle Bugbot-Subagent ist in dieser Sitzung nicht als Tool verfügbar.
-Nach zehn Features Verfügbarkeit erneut prüfen. Der Skill
+Nach zehn Features erneut geprüft: kein Bugbot-Werkzeug vorhanden. Der Skill
 `review-bugbot` verlangt den echten Reviewer; einen allgemeinen Agenten oder
 manuelle Prüfung niemals als Bugbot ausgeben. Keine garantierte Bugfreiheit
 behaupten. Gemeldete echte Befunde bearbeiten und erneute Prüfung dokumentieren.
+Der nächste Feature-Zyklus beginnt erst nach dieser Prüfstufe. Bis dahin weitere
+Verifikation und Stabilisierung des vorhandenen Zyklus; Live-Jira und laufende
+Backend-/Desktop-Version weiterhin separat offen.

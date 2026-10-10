@@ -75,3 +75,13 @@ in die Zwischenablage. MICA speichert das Kennwort nicht im Chat oder in Dateien
 Nach 60 Sekunden oder beim Verlassen der Seite entfernt MICA die Anzeige und
 die noch unveränderte eigene Zwischenablagekopie. Der Windows-Zwischenablageverlauf
 bleibt davon unberührt. Vorher neu kopierter fremder Text wird nicht gelöscht.
+
+## Große Dateien finden
+
+Unter **MICA im Alltag → Dateigrößen** wählst du einen Ordner aus. MICA zeigt
+die gefundenen logischen Dateigrößen und die größten 20 Dateien an. Es liest
+Dateinamen und Größen, ohne Dateiinhalte zu öffnen oder Dateien zu verändern.
+Links und Windows-Reparse-Punkte werden übersprungen; UNC-Netzwerkfreigaben
+werden abgelehnt. Du kannst die Prüfung abbrechen. Bei Abbruch, erreichtem
+Budget oder nicht lesbaren Bereichen ist das Ergebnis ausdrücklich eine
+Teilprüfung. Die logische Größe kann vom belegten Speicherplatz abweichen.

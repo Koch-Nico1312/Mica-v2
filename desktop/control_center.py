@@ -445,6 +445,9 @@ class ControlCenter(ApiPage):
         from desktop.password_page import PasswordPage
         self.password_page = PasswordPage()
         self.tabs.addTab(self.password_page, 'Kennwort')
+        from desktop.folder_analysis_page import FolderAnalysisPage
+        self.folder_analysis_page = FolderAnalysisPage()
+        self.tabs.addTab(self.folder_analysis_page, 'Dateigrößen')
         self.tabs.currentChanged.connect(lambda index: self.evolution_page.refresh() if self.tabs.widget(index) is self.evolution_page else None)
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
