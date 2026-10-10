@@ -260,3 +260,29 @@ def test_ui_paste_preview_cancel_privacy_and_confirmation(tmp_path):
     assert store.read()['lists'][0]['items'][1]['done']
     page.close()
     app.processEvents()
+
+
+def test_filtered_rows_keep_checkbox_and_removal_bound_to_item_identity(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    store.change('add_many', revision=1, list_id=identifier, items=parse_checklist_lines('Milch\nBrot\nKäse'))
+    page = ChecklistsPage(store=store)
+    page.search.setText('BROT')
+    assert page.table.rowCount() == 1 and page.table.item(0, 1).text() == 'Brot'
+    page.only_open.setChecked(True)
+    page.table.item(0, 0).setCheckState(Qt.CheckState.Checked)
+    assert page.table.rowCount() == 0
+    items = store.read()['lists'][0]['items']
+    assert [item['done'] for item in items] == [False, True, False]
+    page.only_open.setChecked(False)
+    page.table.selectRow(0)
+    with patch('desktop.checklists_page.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+        page.remove_item()
+    assert [item['text'] for item in store.read()['lists'][0]['items']] == ['Milch', 'Käse']
+    page.search.setText('.*')
+    assert page.table.rowCount() == 0
+    page.search.clear()
+    assert page.table.rowCount() == 2
+    page.close()
+    app.processEvents()

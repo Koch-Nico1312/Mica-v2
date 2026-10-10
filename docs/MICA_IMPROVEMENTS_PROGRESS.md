@@ -109,6 +109,18 @@ veraltete Revision, Dateiaustauschfehler, Vorschauabbruch und Speicherfreigabe a
 Lange Parametertest-Namen verursachten im ersten Lauf einen Windows-Testaufbaufehler;
 kurze explizite Fallnamen beseitigen diesen, der erneute Lauf besteht.
 
+**Listen durchsuchen und offene Einträge anzeigen:** Wörtliche Suche und der
+Offen-Filter lassen sich kombinieren. Checkboxen und Entfernen bleiben an die
+Eintrags-ID gebunden, auch wenn sich Zeilenpositionen durch den Filter ändern.
+Erledigte Einträge verschwinden aus der offenen Ansicht, bleiben aber gespeichert.
+Der Markdown-Export enthält exakt sichtbare Einträge und beschreibt seine Filter.
+Kopieren und Wiederöffnen gelten weiterhin für die vollständige Liste.
+
+**23 Tests bestanden** für Checklisten, Exporte und integrierte Alltag-Seiten;
+Ruff bestanden. Neue Prüfungen belegen korrektes Abhaken/Entfernen in gefilterten
+Zeilen und einen Export ohne ausgeblendete Inhalte. Die Quellcode-/Linkprüfung
+bleibt separat vom Nachweis einer laufenden Desktop-Version.
+
 ## Die zehn Funktionen
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.

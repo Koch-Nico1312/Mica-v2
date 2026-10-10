@@ -100,3 +100,25 @@ def test_checklist_export_records_stale_snapshot_and_leaves_latest_state_alone(t
     dialog.assert_not_called()
     page.close()
     app.processEvents()
+
+
+def test_list_export_contains_only_visible_entries_and_filter_description(tmp_path):
+    app = QApplication.instance() or QApplication([])
+    store = ChecklistStore(tmp_path / 'lists.json')
+    data, identifier = store.change('create', revision=0, text='Einkauf')
+    store.change('add_many', revision=1, list_id=identifier, items=[
+        {'text': 'Milch', 'done': False}, {'text': 'Milch Alternative', 'done': True},
+        {'text': 'Brot', 'done': False}])
+    page = ChecklistsPage(store=store)
+    page.only_open.setChecked(True)
+    page.search.setText('Milch')
+    before = store.path.read_bytes()
+    target = tmp_path / 'Sichtbar.md'
+    with patch('desktop.checklists_page.QFileDialog.getSaveFileName', return_value=(str(target), '')):
+        page.export()
+    text = target.read_text(encoding='utf-8')
+    assert '- [ ] Milch' in text and 'Nur offene Einträge' in text and 'Suche: Milch' in text
+    assert 'Alternative' not in text and 'Brot' not in text
+    assert store.path.read_bytes() == before
+    page.close()
+    app.processEvents()

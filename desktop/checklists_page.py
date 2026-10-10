@@ -1,6 +1,6 @@
 """Shopping/packing/checklists explicitly saved on this Windows device."""
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                             QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 from desktop.core.checklists import CHECKLIST_TEMPLATES, ChecklistStore, parse_checklist_lines
 from desktop.core.markdown_export import checklist_markdown, save_markdown
@@ -57,6 +57,16 @@ class ChecklistsPage(QWidget):
         self.paste_button.clicked.connect(self.paste_items)
         row.addWidget(self.paste_button)
         layout.addLayout(row)
+        row = QHBoxLayout()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText('Einträge in dieser Liste suchen')
+        self.search.setMaxLength(240)
+        self.search.textChanged.connect(self.render_items)
+        row.addWidget(self.search, 1)
+        self.only_open = QCheckBox('Nur offene Einträge')
+        self.only_open.toggled.connect(self.render_items)
+        row.addWidget(self.only_open)
+        layout.addLayout(row)
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(['Erledigt', 'Eintrag'])
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -75,7 +85,7 @@ class ChecklistsPage(QWidget):
             button.clicked.connect(action)
             row.addWidget(button)
         layout.addLayout(row)
-        self.export_button = QPushButton('Ausgewählte Liste als Markdown exportieren')
+        self.export_button = QPushButton('Sichtbare Einträge als Markdown exportieren')
         self.export_button.clicked.connect(self.export)
         layout.addWidget(self.export_button)
         self.refresh()
@@ -104,7 +114,10 @@ class ChecklistsPage(QWidget):
 
     def render_items(self, *_):
         record = self.selected_list()
-        items = record['items'] if record else []
+        all_items = record['items'] if record else []
+        items = self.visible_items()
+        selected = self.table.item(self.table.currentRow(), 0)
+        selected_id = selected.data(Qt.ItemDataRole.UserRole) if selected else None
         self._rendering = True
         try:
             self.table.setRowCount(0)
@@ -118,11 +131,19 @@ class ChecklistsPage(QWidget):
                 text.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 self.table.setItem(row, 0, checked)
                 self.table.setItem(row, 1, text)
+                if item['id'] == selected_id:
+                    self.table.selectRow(row)
         finally:
             self._rendering = False
         self.add_button.setEnabled(record is not None)
         self.paste_button.setEnabled(record is not None)
-        self.status.setText(f"{sum(not item['done'] for item in items)} offen · {sum(item['done'] for item in items)} erledigt" if record else 'Lege eine Liste an, z. B. Einkauf oder Urlaub.')
+        self.status.setText(f"{len(items)} / {len(all_items)} sichtbar · {sum(not item['done'] for item in all_items)} offen · {sum(item['done'] for item in all_items)} erledigt" if record else 'Lege eine Liste an, z. B. Einkauf oder Urlaub.')
+
+    def visible_items(self):
+        record = self.selected_list()
+        query = self.search.text().strip().casefold()
+        return [item for item in record['items'] if (not self.only_open.isChecked() or not item['done'])
+                and (not query or query in item['text'].casefold())] if record else []
 
     def change(self, operation, **kwargs):
         if not self.can_save():
@@ -212,9 +233,10 @@ class ChecklistsPage(QWidget):
                 self.change('rename', text=name)
 
     def remove_item(self):
-        record, row = self.selected_list(), self.table.currentRow()
-        if record and 0 <= row < len(record['items']):
-            item = record['items'][row]
+        record, checked = self.selected_list(), self.table.item(self.table.currentRow(), 0)
+        identifier = checked.data(Qt.ItemDataRole.UserRole) if checked else None
+        item = next((item for item in record['items'] if item['id'] == identifier), None) if record else None
+        if item:
             if QMessageBox.question(self, 'Eintrag entfernen', item['text']) == QMessageBox.StandardButton.Yes:
                 self.change('remove_item', item_id=item['id'])
 
@@ -233,6 +255,10 @@ class ChecklistsPage(QWidget):
         if not self.can_save():
             self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
             return
+        record = {**record, 'items': list(self.visible_items())}
+        scope = 'Nur offene Einträge' if self.only_open.isChecked() else 'Alle Einträge'
+        if self.search.text().strip():
+            scope += ' · Suche: ' + self.search.text().strip()
         try:
             path, _ = QFileDialog.getSaveFileName(self, 'Liste exportieren', 'MICA-Liste.md', 'Markdown (*.md)')
             if not path:
@@ -241,7 +267,7 @@ class ChecklistsPage(QWidget):
                 self.status.setText('Der Dateiexport benötigt den Modus mit Speicherung.')
                 return
             fresh = self.store.read()['revision'] == revision
-            save_markdown(path, checklist_markdown(record, fresh=fresh))
+            save_markdown(path, checklist_markdown(record, fresh=fresh, scope=scope))
         except (ValueError, OSError) as error:
             self.status.setText('Liste nicht exportiert: ' + str(error))
             return

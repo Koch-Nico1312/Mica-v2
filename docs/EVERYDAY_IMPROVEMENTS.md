@@ -92,10 +92,18 @@ Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
 MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
 den neuen Stand vor einem erneuten Änderungsversuch.
 
-**Ausgewählte Liste als Markdown exportieren** speichert die sichtbaren Einträge
+Über das Suchfeld findest du wörtlichen Text innerhalb der ausgewählten Liste.
+**Nur offene Einträge** blendet erledigte Einträge aus; Suche und Filter lassen
+sich kombinieren. Beim Abhaken verschwindet ein Eintrag aus der offenen Ansicht,
+bleibt aber gespeichert. Die Anzeige nennt sichtbare und gesamte Einträge.
+
+**Sichtbare Einträge als Markdown exportieren** speichert die sichtbaren Einträge
 mit ihren Haken in einer selbst gewählten Datei. Hat eine andere MICA-Instanz
 inzwischen Änderungen gespeichert, enthält der Export einen Hinweis auf die
 ältere Ansicht. Die gespeicherte Liste wird durch den Export nicht verändert.
+Der Export nennt die gewählte Suche und den Offen-Filter; ausgeblendete Einträge
+werden nicht exportiert. **Alle wieder öffnen** und **Als neue Liste kopieren**
+beziehen sich weiterhin auf die ganze ausgewählte Liste.
 
 **Mehrere Einträge** öffnet ein Textfeld für einen Eintrag pro Zeile. Du kannst
 einfache Zeilen, Aufzählungen wie `- Milch` oder Markdown-Haken wie `- [x] Brot`

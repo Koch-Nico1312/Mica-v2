@@ -19,12 +19,14 @@ def note_markdown(title, body, *, saved):
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def checklist_markdown(record, *, fresh):
+def checklist_markdown(record, *, fresh, scope=''):
     lines = ['# ' + literal_markdown(record['name']), '']
+    if scope:
+        lines.extend(['Ansicht: ' + literal_markdown(scope), ''])
     if not fresh:
         lines.extend(['Hinweis: Dies ist eine ältere Ansicht; die gespeicherte Liste wurde inzwischen geändert.', ''])
     if not record['items']:
-        lines.append('Diese Liste enthält keine Einträge.')
+        lines.append('Diese Ansicht enthält keine Einträge.')
     for item in record['items']:
         lines.append(f"- [{'x' if item['done'] else ' '}] " + literal_markdown(item['text']))
     return '\n'.join(lines) + '\n'
