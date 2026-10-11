@@ -1,160 +1,98 @@
 # MICA Improvements – Arbeits- und Prüfstand
 
-Stand: **11.10.2026**. Verbesserungsbranch: **MICA-Improvements**.
-Basis des ersten Zyklus: `e0c2133`. Aktueller Auftrag: Featurearbeit bis 06:00 Uhr,
-Dokumentationsüberarbeitung ab 08:30 Uhr am 11.10.2026, Europe/Vienna.
+Stand: **11.10.2026**, Dokumentationsarbeit tatsächlich ab **13:08 Europe/Vienna**.
+Branch: **MICA-Improvements**. Aktueller Codecheckpoint:
+`0abe40ca446a06a742600ba9b17e7b66cd79ef98`.
+Die Bedienung steht unter [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md);
+alle weiteren Themen unter [Dokumentationsübersicht](README.md).
 
 ## Aktueller Status
 
-| Bereich | Stand |
+| Bereich | Verifizierter Stand |
 |---|---|
-| Erster Funktionszyklus | Zehn Funktionen im Quellcode und ihren Bedienwegen implementiert |
-| Breite Regression | 953 Tests und 79 Untertests bestanden; ein Integrationstest ausgeschlossen |
-| Text-/Codeaufbereitung | Zwei zusätzliche Tests mit den festgelegten Versionen bestanden |
-| Quellcode und Links | Ruff bestanden; nach Dokumentationsüberarbeitung 377 Python-Dateien und 164 lokale Links ohne Fehler geprüft |
-| Veröffentlichung | Alle bisherigen Änderungen auf GitHub; letzter Prüfcheckpoint `1d8e134` |
-| Codeprüfung | Nutzer hat Bugbot ausdrücklich ausgeschlossen; eigene Codeprüfung und passende Tests |
-| Jira | Weitere Einrichtung und echte Kontoabnahme bis zum Nachmittag zurückgestellt |
-| Dokumentation | Einstieg, Übersicht, Bedienwege, Git-Stand und Prüfbericht überarbeitet; bisherige Einstiegslinks erhalten |
+| Funktionsumfang | 20 Funktionspakete in zwei Zyklen; Erweiterungen derselben Funktion zählen als eigene Pakete |
+| Aktuelle kombinierte Prüfung | 42 Tests am Codecheckpoint 0abe40c: Notizen, Checklisten, Markdown und integrierte Seiten |
+| Statische Prüfung am Codecheckpoint | Ruff bestanden; 382 Python-Dateien und 164 lokale Links geprüft |
+| Dokumentationsabschluss | Repository-Prüfung: 382 Python-Dateien, 171 lokale Dateilinks, keine Fehler; Abschnittslinks separat geprüft |
+| Historische breite Prüfung | 953 Tests und 79 Untertests am älteren Checkpoint 1d8e134; ein Integrationstest ausgeschlossen |
+| Separate historische Text-/Codeaufbereitung | Zwei Tests mit festgelegten Versionen bestanden |
+| Veröffentlichung | Codecheckpoint 0abe40c auf GitHub-Branch MICA-Improvements bestätigt |
+| Dokumentation | Einstieg nach Nutzerzielen, vollständige Bedienwege, Beispiele und getrennte Prüfstände überarbeitet |
+| Eigene Codeprüfung | Eigene Prüfung und passende Tests; Bugbot ausdrücklich vom Nutzer ausgeschlossen |
+| Jira | Einrichtung und echte Kontoabnahme separat zurückgestellt |
 
-Diese Angaben beschreiben Quellcode und ausgeführte Prüfungen. Sie bestätigen
-keine aktuell laufende Desktop-/Backend-Version, physische Audio-Abnahme oder
-Verbindung mit einem echten Jira-Konto. Der ausgeschlossene Integrationstest
-benötigt einen separat laufenden Dienst. Erfolgreiche Tests sind keine Garantie
-einer vollständig fehlerfreien Codebase.
+**Die 953 Tests sind keine aktuelle Gesamtprüfung von 0abe40c.**
+Die späteren fokussierten Läufe überschneiden sich und werden nicht addiert.
 
-## Neuer Funktionszyklus
+Die Ergebnisse belegen Quellcode und geprüfte Codepfade. Sie bestätigen keine
+aktuell laufende Desktop-/Backend-Version, physische Audio-Abnahme, Docker-
+Installation oder Verbindung mit einem echten Jira-Konto. Die Oberflächentests
+verwenden Qt-Offscreen; der Kopiertest eine kontrollierte Zwischenablage.
+Ein Neustart des aktualisierten Desktops lädt die neuen Reiter. Neue Backend-
+Befehle erfordern gegebenenfalls Neubau und Neustart.
 
-**Wiederverwendbare Checklisten:** Unter Betrieb → Listen bieten Einkauf, Reise
-und Arbeitsbeginn eine sichtbare Vorlage vor dem ausdrücklichen Anlegen.
-Bestehende Listen lassen sich als neue, vollständig offene Liste kopieren oder
-nach Bestätigung für den nächsten Durchlauf wieder öffnen. Neue IDs trennen
-Kopien vom Original; Namenkonflikte, veraltete Revisionen und Speicherfehler
-überschreiben keine vorhandenen Listen. Der Modus ohne Speicherung bleibt wirksam.
+## Aktuelle Prüfung nachvollziehen
 
-Prüfung dieses Pakets: **10 Tests bestanden** für Checklisten und integrierte
-Alltagsseiten, einschließlich Neustart, Revision, Kopieridentität,
-Speicherfehler, Bestätigungsabbruch und dynamischem Datenschutz. Die Prüfung
-verwendet Qt-Offscreen; eine sichtbare laufende Desktop-Abnahme steht aus.
-Die folgenden breiten Ergebnisse beziehen sich auf den vorherigen Checkpoint.
+Der letzte kombinierte Lauf am Codecheckpoint 0abe40c bestand mit **42 Tests**:
 
-**Lokaler Notizblock:** Betrieb → Notizblock bietet neue Notizen, Bearbeiten,
-wörtliche Suche in Titel und Text, ausdrückliches Speichern und bestätigtes
-Entfernen. Ungespeicherte Entwürfe bleiben bei Filterwechsel, Speicherfehlern und
-Revisionkonflikten erhalten. Vor dem Wechsel der Notiz und dem Neuladen muss das
-Verwerfen bestätigt werden. Gespeicherte Notizen bleiben über Neustarts erhalten;
-ungespeicherte Entwürfe gehen beim Beenden verloren. Keine Backend-/Modellanfrage;
-Speicherungsfreigabe wird bei jedem Schreibvorgang neu geprüft.
+```powershell
+python -m pytest tests/test_quick_notes.py tests/test_checklists.py tests/test_local_markdown_export.py tests/test_everyday_pages.py -q
+```
 
-Prüfung nach diesem Paket: **20 Tests bestanden** für Notizblock, Checklisten und
-integrierte Alltag-Seiten. Neue Prüfungen decken Größen-/Anzahlgrenzen, Neustart,
-Suche, Revisionkonflikt, atomaren Speicherfehler, beschädigte Daten,
-Bestätigungsabbruch und den integrierten Datenschutzwechsel ab. Ruff und
-Konsistenzprüfung bestanden: 380 Python-Dateien, 164 lokale Links, keine Fehler.
-Die anschließende Prüfung des Notizblocks zusammen mit integrierten Seiten,
-Aufgabenübersicht und Startfenster bestand mit **34 Tests**. Die beiden Läufe
-überschneiden sich; ihre Testzahlen werden nicht addiert.
+Er umfasst Speicherung über Neustarts, alte Datenformate, Revisionkonflikte,
+Eingabegrenzen, atomare Speicherfehler, Bestätigungsabbruch, dynamischen
+Datenschutzwechsel, gefilterte Eintragszuordnung, Entwurfserhalt, Markdown-
+Maskierung und die Übernahme einer Notiz als neue Checkliste.
 
-**Markdown-Export für Listen und Notizen:** Eigene Schaltflächen speichern den
-sichtbaren Stand in einer gewählten Datei. Listen behalten ihre Haken und warnen
-bei veraltetem Stand. Notizen kennzeichnen ungespeicherte Entwürfe, ohne sie
-zusätzlich im Notizblock zu speichern. HTML, Bilder und Links werden als
-wörtlicher Text maskiert. Der Modus ohne Speicherung sperrt auch den Export;
-die Freigabe wird nach dem Dateidialog erneut geprüft. Atomarer Dateiaustausch
-erhält alte Dateien bei Fehlern.
+Für die Dokumentationspflege wird die Repository-Prüfung verwendet:
 
-Prüfung dieses Pakets: **24 Tests bestanden** für Export, Notizen, Checklisten
-und integrierte Alltagsseiten; Ruff bestanden. Neue Tests decken sichtbare
-Entwürfe, Revisionhinweise, Abbruch, Freigabewechsel während des Dateidialogs,
-Textmaskierung und gescheiterten Dateiaustausch ab. Diese Prüfung ist eine lokale
-Quellcode-/Qt-Offscreen-Prüfung; der laufende Desktop muss die Änderungen durch
-einen Neustart laden.
+```powershell
+python -X utf8 scripts/check_repository.py
+```
 
-**Notizen anheften und Suchvorschau:** Gespeicherte Notizen lassen sich dauerhaft
-anheften/lösen. Angeheftete stehen zuerst, andere nach Titel; jede Suche zeigt
-eine begrenzte Textvorschau am ersten passenden Texttreffer und die Trefferzahl.
-Die Vorschau berücksichtigt Unicode-Groß-/Kleinschreibung, etwa Straße/STRASSE.
-Anheften erhält offene Textentwürfe und speichert deren Inhalt nicht. Alte
-Notizdateien ohne Markierung bleiben lesbar; ungültige Markierungen werden
-abgelehnt. Revision und Speicherungsfreigabe schützen auch diese Änderung.
+Sie prüft Python-Syntax und lokale Markdown-Dateilinkziele. Der heutige
+Dokumentationslauf erfasste 382 Python-Dateien und 171 lokale Dateilinks ohne
+Fehler. Die Abschnittslinks der vier überarbeiteten Dokumente wurden zusätzlich
+geprüft. Es wurde kein neuer Produktfunktionstest gestartet, da ausschließlich
+Dokumentation geändert wurde. Diese Prüfung ersetzt keine externe Link-/Dienstprüfung.
 
-**18 Tests bestanden** für Notizen, Markdown-Export und integrierte Alltagsseiten;
-Ruff bestanden. Die neue Anheft-Prüfung deckt Neustart, alte Dateiformate,
-veraltete Revisionen, Speicherfehler und offene Entwürfe ab. Eine beim ersten
-Testlauf gefundene falsche Einfügung im Neuladeweg wurde korrigiert; der erneute
-Lauf und die statische Prüfung bestehen.
+## Zweiter Zyklus: zehn weitere Funktionspakete
 
-**Notiz-Papierkorb:** Entfernen verschiebt den gespeicherten Text nach Bestätigung
-in einen lokalen Papierkorb. Eine separate schreibgeschützte Ansicht ermöglicht
-Wiederherstellen oder bestätigtes endgültiges Entfernen. Normale Suche blendet
-entfernte Notizen aus. Die Identität, Texte und Anheft-Markierung bleiben bei
-Wiederherstellung erhalten; es gibt keine automatische Leerung. Das Limit von
-100 Notizen schließt den Papierkorb ein. Ungespeicherte Änderungen werden beim
-Verschieben nach dem ausdrücklichen Hinweis verworfen.
+| Nr. | Funktion und Bedienweg | Verhalten | Checkpoint | Fokussierter Lauf nach dem Paket |
+|---|---|---|---|---|
+| 11 | Betrieb → Listen: Vorlagen und Wiederverwendung | Einkauf/Reise/Arbeitsbeginn; Vorschau, neue offene Kopie, bestätigtes Wiederöffnen | `030f14f` | 10 Tests |
+| 12 | Betrieb → Notizblock | Ausdrückliches Speichern, Suche, Entwurfserhalt und Neustart-Persistenz | `8070f7d` | 20; anschließend 34 überlappende Tests |
+| 13 | Listen/Notizblock → Markdown-Export | Sichtbaren Stand als wörtlichen Text exportieren; Entwurf/älteren Stand markieren | `3401634` | 24 Tests |
+| 14 | Notizblock → Anheften und Suchvorschau | Dauerhaft anheften, Unicode-Suche, begrenzte Ausschnitte; Entwurf bleibt erhalten | `e9d5bb0` | 18 Tests |
+| 15 | Notizblock → Papierkorb | Bestätigtes Verschieben, schreibgeschützte Ansicht, Wiederherstellen/endgültiges Entfernen | `4fbc5b4` | 20 Tests |
+| 16 | Listen → Mehrere Einträge | Zeilen/Aufzählungen/Markdown-Haken nach Vorschau gemeinsam übernehmen | `b3ae6ae` | 21 Tests |
+| 17 | Listen → Suche / Nur offene Einträge | Filter kombinieren; Export umfasst ausschließlich sichtbare Einträge | `772b500` | 23 Tests |
+| 18 | Listen → Ausgewählten Eintrag bearbeiten | Text korrigieren, Identität und Erledigt-Zustand erhalten | `d8a08da` | 25 Tests |
+| 19 | Notizblock → Notiz als Markdown kopieren | Ausdrückliche Kopie mit Rückprüfung, auch ohne Speicherung | `6bd63f0` | 22 Tests |
+| 20 | Notizblock → Notiz als neue Checkliste | Vorschau/Bestätigung, eine vollständige neue Liste, Notiz unverändert | `0abe40c` | 42 Tests |
 
-**20 Tests bestanden** für Notizfunktionen, Export und integrierte Alltagsseiten;
-Ruff bestanden. Neue Prüfungen decken Neustart, Wiederherstellen, Zustandsgrenzen,
-Revisionkonflikte, gescheiterte endgültige Entfernung, Abbruch und Datenschutz ab.
+Diese Zahlen sind überlappende Zwischenstände. Der letzte Lauf mit 42 Tests
+ist der kombinierte Nachweis für die aktuelle lokale Erweiterung.
 
-**Mehrere Listen-Einträge einfügen:** Ein ausdrücklicher Textdialog verarbeitet
-Zeilen, Aufzählungen, Nummerierungen und Markdown-Haken. Vorschau und Bestätigung
-gehen einer gemeinsamen atomaren Änderung voraus; bereits erledigte Haken werden
-übernommen. Duplikate, ungültige Einträge und das 200-Einträge-Limit führen zu
-keiner Teiländerung. Ziel und Revision dürfen während der Dialoge nicht wechseln.
-Dateien und Zwischenablage werden nicht automatisch gelesen.
+### Grenzen und Fehlerpfade
 
-**21 Tests bestanden** für Checklisten, lokale Markdown-Exporte und integrierte
-Alltagsseiten. Neue Prüfungen decken Formatübernahme, Duplikate, Eingabegrenzen,
-veraltete Revision, Dateiaustauschfehler, Vorschauabbruch und Speicherfreigabe ab.
-Lange Parametertest-Namen verursachten im ersten Lauf einen Windows-Testaufbaufehler;
-kurze explizite Fallnamen beseitigen diesen, der erneute Lauf besteht.
+- **Notizen:** höchstens 100 einschließlich Papierkorb, Titel 80 und Text
+  20.000 Zeichen. Keine automatische Speicherung; ungespeicherte Entwürfe
+  gehen beim Beenden verloren. Vor Wechsel/Neuladen wird Verwerfen bestätigt.
+- **Listen:** höchstens 20 mit je 200 Einträgen; Namen 80 und Einträge 240 Zeichen.
+  Ungültige Stapel oder Namenskonflikte werden vollständig abgelehnt.
+- **Speicherung:** Revision, Prozesssperre und atomarer Dateiaustausch verhindern
+  unbemerkte Übernahme auf veraltetem Stand und Teiländerungen bei Speicherfehlern.
+  Der Modus ohne Speicherung wird auch nach Dialogen erneut geprüft.
+- **Exports:** sichtbare Inhalte, kenntliche Entwürfe/ältere Ansicht und
+  wörtliche Maskierung; der Notizblock wird dadurch nicht zusätzlich gespeichert.
+- **Zwischenablage:** nur auf ausdrücklichen Klick. Die Notizkopie wird nicht
+  automatisch gelöscht. Beim Kennwort gilt ein eigener begrenzter Löschweg;
+  Windows-Zwischenablageverlauf bleibt davon unberührt.
+- **Notiz zu Liste:** Vorschau vor Erstellung; Abbruch, doppelte Inhalte,
+  Speicherfehler und Revisionkonflikte hinterlassen keine Teil- oder leere Liste.
 
-**Listen durchsuchen und offene Einträge anzeigen:** Wörtliche Suche und der
-Offen-Filter lassen sich kombinieren. Checkboxen und Entfernen bleiben an die
-Eintrags-ID gebunden, auch wenn sich Zeilenpositionen durch den Filter ändern.
-Erledigte Einträge verschwinden aus der offenen Ansicht, bleiben aber gespeichert.
-Der Markdown-Export enthält exakt sichtbare Einträge und beschreibt seine Filter.
-Kopieren und Wiederöffnen gelten weiterhin für die vollständige Liste.
-
-**23 Tests bestanden** für Checklisten, Exporte und integrierte Alltag-Seiten;
-Ruff bestanden. Neue Prüfungen belegen korrektes Abhaken/Entfernen in gefilterten
-Zeilen und einen Export ohne ausgeblendete Inhalte. Die Quellcode-/Linkprüfung
-bleibt separat vom Nachweis einer laufenden Desktop-Version.
-
-**Listeneinträge bearbeiten:** Eine eigene Schaltfläche korrigiert den Text der
-ausgewählten Zeile, ohne ID oder Erledigt-Zustand zu verändern. Auch gefilterte
-Zeilen bleiben korrekt zugeordnet. Abbruch, Datenschutzsperre, Duplikate,
-veralteter Stand und Speicherfehler erhalten den bisherigen Eintrag.
-
-**25 Tests bestanden** für Checklisten, Markdown-Exporte und integrierte Seiten;
-Ruff bestanden. Neue Prüfungen belegen den Erhalt von Identität und Haken sowie
-korrektes Bearbeiten einer gefilterten Zeile. Dokumentationslinks werden nach
-jeder Ergänzung erneut geprüft.
-
-**Notiz als Markdown kopieren:** Eine ausdrückliche Schaltfläche kopiert die
-sichtbare Notiz einschließlich Entwurfshinweis, ohne die Notizdatei zu schreiben.
-Das funktioniert auch ohne Speicherung. Leere/zu lange Inhalte werden abgelehnt;
-Speicherfehler der Zwischenablage erhalten den Entwurf. Erfolg wird erst nach
-dem Rücklesen derselben Textkopie gemeldet.
-
-**22 Tests bestanden** für Notizen, Markdown-Übernahme/Export und integrierte
-Seiten; Ruff bestanden. Die Kopierprüfung verwendet eine kontrollierte
-Zwischenablage und belegt ausdrückliche Übernahme, Datenschutzmodus, Ablehnung
-leerer Inhalte, Speicherfehler und fehlgeschlagene Rückprüfung. Sie ersetzt
-keine Abnahme der physischen Windows-Zwischenablage.
-
-**Notiz in neue Checkliste übernehmen:** Sichtbarer Titel und Text bilden nach
-Vorschau/Bestätigung eine neue lokale Liste. Markdown-Haken bleiben erhalten.
-Eine einzige atomare Änderung verhindert leere/teilweise Listen bei Fehlern;
-die Notiz und offene Entwürfe bleiben unverändert. Die Listenansicht wird nach
-Erfolg aktualisiert. Speicherungsfreigabe, Namenskonflikte, Grenzen und Revision
-gelten auch für diesen Übergang.
-
-**42 Tests bestanden** für Notizen, Checklisten, Exporte und integrierte Seiten;
-Ruff bestanden. Der neue Übergangstest deckt Abbruch, bestätigte Erstellung,
-Haken, Namenskonflikt, Speicherfehler und den erhaltenen Notizentwurf ab.
-
-## Die zehn Funktionen
+## Erster Zyklus: zehn Funktionspakete
 
 Öffne links **Betrieb**; die Seite trägt die Überschrift „MICA im Alltag“.
 Die ausführliche Bedienung steht unter [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md).
@@ -177,9 +115,9 @@ Beim lokalen Jira-Import ist die anfängliche 30-Minuten-Dauer ausdrücklich
 ein anpassbarer Platzhalter. Wechsel von Website oder Vorgangsnummer verwirft
 die Vorschau. Unbekannte Antwortformate werden nicht in geratene Aufgaben umgewandelt.
 
-## Aktuelle Prüfergebnisse
+## Historische breite Prüfung: Checkpoint 1d8e134
 
-Der breite erfolgreiche Lauf umfasst `tests/` und die Backend-Prüfungen für
+Der damalige breite erfolgreiche Lauf umfasste `tests/` und die Backend-Prüfungen für
 TTS, Docker-Lernen sowie Deployment-Verträge. Ein separat erforderlicher
 Integrationstest war ausdrücklich ausgeschlossen. Ergebnis: **953 Tests und
 79 Untertests bestanden**, Laufzeit 224,96 Sekunden. Eine vorhandene
@@ -196,7 +134,7 @@ Die Text-/Codeaufbereitung wurde separat unter Windows mit exakt
 **zwei Tests bestanden**. Das ist kein Beleg einer Docker-Abnahme; der lokale
 Docker-Daemon war zu diesem Zeitpunkt nicht erreichbar.
 
-Ruff über sämtliche im Branch geänderten Python-Dateien bestand. Die letzte
+Ruff über sämtliche im Branch geänderten Python-Dateien bestand. Die damalige
 Konsistenzprüfung nach der Dokumentationsüberarbeitung erfasste 377 Python-Dateien
 und 164 lokale Dokumentationslinks ohne Fehler. Nach Dokumentationsänderungen
 wird die Linkprüfung erneut ausgeführt.
@@ -218,7 +156,7 @@ wird die Linkprüfung erneut ausgeführt.
 ### Frühere Testläufe richtig lesen
 
 Die folgenden Zahlen sind Zwischenstände mit überlappenden Tests. Sie werden
-**nicht** addiert und ersetzen den aktuellen breiten Lauf nicht.
+**nicht** addiert und ersetzen die Prüfung einer später veränderten Codebase nicht.
 
 | Zwischenstand | Ergebnis |
 |---|---|
@@ -258,33 +196,30 @@ kein Produktcode geändert.
 | `aed840c` | Integrierte Navigation, Datenschutz und Kennwort-Lebenszyklus |
 | `1d8e134` | Breiter erfolgreicher Prüfstand |
 
-## Fortsetzung und laufende Organisation
 
-Auf die neue Dokumentationsanweisung hin wurden die Projekt-README und der
-Dokumentationsindex nach konkreten Nutzerzielen neu geordnet und auf Deutsch
-formuliert. Die Alltagshilfe nennt die tatsächliche Navigation **Betrieb**.
-Git-Neustart vom 04.10. und heutige GitHub-Anbindung sind getrennt beschrieben.
-Dieser Bericht zeigt die aktuelle Abnahme zuerst und die früheren Zwischenstände
-gesondert. Alle vorherigen Linkziele der beiden Einstiegsseiten bleiben erreichbar.
+## Zeitlicher Ablauf und Abschluss
 
-Der Nutzer hat im aktuellen Auftrag ausdrücklich angewiesen, Bugbot nie zu
-verwenden und neue Features weiterzuentwickeln. Die frühere Bugbot-Stufe gilt
-damit nicht mehr; Änderungen werden mit eigener Codeprüfung und passenden
-Tests geprüft. Unveränderte Tests werden nicht fortlaufend wiederholt.
+Geplant waren Featurearbeit bis **06:00**, Dokumentation ab **08:30** und ein
+separater Abschalttermin um **09:03**, jeweils am 11.10.2026 Europe/Vienna.
 
-Neue authentifizierte Instruktionen, einschließlich der separat beauftragten
-Dokumentationspflege, werden weiterhin bearbeitet. Statusmails werden alle
-20 Minuten anhand des letzten gespeicherten Versandzeitpunkts gesendet.
+Um **01:48** wurde die Grenze von mindestens 95 Prozent Verbrauch erreicht;
+Entwicklung und Tests wurden gestoppt. Der natürliche Reset war für **05:04:45**
+vermerkt. Eine Wiederaufnahme der Featurearbeit nach diesem Reset ist im
+vorliegenden Laufstand nicht belegt. Codecheckpoint 0abe40c blieb unverändert.
+Nach 06:00 wurden keine neuen Funktionen begonnen.
 
-Die Überwachung heißt `mica-verbesserungen-bis-09-uhr`. Private Mail-IDs,
-bearbeitete Instruktionen und Versandzeiten stehen ausschließlich im lokalen
-Laufzeitstand `.mica-data/improvement-run/status.json`, der nicht committet wird.
-Die Überwachung gehört jetzt zum aktuellen Verbesserungsauftrag; eine separate
-einmalige Fortsetzung beginnt die Dokumentationsüberarbeitung um 08:30 Uhr.
-Bei mindestens 95 Prozent Verbrauch eines relevanten Nutzungsfensters wird
-Entwicklungsarbeit erst nach dem zugehörigen Reset fortgesetzt; Reset-Credits
-werden nicht verwendet. Nach 06:00 werden keine neuen Funktionen begonnen;
-Abschlussprüfung, Veröffentlichung und Abschlussmail folgen, dann endet die Überwachung.
+Der letzte nächtliche bestätigte Statusversand erfolgte gegen **02:04**.
+Die folgenden vorgesehenen 20-Minuten-Mails sind nicht belegt. Die Dokumentations-
+automation wurde erst gegen **13:08** ausgelöst; die überfällige Statusmail
+wurde daraufhin versandt. Damit wurden die verlangten Zeitfenster und der
+durchgehende Mailrhythmus nicht vollständig eingehalten.
 
-Zugangsdaten, Datenbanken, Modelle, virtuelle Umgebungen und private Mailinhalte
+Die Dokumentationsarbeit erfolgt verspätet als eigener Abschluss. Der vergangene
+Abschalttermin wird dabei nicht erneut ausgelöst oder dupliziert. Sein tatsächlicher
+Vollzug wird hier nicht behauptet. Abgelaufene Entwicklungs-/Wiederaufnahmetermine
+sind pausiert; nach Abschluss wird auch die einmalige Dokumentationsautomation
+pausiert. Private Versandzeiten und verarbeitete Mail-IDs bleiben ausschließlich
+im ignorierten lokalen Laufzeitstand.
+
+Zugangsdaten, private Mailinhalte, Datenbanken, Modelle und virtuelle Umgebungen
 werden nicht als Projekt-Checkpoints veröffentlicht.

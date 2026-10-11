@@ -1,203 +1,270 @@
 # Neue Alltagshilfen
 
-Stand: **11.10.2026**. Öffne in der linken Navigation **Betrieb**.
-Die dortige Seite heißt „MICA im Alltag“. Wähle anschließend den passenden Reiter.
-Rechenbefehle gibst du im Chat ein; Dokumentinfos erreichst du über **Dateien**.
+Stand: **11.10.2026**, Quellcodecheckpoint **0abe40c**.
+Öffne in der linken Navigation **Betrieb**. Die Seite heißt „MICA im Alltag“;
+dort wählst du den passenden Reiter. Rechenbefehle gehören in den Chat,
+Dokumentinfos findest du unter **Dateien**.
 
-| Dein Ziel | Wo? | Beispiel oder Ergebnis |
+## Schnell zum Ziel
+
+| Ich möchte … | Bedienweg | Anleitung |
 |---|---|---|
-| Offene Aufgaben priorisieren | Betrieb → Aufgaben | Heute fällig, überfällig oder hohe Priorität |
-| Angezeigte Aufgaben mitnehmen | Betrieb → Aufgaben | Sichtbare Aufgaben als Markdown speichern |
-| Einheiten umrechnen | Chat | `12 Zoll in cm` |
-| Rechnen oder Prozentwert bestimmen | Chat | `Was sind 15 Prozent von 80` |
-| Wörter zählen oder Text suchen | Dateien → Infos / Suche | Wortzahl oder Treffer mit Textzeile |
-| Einkauf oder Reise vorbereiten | Betrieb → Listen | Einträge hinzufügen und abhaken |
-| Ein Kennwort erzeugen | Betrieb → Kennwort | Maskiertes Kennwort, auf Klick kopieren |
-| Große Dateien finden | Betrieb → Dateigrößen | Größte 20 Dateien eines ausgewählten Ordners |
+| Eine Idee festhalten und wiederfinden | Betrieb → Notizblock | [Notizen speichern und suchen](#lokaler-notizblock) |
+| Eine Einkaufsliste oder Packliste vorbereiten | Betrieb → Listen | [Listen erstellen und wiederverwenden](#lokale-listen) |
+| Aus einer Notiz eine Liste machen | Betrieb → Notizblock | [Notiz in Checkliste übernehmen](#aus-einer-notiz-eine-checkliste-machen) |
+| Nur offene Listeneinträge mitnehmen | Betrieb → Listen | [Suchen, filtern und exportieren](#suchen-filtern-und-exportieren) |
+| Fällige Aufgaben sehen | Betrieb → Aufgaben | [Aufgaben im Blick](#aufgaben-im-blick) |
+| Einheiten umrechnen | Chat | [Umrechnung mit Beispielen](#einheiten-umrechnen) |
+| Einen Prozentwert berechnen | Chat | [Rechner](#rechner) |
+| Wörter zählen oder eine Textstelle finden | Dateien → Infos / Suche | [Dokumentinfos und Suche](#dokumentinfos-und-lokale-suche) |
+| Ein Kennwort erzeugen | Betrieb → Kennwort | [Kennwortgenerator](#kennwort-erzeugen) |
+| Große Dateien finden | Betrieb → Dateigrößen | [Ordnerprüfung](#große-dateien-finden) |
 
-Aufgaben aus dem Backend benötigen eine Verbindung für einen aktuellen Stand.
-Rechner, Umrechnung, Dokumentinfos, Kennwortgenerator und Ordnerprüfung arbeiten
-lokal. Listenänderungen benötigen den Modus mit Speicherung. Die
-[Jira-Anbindung](JIRA_MCP.md) wird separat beschrieben und ist bis zum Nachmittag
-zurückgestellt. Der [Prüfstand](MICA_IMPROVEMENTS_PROGRESS.md) zeigt die Testbelege.
+Die [Jira-Anbindung](JIRA_MCP.md) hat eine eigene Anleitung. Ihre Einrichtung
+und Prüfung mit einem echten Konto sind separat zurückgestellt.
+Der [Prüfbericht](MICA_IMPROVEMENTS_PROGRESS.md) unterscheidet aktuelle Tests,
+ältere Prüfungen und noch offene Prüfungen auf dem Zielgerät.
 
-## Aufgaben im Blick
+## Was braucht Verbindung oder Speicherung?
 
-Unter **Betrieb → Aufgaben** kannst du den Aufgabenstand nach Dringlichkeit,
-Fälligkeit oder Titel sortieren. Priorität und Termine sind in der Tabelle sichtbar.
-**Heute fällig oder überfällig**, **Überfällig** und **Hohe Priorität** zeigen die
-passenden offenen Aufgaben. Termine verwenden die Zeitzone Europe/Vienna.
-Erledigte Aufgaben werden durch diese Terminfilter nicht als überfällig gezeigt.
+| Funktion | Backend-Verbindung | Modus mit Speicherung |
+|---|---|---|
+| Aktuelle Aufgaben laden | Erforderlich | Aufgabenexport benötigt Speicherung |
+| Gespeicherte Notizen oder Listen ansehen/suchen | Nicht erforderlich | Lesen möglich; Änderungen benötigen Speicherung |
+| Notizentwurf bearbeiten oder als Markdown kopieren | Nicht erforderlich | Nicht erforderlich |
+| Notiz speichern, anheften, entfernen oder wiederherstellen | Nicht erforderlich | Erforderlich |
+| Listen ändern oder aus einer Notiz erstellen | Nicht erforderlich | Erforderlich |
+| Notizen/Listen in eine Datei exportieren | Nicht erforderlich | Erforderlich |
+| Rechner und Umrechnung im Offline-Desktop | Nicht erforderlich | Nicht erforderlich |
+| Bereits eingelesene Dokumenttexte zählen/suchen | Nicht erforderlich | Nicht erforderlich |
+| Kennwortgenerator und Dateigrößen | Nicht erforderlich | Keine Speicherung dieser Ergebnisse nötig |
 
-**Sichtbare Aufgaben als Markdown speichern** exportiert die aktuelle Ansicht
-in eine lokale Datei. Die Datei enthält Titel, Beschreibung, Status, Priorität
-und gegebenenfalls Fälligkeit. Sie enthält keine Aktionsparameter oder
-Ausführungsergebnisse. Ein veralteter Backend-Stand wird im Export kenntlich gemacht.
-
-## Einheiten umrechnen
-
-MICA versteht diese kurzen Befehle ohne Sprachmodell:
-
-- `Mica, rechne 2,5 kg in Gramm um`
-- `12 Zoll in cm`
-- `500 ml in Liter`
-- `1 Hektar in m2`
-- `1,5 Stunden in Minuten`
-- `32 Fahrenheit in Celsius`
-
-Das funktioniert im Desktop auch im Offline-Modus. Unterstützt werden Länge,
-Masse, Volumen, Fläche, Zeit und Temperatur. Werte sind auf zwölf signifikante
-Stellen gerundet. Die Umrechnung verbindet ausschließlich Einheiten derselben
-Größe; etwa Kilogramm und Liter brauchen zusätzliche Angaben wie die Dichte.
-Währungsumrechnung und Maße wie Cups sind nicht Teil dieser Funktion.
-
-Die Backend-Version muss neu gestartet/gebaut werden, bevor die neuen
-Chatbefehle im bereits laufenden Backend verfügbar sind.
-
-## Dokumentinfos und lokale Suche
-
-Unter **Dateien → Infos / Suche** siehst du die Wort-/Zeichenzahl der ausgewählten
-Dokumente. MICA zählt die bereits eingelesene Textversion und kennzeichnet
-gekürzte oder nachträglich geänderte Dateien. Die Lesedauer ist eine Schätzung
-mit 200 Wörtern pro Minute.
-
-Im selben Fenster kannst du wörtlichen Text in allen angehakten Dokumenten
-suchen. Treffer enthalten den Dokumentnamen, die Textzeile und einen Ausschnitt.
-Suchzeichen wie `.*` sind normale Zeichen, keine regulären Ausdrücke.
-Es werden weder zusätzliche Dateien gelesen noch Texte an ein Modell gesendet.
-
-Die Befehle `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` zeigen die
-Zählung auch im Offline-Desktop und im Modus ohne Speicherung an.
-
-## Lokale Listen
-
-Unter **Betrieb → Listen** kannst du Einkaufs-, Pack- und Prüflisten anlegen.
-Einträge lassen sich abhaken und wieder öffnen. Zum Entfernen eines Eintrags
-oder einer ganzen Liste bestätigst du die Auswahl ausdrücklich.
-Markiere eine Tabellenzeile und wähle **Ausgewählten Eintrag bearbeiten**, um
-ihren Text zu korrigieren. Der Erledigt-Haken bleibt erhalten. Doppelte Texte,
-ungültige Eingaben und ein inzwischen geänderter Stand werden abgelehnt.
-
-Für einen schnellen Einstieg wähle **Einkauf**, **Reise** oder **Arbeitsbeginn**.
-Die Einträge der Vorlage werden vor dem Anlegen angezeigt. **Vorlage als neue
-Liste** speichert sie unter dem eingegebenen Namen, andernfalls unter dem
-Vorlagennamen; vorhandene Listen werden dabei nicht überschrieben.
-
-**Als neue Liste kopieren** übernimmt die Einträge der ausgewählten Liste unter
-einem neuen Namen. Alle Einträge der Kopie sind offen; die ursprüngliche Liste
-bleibt erhalten. Für wiederkehrende Abläufe setzt **Alle wieder öffnen** nach
-Bestätigung alle Haken der ausgewählten Liste zurück. Beides benötigt den Modus
-mit Speicherung und bleibt auch nach einem Neustart erhalten.
-
-Die Listen bleiben lokal auf diesem Gerät gespeichert. Sie sind unabhängig von
-den Backend-Aufgaben und lösen keine Bestellungen oder andere Aktionen aus.
-Im Modus ohne Speicherung werden Listenänderungen abgelehnt. Wenn eine andere
-MICA-Instanz denselben Stand geändert hat, wird die Ansicht aktualisiert; prüfe
-den neuen Stand vor einem erneuten Änderungsversuch.
-
-Über das Suchfeld findest du wörtlichen Text innerhalb der ausgewählten Liste.
-**Nur offene Einträge** blendet erledigte Einträge aus; Suche und Filter lassen
-sich kombinieren. Beim Abhaken verschwindet ein Eintrag aus der offenen Ansicht,
-bleibt aber gespeichert. Die Anzeige nennt sichtbare und gesamte Einträge.
-
-**Sichtbare Einträge als Markdown exportieren** speichert die sichtbaren Einträge
-mit ihren Haken in einer selbst gewählten Datei. Hat eine andere MICA-Instanz
-inzwischen Änderungen gespeichert, enthält der Export einen Hinweis auf die
-ältere Ansicht. Die gespeicherte Liste wird durch den Export nicht verändert.
-Der Export nennt die gewählte Suche und den Offen-Filter; ausgeblendete Einträge
-werden nicht exportiert. **Alle wieder öffnen** und **Als neue Liste kopieren**
-beziehen sich weiterhin auf die ganze ausgewählte Liste.
-
-**Mehrere Einträge** öffnet ein Textfeld für einen Eintrag pro Zeile. Du kannst
-einfache Zeilen, Aufzählungen wie `- Milch` oder Markdown-Haken wie `- [x] Brot`
-einfügen. MICA zeigt anschließend Anzahl und Erledigt-Zustand; unter den Details
-prüfst du alle Einträge. Erst deine Bestätigung übernimmt sie gemeinsam.
-Vorhandene Einträge bleiben erhalten. Doppelte Einträge, zu lange Zeilen oder
-mehr als insgesamt 200 Einträge werden vollständig abgelehnt; es gibt keine
-teilweise Übernahme. Weder Dateien noch die Zwischenablage werden automatisch
-eingelesen.
+Notizblock und Listen bleiben auf diesem Gerät. Diese Seiten senden ihre Inhalte
+nicht an ein Backend oder Sprachmodell. Kopieren und Exportieren sind ausdrückliche
+Übernahmen: Die Zwischenablage oder deine gewählte Datei enthält anschließend den Text.
+Ein Export ersetzt das Speichern im Notizblock nicht.
 
 ## Lokaler Notizblock
 
-Unter **Betrieb → Notizblock** sammelst du kurze Ideen und Arbeitsnotizen.
-Wähle **Neue Notiz**, gib Titel und Text ein und klicke **Speichern**.
-Die Suche findet wörtliche Zeichenfolgen in Titel und Text, unabhängig von
-Groß-/Kleinschreibung. Sie verändert den geöffneten Entwurf nicht.
+### Eine Notiz speichern und wiederfinden
 
-Die Trefferliste zeigt einen kurzen Textausschnitt und die Anzahl der passenden
-Notizen. Auch Treffer weiter hinten in langen Zeilen erscheinen im Ausschnitt.
-Mit **Notiz anheften** hältst du gespeicherte Notizen oben in der Liste;
-**Notiz lösen** hebt das wieder auf. Ansonsten werden Titel alphabetisch sortiert.
-Anheften speichert nur diese Markierung: Ein offener Textentwurf bleibt erhalten
-und wird dadurch nicht gespeichert. Auch die Markierung bleibt nach Neustarts
-erhalten und benötigt den Modus mit Speicherung.
+1. Öffne **Betrieb → Notizblock → Neue Notiz**.
+2. Gib einen Titel, etwa „Ideen fürs Wochenende“, und deinen Text ein.
+3. Klicke **Speichern**. Erst dieser Klick speichert den Text auf dem Gerät.
+4. Nutze das Suchfeld für Text aus Titel oder Inhalt. Die Suche beachtet
+   Groß-/Kleinschreibung nicht und zeigt kurze Textausschnitte mit Trefferzahl.
 
-Es gibt keine automatische Speicherung. Beim Wechsel zu einer anderen Notiz,
-bei **Neue Notiz** und bei **Neu laden** bestätigst du das Verwerfen eines
-ungespeicherten Entwurfs. Beim Beenden von MICA gehen ungespeicherte Entwürfe
-verloren; speichere sie vorher. **In Papierkorb** benötigt eine Bestätigung
-und verschiebt den gespeicherten Text dorthin; ein offener Entwurf wird verworfen.
+Die Suche ist wörtlich: Zeichen wie `.*` werden als Text gesucht.
+Auch Treffer weiter hinten in langen Zeilen erscheinen in der Vorschau.
+Mit **Notiz anheften** hältst du eine gespeicherte Notiz oben; **Notiz lösen**
+hebt die Markierung auf. Angeheftete Notizen stehen zuerst, sonst wird nach Titel
+sortiert. Anheften bleibt nach Neustarts erhalten und speichert keinen offenen
+Textentwurf.
 
-Mit **Papierkorb anzeigen** siehst du entfernte Notizen schreibgeschützt.
-**Notiz wiederherstellen** bringt sie mit ihrem gespeicherten Text und ihrer
-Anheft-Markierung zurück. Blende danach den Papierkorb aus, um sie zu bearbeiten.
-**Endgültig entfernen** löscht erst nach einer weiteren Bestätigung; danach
-ist eine Wiederherstellung aus diesem Papierkorb nicht mehr möglich. Es gibt
-keine automatische Leerung.
+### Entwürfe sicher behandeln
 
-Bis zu 100 Notizen einschließlich Papierkorb mit jeweils 80 Zeichen Titel und
-20.000 Zeichen Text bleiben
-lokal gespeichert. Der Notizblock sendet sie nicht an das Backend oder ein Modell.
-Im Modus ohne Speicherung bleiben Entwürfe bearbeitbar; Speichern und Entfernen
-werden abgelehnt. Ein veralteter Stand oder Speicherfehler erhält den Entwurf
-und überschreibt keine neueren Notizen. Vor **Neu laden** kannst du den Entwurf
-im Textfeld markieren und kopieren, um ihn anschließend erneut einzufügen.
+Es gibt keine automatische Speicherung. Suche und Anheften erhalten den offenen
+Entwurf. Beim Wechsel zu einer anderen Notiz, **Neue Notiz**, **Neu laden** oder
+einem Wechsel in die Papierkorbansicht bestätigst du das Verwerfen ungespeicherter
+Änderungen. **Beim Beenden von MICA gehen ungespeicherte Entwürfe verloren.**
 
-**Als Markdown exportieren** speichert Titel und den sichtbaren Text in einer
-selbst gewählten Datei. Ungespeicherte Änderungen werden als Entwurf markiert;
-der Export speichert sie nicht zusätzlich im MICA-Notizblock. Text bleibt beim
-Export wörtlich: HTML, Bild- und Linksyntax werden maskiert. Beide Dateiexporte
-benötigen den Modus mit Speicherung. Abbruch und fehlgeschlagener Dateiaustausch
-erhalten bestehende Dateien.
+Bei einem Speicherfehler oder einem inzwischen geänderten Datenstand bleibt
+der Entwurf erhalten. Kopiere ihn vor dem Neuladen, etwa mit **Notiz als Markdown
+kopieren**, und prüfe anschließend den neu geladenen Stand. Ein erneuter
+Speicherversuch überschreibt keine neueren Notizen stillschweigend.
 
-**Notiz als Markdown kopieren** übernimmt Titel und den sichtbaren Text erst
-auf deinen Klick in die Zwischenablage. Das funktioniert auch im Modus ohne
-Speicherung; ein Entwurf wird dabei nicht im Notizblock gespeichert. Ungespeicherte
-Texte werden in der Kopie als Entwurf gekennzeichnet. MICA prüft die übernommene
-Textkopie, bevor es Erfolg meldet. Die Zwischenablage wird anschließend nicht
-automatisch geleert.
+### Entfernen und wiederherstellen
 
-**Notiz als neue Checkliste** übernimmt den sichtbaren Titel als Listennamen und
-jede Textzeile als Eintrag. Aufzählungen und Markdown-Haken werden erkannt.
-Prüfe die Vorschau und ihre Details, bevor du bestätigst. Erst danach wird die
-Liste vollständig angelegt und ist unter **Listen** auswählbar. Die Notiz und
-ein ungespeicherter Entwurf bleiben unverändert. Namenskonflikte, Duplikate,
-ungültige Zeilen oder ein inzwischen geänderter Listenstand werden abgelehnt;
-es wird keine leere oder teilweise Liste hinterlassen. Speicherung ist nötig,
+1. Wähle eine gespeicherte Notiz und **In Papierkorb**.
+2. Lies den Hinweis und bestätige. Verschoben wird der gespeicherte Text;
+   ein offener, ungespeicherter Entwurf wird verworfen.
+3. Aktiviere **Papierkorb anzeigen**, um entfernte Notizen schreibgeschützt zu sehen.
+4. Wähle **Notiz wiederherstellen** und blende den Papierkorb danach aus.
+   Gespeicherter Text und Anheft-Markierung bleiben erhalten.
+
+**Endgültig entfernen** benötigt eine weitere Bestätigung. Danach kann die Notiz
+aus diesem Papierkorb nicht wiederhergestellt werden. Der Papierkorb wird nicht
+automatisch geleert und zählt zum Limit von **100 Notizen**. Jede Notiz erlaubt
+bis zu **80 Zeichen Titel** und **20.000 Zeichen Text**.
+
+### Eine Notiz mitnehmen
+
+| Schaltfläche | Ergebnis |
+|---|---|
+| **Als Markdown exportieren** | Titel und sichtbarer Text in einer selbst gewählten Datei; Speicherung erforderlich |
+| **Notiz als Markdown kopieren** | Titel und sichtbarer Text in der Zwischenablage; auch ohne Speicherung möglich |
+
+Ungespeicherte Änderungen werden als **Entwurf** gekennzeichnet und bleiben im
+Editor erhalten. Die Notiz wird durch Kopieren/Exportieren nicht zusätzlich
+gespeichert. HTML, Bild- und Linksyntax werden im Markdown als wörtlicher Text
+maskiert. MICA prüft die kopierte Textfassung vor der Erfolgsmeldung; die
+Notizkopie wird anschließend nicht automatisch aus der Zwischenablage entfernt.
+
+### Aus einer Notiz eine Checkliste machen
+
+Zum Beispiel: Titel „Einkauf Samstag“, Text:
+
+```text
+- [ ] Milch
+- [x] Brot
+- Äpfel
+```
+
+1. Wähle **Notiz als neue Checkliste**.
+2. Prüfe Titel, Anzahl, Haken und alle Einträge in den Details der Vorschau.
+3. Bestätige. Die vollständige neue Liste ist danach unter **Betrieb → Listen**
+   auswählbar. Im Beispiel ist Brot bereits erledigt.
+
+Jede nicht leere Textzeile wird ein Eintrag; Aufzählungen, Nummerierungen und
+Markdown-Haken werden erkannt. Die Notiz und ihr offener Entwurf bleiben
+unverändert. Namenskonflikte, doppelte/ungültige Einträge und ein inzwischen
+geänderter Listenstand werden vollständig abgelehnt. Speicherung ist erforderlich;
 Notizen im Papierkorb müssen zuerst wiederhergestellt werden.
+
+## Lokale Listen
+
+### Eine Liste erstellen
+
+1. Öffne **Betrieb → Listen**.
+2. Gib einen Namen ein und klicke **Liste anlegen**, oder wähle **Einkauf**,
+   **Reise** bzw. **Arbeitsbeginn** und prüfe die sichtbare Vorlage.
+3. **Vorlage als neue Liste** legt sie unter deinem eingegebenen Namen an;
+   ohne eigenen Namen wird der Vorlagenname verwendet.
+4. Ergänze einzelne Einträge mit **Hinzufügen** oder mehrere mit **Mehrere Einträge**.
+
+Im Dialog **Mehrere Einträge** gilt ein Eintrag pro Zeile. Einfache Zeilen,
+`- Milch`, Nummerierungen und `- [x] Brot` sind möglich. Prüfe Vorschau und Details;
+erst deine Bestätigung übernimmt alle Einträge gemeinsam. Vorhandene Einträge
+bleiben erhalten. Dateien und Zwischenablage werden nicht automatisch eingelesen.
+
+Es sind höchstens **20 Listen** mit jeweils **200 Einträgen**, **80 Zeichen
+Listenname** und **240 Zeichen pro Eintrag** möglich. Doppelte Texte, ungültige
+Zeilen oder eine Überschreitung führen zu keiner Teilübernahme.
+
+### Einträge bearbeiten und abhaken
+
+Ein Haken erledigt ausschließlich den Listeneintrag. Für eine Textkorrektur
+markiere die Tabellenzeile und wähle **Ausgewählten Eintrag bearbeiten**.
+Der Haken bleibt erhalten. **Eintrag entfernen** und **Liste entfernen**
+benötigen eine Bestätigung. Auch eine gefilterte Zeile bleibt dem richtigen
+Eintrag zugeordnet.
+
+Listen sind unabhängig von Backend-Aufgaben und starten keine Bestellungen
+oder anderen Aktionen. Jede Änderung wird lokal gespeichert und braucht den
+Modus mit Speicherung.
+
+### Listen wiederverwenden
+
+- **Als neue Liste kopieren**: neuer Name, dieselben Eintragstexte, alle Haken offen.
+  Das Original bleibt erhalten.
+- **Alle wieder öffnen**: nach Bestätigung alle Haken der ausgewählten Liste
+  zurücksetzen; auch derzeit ausgeblendete Einträge.
+- **Liste umbenennen**: den bestehenden Namen ändern, ohne Einträge zu verlieren.
+
+Vorlagen und Kopien überschreiben keine vorhandenen Listen.
+Gespeicherte Listen bleiben nach einem Neustart erhalten.
+
+### Suchen, filtern und exportieren
+
+Das Suchfeld findet wörtlichen Text innerhalb der ausgewählten Liste.
+**Nur offene Einträge** blendet erledigte aus. Beide Filter lassen sich
+kombinieren; die Anzeige nennt sichtbare und gesamte Einträge.
+Beim Abhaken verschwindet ein Eintrag aus der offenen Ansicht, bleibt aber gespeichert.
+
+**Sichtbare Einträge als Markdown exportieren** schreibt ausschließlich die
+angezeigten Einträge mit ihren Haken in eine gewählte Datei. Der Export nennt
+Suchtext und Offen-Filter. Für einen vollständigen Export lösche den Suchtext
+und deaktiviere **Nur offene Einträge**. Kopieren und Wiederöffnen beziehen sich
+immer auf die ganze Liste.
+
+## Aufgaben im Blick
+
+Unter **Betrieb → Aufgaben** sind Priorität und Termine sichtbar.
+Sortiere nach Dringlichkeit, Fälligkeit oder Titel. **Heute fällig oder überfällig**,
+**Überfällig** und **Hohe Priorität** zeigen passende offene Aufgaben.
+Termine verwenden Europe/Vienna; erledigte Aufgaben gelten durch diese Filter
+nicht als überfällig.
+
+**Sichtbare Aufgaben als Markdown speichern** exportiert die aktuelle Ansicht:
+Titel, Beschreibung, Status, Priorität und gegebenenfalls Fälligkeit.
+Aktionsparameter und Ausführungsergebnisse werden nicht übernommen.
+Ein veralteter Backend-Stand wird im Export gekennzeichnet.
+
+## Einheiten umrechnen
+
+Diese Chatbefehle benötigen kein Sprachmodell und funktionieren im Offline-Desktop:
+
+| Eingabe | Größe |
+|---|---|
+| `Mica, rechne 2,5 kg in Gramm um` | Masse |
+| `12 Zoll in cm` | Länge |
+| `500 ml in Liter` | Volumen |
+| `1 Hektar in m2` | Fläche |
+| `1,5 Stunden in Minuten` | Zeit |
+| `32 Fahrenheit in Celsius` | Temperatur |
+
+Die Anzeige verwendet zwölf signifikante Stellen. Umrechnungen verbinden nur
+Einheiten derselben Größe: Kilogramm in Liter braucht etwa eine Dichte.
+Währungen und Cups sind nicht unterstützt. Ein bereits laufendes Backend
+muss neu gestartet/gebaut werden, um neue Chatbefehle zu laden.
 
 ## Rechner
 
-Im Chat funktionieren `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder
-`Was sind 15 Prozent von 80`. MICA berechnet das lokal mit Dezimalarithmetik,
+Im Chat: `rechne (5 + 3) * 2`, `was ist 0,1 + 0,2` oder
+`Was sind 15 Prozent von 80`. MICA berechnet lokal mit Dezimalarithmetik,
 auch im Offline-Desktop ohne Speicherung. Unterstützt sind +, -, *, / und
-Klammern, mit höchstens zwölf signifikanten Stellen in der Ergebnisanzeige.
+Klammern; die Anzeige verwendet höchstens zwölf signifikante Stellen.
+
+## Dokumentinfos und lokale Suche
+
+Unter **Dateien → Infos / Suche** siehst du Wort-/Zeichenzahl der ausgewählten
+Dokumente und eine geschätzte Lesedauer mit 200 Wörtern pro Minute.
+Die Befehle `Wörter zählen`, `Zeichen zählen` und `Dokumentinfos` zeigen die
+Zählung auch im Offline-Desktop ohne Speicherung.
+
+Gezählt und durchsucht wird die bereits eingelesene Textversion. Kürzungen und
+nachträgliche Dateiänderungen werden gekennzeichnet. Die wörtliche Suche in
+angehakten Dokumenten zeigt Dokumentname, Textzeile und Ausschnitt; `.*` bleibt
+normaler Text. Zusätzliche Dateien werden nicht gelesen, Texte nicht an ein Modell gesendet.
 
 ## Kennwort erzeugen
 
-Unter **Betrieb → Kennwort** erzeugst du ein zufälliges Kennwort lokal.
-Die Anzeige ist zunächst maskiert; **Kopieren** übernimmt es auf deinen Klick
-in die Zwischenablage. MICA speichert das Kennwort nicht im Chat oder in Dateien.
+Unter **Betrieb → Kennwort** erzeugst du lokal ein zufälliges Kennwort mit
+12–128 Zeichen, standardmäßig 20. Die Anzeige ist maskiert; **Kopieren**
+übernimmt es auf deinen Klick in die Zwischenablage. Es wird nicht im Chat
+oder in Dateien gespeichert.
+
 Nach 60 Sekunden oder beim Verlassen der Seite entfernt MICA die Anzeige und
-die noch unveränderte eigene Zwischenablagekopie. Der Windows-Zwischenablageverlauf
-bleibt davon unberührt. Vorher neu kopierter fremder Text wird nicht gelöscht.
+die noch unveränderte eigene Zwischenablagekopie. Neu kopierter fremder Text
+bleibt erhalten. Der Windows-Zwischenablageverlauf bleibt davon unberührt.
 
 ## Große Dateien finden
 
-Unter **Betrieb → Dateigrößen** wählst du einen Ordner aus. MICA zeigt
-die gefundenen logischen Dateigrößen und die größten 20 Dateien an. Es liest
-Dateinamen und Größen, ohne Dateiinhalte zu öffnen oder Dateien zu verändern.
-Links und Windows-Reparse-Punkte werden übersprungen; UNC-Netzwerkfreigaben
-werden abgelehnt. Du kannst die Prüfung abbrechen. Bei Abbruch, erreichtem
-Budget oder nicht lesbaren Bereichen ist das Ergebnis ausdrücklich eine
-Teilprüfung. Die logische Größe kann vom belegten Speicherplatz abweichen.
+Unter **Betrieb → Dateigrößen** wählst du einen Ordner. MICA liest Dateinamen und
+logische Größen und zeigt die größten 20 Dateien. Dateiinhalte werden nicht
+geöffnet, Dateien nicht verändert. Links und Windows-Reparse-Punkte werden
+übersprungen; UNC-Netzwerkfreigaben abgelehnt.
+
+Du kannst abbrechen. Abbruch, erreichtes Budget und nicht lesbare Bereiche
+führen zu einer ausdrücklich gekennzeichneten Teilprüfung.
+Logische Größe und belegter Speicherplatz können voneinander abweichen.
+
+## Wenn etwas nicht klappt
+
+| Meldung oder Situation | Nächster Schritt |
+|---|---|
+| Speicherung ist deaktiviert | Für gespeicherte Änderungen den Modus mit Speicherung verwenden; Notizentwurf vorher kopieren |
+| Daten wurden inzwischen geändert | Listen mit **Aktualisieren** neu laden; bei Notizen den Entwurf zuerst kopieren, dann **Neu laden** |
+| Notiz-/Listenlimit erreicht | Nicht benötigte Einträge entfernen; bei Notizen zählt der Papierkorb mit |
+| Doppelte Namen oder Einträge | Eindeutigen Namen bzw. unterschiedliche Texte verwenden; Übernahme erneut prüfen |
+| Datei konnte nicht exportiert werden | Speicherort und Rechte prüfen; eine bestehende Datei bleibt bei gescheitertem Dateiaustausch erhalten |
+| Aufgaben zeigen einen alten Stand | Backend-Verbindung prüfen und Aufgaben aktualisieren |
+| Neuer Reiter oder Befehl fehlt | Aktualisierten Desktop neu starten; Backendbefehle nach Neubau/Neustart laden |
+
+Abbruch eines Dateidialogs ändert die Notiz oder Liste nicht. Bei Exporten kann
+ein Hinweis auf eine inzwischen ältere Ansicht erscheinen; aktualisiere vor
+einem erneuten Export, wenn du den neuesten Stand benötigst.
+
+Die dokumentierten Bedienwege sind im Quellcode und automatisierten Tests
+geprüft. Eine aktuelle Prüfung des sichtbaren Desktops, Audio und externer Konten
+ist separat erforderlich: [Prüfstand und Grenzen](MICA_IMPROVEMENTS_PROGRESS.md).

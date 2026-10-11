@@ -37,7 +37,7 @@ Der Konsolenstart bleibt über `python -m desktop.start_mica --console` verfügb
 |---|---|
 | Mikrofon, Satzende-Pause und Unterbrechen einstellen | [Sprache einrichten](docs/voice-improvements.md) |
 | Mit Text, Sprache und ausgewählten Dateien arbeiten | [Gespräche und Dokumente](docs/dialog-improvements.md) |
-| Rechnen, Einheiten umrechnen, Listen führen oder große Dateien finden | [Neue Alltagshilfen](docs/EVERYDAY_IMPROVEMENTS.md) |
+| Notizen sammeln, Listen führen, rechnen oder große Dateien finden | [Neue Alltagshilfen](docs/EVERYDAY_IMPROVEMENTS.md) |
 | Programme öffnen, Timer korrigieren und Fenster prüfen | [Alltagshilfe](docs/daily-assistance.md) |
 | Aufgaben, Erinnerungen, Diktate und Lernkarten nutzen | [Aufgaben und Weiterarbeiten](docs/assistance-extensions.md) |
 | Tagespläne erstellen und offline abgleichen | [Tagesplanung und Offline](docs/planning-offline-results.md) |
@@ -49,16 +49,23 @@ Der Konsolenstart bleibt über `python -m desktop.start_mica --console` verfügb
 
 ## Aktueller Stand
 
-Die zehn Erweiterungen des ersten Verbesserungszyklus sind im Quellcode und
-ihren Bedienwegen implementiert. Die [Funktionsübersicht](docs/EVERYDAY_IMPROVEMENTS.md)
-zeigt, wo du sie findest; der [Prüfstand](docs/MICA_IMPROVEMENTS_PROGRESS.md)
-trennt Implementierung, Tests und noch offene Abnahmen.
+Stand 11.10.2026: **20 Funktionspakete** sind im Quellcode und ihren
+Bedienwegen umgesetzt. Dazu gehören Notizblock mit Suche, Anheften und
+Papierkorb, wiederverwendbare Checklisten sowie bewusste Markdown-Übernahme.
+Die [Alltagshilfen](docs/EVERYDAY_IMPROVEMENTS.md) führen mit Beispielen durch
+die Bedienung und erklären Verbindung, Speicherung und Fehlerfälle.
 
-Stand 11.10.2026: **953 Tests und 79 Untertests bestanden**, ein Test mit einem
-separat benötigten Dienst wurde ausgeschlossen. Zwei Tests der Text- und
-Codeaufbereitung bestanden zusätzlich. Die echte Bugbot-Prüfung ist noch offen,
-weil der verlangte Reviewer in dieser Sitzung nicht verfügbar ist. Die
-[Jira-Anbindung](docs/JIRA_MCP.md) ist bis zum Nachmittag zurückgestellt.
+Der letzte kombinierte Lauf am Codecheckpoint **0abe40c** bestand mit
+**42 Tests** für Notizen, Listen, Exporte und integrierte Seiten.
+**953 Tests und 79 Untertests** gehören zum älteren Checkpoint **1d8e134**;
+ein Integrationstest war ausgeschlossen. Diese Zahlen werden nicht addiert.
+Der [Prüfbericht](docs/MICA_IMPROVEMENTS_PROGRESS.md) nennt Umfang und Grenzen.
+
+Die Änderungen erfordern einen Neustart des aktualisierten Desktops;
+Backendbefehle gegebenenfalls einen Neubau/Neustart des Backends. Tests ersetzen
+keine Prüfung von Audio, Modellen oder externen Konten auf deiner Installation.
+Bugbot wird auf ausdrückliche Nutzeranweisung nicht verwendet.
+Die [Jira-Anbindung](docs/JIRA_MCP.md) benötigt noch separate Einrichtung und Kontoabnahme.
 
 Das Projekt ist mit [GitHub](https://github.com/Koch-Nico1312/Mica-v2) verbunden.
 Die aktuellen Verbesserungen werden auf dem Branch **MICA-Improvements**

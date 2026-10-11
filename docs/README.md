@@ -12,16 +12,31 @@ Das Datum jeder Detailseite zeigt, auf welchen Arbeitsstand sich ihre Prüfergeb
 | Verbindung, Zertifikate oder Zugang prüfen | [API und LAN-Zugriff](api-access.md), [Betrieb und Diagnose](daily-operations.md) |
 | Mikrofon und Sprachbedienung einstellen | [Sprache einrichten](voice-improvements.md), [Parakeet/Whisper](parakeet-redux.md) |
 | Mit Dokumenten und Gesprächen arbeiten | [Gespräche und Dokumente](dialog-improvements.md) |
-| Rechnen, Listen führen, Dateien oder Aufgaben prüfen | [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md) |
+| Notizen sammeln, Listen führen, rechnen oder Aufgaben prüfen | [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md) |
 | Den aktuellen Verbesserungs- und Prüfstand sehen | [MICA Improvements](MICA_IMPROVEMENTS_PROGRESS.md) |
 | Quellcode sichern oder aktualisieren | [Git und Updates](Git-Vorbereitung.md), [Repository-Pflege](repository-maintenance.md) |
+
+## Drei kurze Einstiege
+
+1. **Idee festhalten:** Betrieb → Notizblock → Neue Notiz → Titel und Text → Speichern.
+   [Entwürfe, Suche und Wiederherstellung](EVERYDAY_IMPROVEMENTS.md#lokaler-notizblock).
+2. **Einkauf vorbereiten:** Betrieb → Listen → Vorlage Einkauf prüfen → Vorlage als neue Liste.
+   [Einträge, Filter und Wiederverwendung](EVERYDAY_IMPROVEMENTS.md#lokale-listen).
+3. **Eine Notiz als Liste nutzen:** Betrieb → Notizblock → Notiz als neue Checkliste →
+   Vorschau prüfen → bestätigen.
+   [Beispiel und Grenzen](EVERYDAY_IMPROVEMENTS.md#aus-einer-notiz-eine-checkliste-machen).
+
+Für lokale Änderungen ist der Modus mit Speicherung nötig. Notizentwürfe
+können auch ohne Speicherung bearbeitet und ausdrücklich kopiert werden.
+[Verbindung und Speicherung im Überblick](EVERYDAY_IMPROVEMENTS.md#was-braucht-verbindung-oder-speicherung).
 
 ## Bedienung im Alltag
 
 - [Alltagshilfe](daily-assistance.md): Programmstarts prüfen, Timer korrigieren,
   Dateiänderungen erkennen, Arbeitsmodus und gezielte Fensterhilfe nutzen.
 - [Neue Alltagshilfen](EVERYDAY_IMPROVEMENTS.md): Aufgabenfilter und Markdown-Export,
-  Umrechnung, Rechner, Dokumentinfos/Suche, Listen, Kennwörter und Dateigrößen.
+  Notizblock mit Suche/Anheften/Papierkorb, wiederverwendbare Listen, bewusste
+  Markdown-Übernahme, Umrechnung, Rechner, Dokumentinfos/Suche, Kennwörter und Dateigrößen.
 - [Aufgaben, Diktieren und Weiterarbeiten](assistance-extensions.md): Erinnerungen,
   Dokumentaufgaben, Routinen, Diktatkorrekturen, Lernkarten und Projektfortschritt.
 - [Tagesplanung, Offline und Ergebnisprüfung](planning-offline-results.md):
